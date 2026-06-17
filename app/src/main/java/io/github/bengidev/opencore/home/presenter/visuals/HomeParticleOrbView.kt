@@ -5,6 +5,7 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.provider.Settings
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.InfiniteTransition
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -88,23 +89,54 @@ internal fun HomeParticleOrbView(
                     scaleY = fitScale
                 }
         ) {
-            pack.layers.forEach { descriptor ->
-                OrbMainLayer(
-                    descriptor = descriptor,
-                    shouldAnimate = shouldAnimate
-                )
-            }
-            pack.outerOrbitDots.forEach { descriptor ->
-                OrbOrbitDotLayer(
-                    descriptor = descriptor,
-                    shouldAnimate = shouldAnimate
-                )
-            }
-            pack.sparks.forEach { descriptor ->
-                OrbSparkLayer(
-                    descriptor = descriptor,
-                    shouldAnimate = shouldAnimate
-                )
+            if (shouldAnimate) {
+                val mainLayerTransition = rememberInfiniteTransition(label = "orb-main-layers")
+                val orbitDotTransition = rememberInfiniteTransition(label = "orb-orbit-dots")
+                val sparkTransition = rememberInfiniteTransition(label = "orb-sparks")
+
+                pack.layers.forEach { descriptor ->
+                    OrbMainLayer(
+                        descriptor = descriptor,
+                        shouldAnimate = true,
+                        transition = mainLayerTransition
+                    )
+                }
+                pack.outerOrbitDots.forEach { descriptor ->
+                    OrbOrbitDotLayer(
+                        descriptor = descriptor,
+                        shouldAnimate = true,
+                        transition = orbitDotTransition
+                    )
+                }
+                pack.sparks.forEach { descriptor ->
+                    OrbSparkLayer(
+                        descriptor = descriptor,
+                        shouldAnimate = true,
+                        transition = sparkTransition
+                    )
+                }
+            } else {
+                pack.layers.forEach { descriptor ->
+                    OrbMainLayer(
+                        descriptor = descriptor,
+                        shouldAnimate = false,
+                        transition = null
+                    )
+                }
+                pack.outerOrbitDots.forEach { descriptor ->
+                    OrbOrbitDotLayer(
+                        descriptor = descriptor,
+                        shouldAnimate = false,
+                        transition = null
+                    )
+                }
+                pack.sparks.forEach { descriptor ->
+                    OrbSparkLayer(
+                        descriptor = descriptor,
+                        shouldAnimate = false,
+                        transition = null
+                    )
+                }
             }
         }
     }
@@ -113,7 +145,8 @@ internal fun HomeParticleOrbView(
 @Composable
 private fun OrbMainLayer(
     descriptor: ParticleOrbLayerDescriptor,
-    shouldAnimate: Boolean
+    shouldAnimate: Boolean,
+    transition: InfiniteTransition?
 ) {
     val centerX = CanvasWidth / 2f
     val centerY = CanvasHeight / 2f
@@ -135,9 +168,9 @@ private fun OrbMainLayer(
         return
     }
 
-    val transition = rememberInfiniteTransition(label = "orb-layer-${descriptor.phaseOffset}")
+    val layerTransition = transition ?: rememberInfiniteTransition(label = "orb-layer-${descriptor.phaseOffset}")
 
-    val driftProgress by transition.animateFloat(
+    val driftProgress by layerTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
@@ -147,10 +180,10 @@ private fun OrbMainLayer(
             ),
             repeatMode = RepeatMode.Restart
         ),
-        label = "drift"
+        label = "drift-${descriptor.phaseOffset}"
     )
 
-    val rotation by transition.animateFloat(
+    val rotation by layerTransition.animateFloat(
         initialValue = -descriptor.rotationRange,
         targetValue = descriptor.rotationRange,
         animationSpec = infiniteRepeatable(
@@ -160,10 +193,10 @@ private fun OrbMainLayer(
             ),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "rotation"
+        label = "rotation-${descriptor.phaseOffset}"
     )
 
-    val scale by transition.animateFloat(
+    val scale by layerTransition.animateFloat(
         initialValue = descriptor.restScale - descriptor.scaleRange,
         targetValue = descriptor.restScale + descriptor.scaleRange,
         animationSpec = infiniteRepeatable(
@@ -173,10 +206,10 @@ private fun OrbMainLayer(
             ),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "scale"
+        label = "scale-${descriptor.phaseOffset}"
     )
 
-    val opacity by transition.animateFloat(
+    val opacity by layerTransition.animateFloat(
         initialValue = (descriptor.restOpacity - descriptor.opacityRange).coerceAtLeast(0.02f),
         targetValue = (descriptor.restOpacity + descriptor.opacityRange).coerceAtMost(1f),
         animationSpec = infiniteRepeatable(
@@ -186,7 +219,7 @@ private fun OrbMainLayer(
             ),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "opacity"
+        label = "opacity-${descriptor.phaseOffset}"
     )
 
     val driftAngle = driftProgress * PI.toFloat() * 2f + descriptor.phaseOffset.toFloat()
@@ -217,7 +250,8 @@ private fun OrbMainLayer(
 @Composable
 private fun OrbOrbitDotLayer(
     descriptor: ParticleOrbOrbitDotDescriptor,
-    shouldAnimate: Boolean
+    shouldAnimate: Boolean,
+    transition: InfiniteTransition?
 ) {
     val imageSize = descriptor.imageSize
     val halfW = imageSize.width / 2f
@@ -242,9 +276,9 @@ private fun OrbOrbitDotLayer(
         return
     }
 
-    val transition = rememberInfiniteTransition(label = "orbit-dot-${descriptor.phaseOffset}")
+    val orbitTransition = transition ?: rememberInfiniteTransition(label = "orbit-dot-${descriptor.phaseOffset}")
 
-    val orbitProgress by transition.animateFloat(
+    val orbitProgress by orbitTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
@@ -254,10 +288,10 @@ private fun OrbOrbitDotLayer(
             ),
             repeatMode = RepeatMode.Restart
         ),
-        label = "orbit"
+        label = "orbit-${descriptor.phaseOffset}"
     )
 
-    val opacity by transition.animateFloat(
+    val opacity by orbitTransition.animateFloat(
         initialValue = (descriptor.restOpacity * 0.64f).coerceAtLeast(0.02f),
         targetValue = (descriptor.restOpacity * 1.22f).coerceAtMost(0.30f),
         animationSpec = infiniteRepeatable(
@@ -267,10 +301,10 @@ private fun OrbOrbitDotLayer(
             ),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "opacity"
+        label = "opacity-${descriptor.phaseOffset}"
     )
 
-    val scale by transition.animateFloat(
+    val scale by orbitTransition.animateFloat(
         initialValue = (descriptor.restScale - descriptor.scaleRange * 0.36f).coerceAtLeast(0.01f),
         targetValue = descriptor.restScale + descriptor.scaleRange,
         animationSpec = infiniteRepeatable(
@@ -280,7 +314,7 @@ private fun OrbOrbitDotLayer(
             ),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "scale"
+        label = "scale-${descriptor.phaseOffset}"
     )
 
     val position = descriptor.position(orbitProgress)
@@ -304,7 +338,8 @@ private fun OrbOrbitDotLayer(
 @Composable
 private fun OrbSparkLayer(
     descriptor: ParticleOrbSparkDescriptor,
-    shouldAnimate: Boolean
+    shouldAnimate: Boolean,
+    transition: InfiniteTransition?
 ) {
     val imageSize = descriptor.imageSize
     val halfW = imageSize.width / 2f
@@ -325,9 +360,9 @@ private fun OrbSparkLayer(
         return
     }
 
-    val transition = rememberInfiniteTransition(label = "spark-${descriptor.phaseOffset}")
+    val sparkTransition = transition ?: rememberInfiniteTransition(label = "spark-${descriptor.phaseOffset}")
 
-    val orbitProgress by transition.animateFloat(
+    val orbitProgress by sparkTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
@@ -337,10 +372,10 @@ private fun OrbSparkLayer(
             ),
             repeatMode = RepeatMode.Restart
         ),
-        label = "orbit"
+        label = "orbit-${descriptor.phaseOffset}"
     )
 
-    val opacity by transition.animateFloat(
+    val opacity by sparkTransition.animateFloat(
         initialValue = (descriptor.restOpacity * 0.58f).coerceAtLeast(0.03f),
         targetValue = (descriptor.restOpacity * 1.18f).coerceAtMost(0.42f),
         animationSpec = infiniteRepeatable(
@@ -350,10 +385,10 @@ private fun OrbSparkLayer(
             ),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "opacity"
+        label = "opacity-${descriptor.phaseOffset}"
     )
 
-    val scale by transition.animateFloat(
+    val scale by sparkTransition.animateFloat(
         initialValue = (descriptor.restScale - descriptor.scaleRange * 0.24f).coerceAtLeast(0.01f),
         targetValue = descriptor.restScale + descriptor.scaleRange * 0.46f,
         animationSpec = infiniteRepeatable(
@@ -363,7 +398,7 @@ private fun OrbSparkLayer(
             ),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "scale"
+        label = "scale-${descriptor.phaseOffset}"
     )
 
     val position = descriptor.position(orbitProgress)

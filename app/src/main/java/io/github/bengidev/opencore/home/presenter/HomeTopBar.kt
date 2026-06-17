@@ -18,11 +18,13 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.home.theme.HomeTheme
+import io.github.bengidev.opencore.ui.components.ThemeToggleButton
 
 @Composable
 internal fun HomeTopBar(
     onSidebarTapped: () -> Unit,
     onNewConversationTapped: () -> Unit,
+    onThemeToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val palette = HomeTheme.palette
@@ -49,6 +51,13 @@ internal fun HomeTopBar(
         }
 
         Spacer(modifier = Modifier.weight(1f))
+
+        ThemeToggleButton(
+            palette = palette,
+            isDark = palette.isDark,
+            onClick = onThemeToggle,
+            modifier = Modifier.padding(end = 8.dp)
+        )
 
         IconButton(
             onClick = onNewConversationTapped,

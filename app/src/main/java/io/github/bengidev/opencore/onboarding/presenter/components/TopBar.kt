@@ -20,7 +20,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.bengidev.opencore.onboarding.theme.AppTheme
+import io.github.bengidev.opencore.onboarding.theme.LocalAppTheme
 import io.github.bengidev.opencore.onboarding.theme.OnboardingTheme
+import io.github.bengidev.opencore.ui.components.ThemeToggleButton
 
 /** Top bar — iOS OnboardingTopBarView. */
 @Composable
@@ -32,6 +35,7 @@ internal fun OnboardingTopBar(
     modifier: Modifier = Modifier
 ) {
     val palette = OnboardingTheme.palette
+    val appTheme = LocalAppTheme.current
 
     Row(
         modifier = modifier
@@ -43,7 +47,12 @@ internal fun OnboardingTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(9.dp)
         ) {
-            ThemeToggleButton(onClick = onThemeToggle)
+            ThemeToggleButton(
+                palette = palette,
+                isDark = palette.isDark,
+                isSystemMode = appTheme == AppTheme.System,
+                onClick = onThemeToggle
+            )
 
             Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(

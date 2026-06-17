@@ -265,7 +265,7 @@ private fun HomeComposerContextUsageIndicator(
             .border(1.dp, palette.accentPrimary.copy(alpha = if (palette.isDark) 0.18f else 0.12f), CircleShape)
             .clickable(onClick = onClick)
             .semantics {
-                contentDescription = "Context usage"
+                contentDescription = "Context usage $usagePercent percent"
             },
         contentAlignment = Alignment.Center
     ) {

@@ -10,7 +10,8 @@ import io.github.bengidev.opencore.home.theme.OpenCoreHomeTheme
 @Composable
 internal fun HomeScreen(
     component: HomeComponent,
-    darkTheme: Boolean
+    darkTheme: Boolean,
+    onThemeToggle: () -> Unit
 ) {
     val state by component.state.subscribeAsState()
 
@@ -25,7 +26,8 @@ internal fun HomeScreen(
             onSendTapped = component::onSendTapped,
             onModelSelectorTapped = component::onModelSelectorTapped,
             onSpeedModeTapped = component::onSpeedModeTapped,
-            onContextUsageTapped = component::onContextUsageTapped
+            onContextUsageTapped = component::onContextUsageTapped,
+            onThemeToggle = onThemeToggle
         )
     }
 }

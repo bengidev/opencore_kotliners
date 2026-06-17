@@ -7,7 +7,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -15,16 +14,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.arkivanov.decompose.DefaultComponentContext
-import com.arkivanov.essenty.lifecycle.LifecycleRegistry
-import com.arkivanov.essenty.lifecycle.destroy
-import com.arkivanov.essenty.lifecycle.resume
 import io.github.bengidev.opencore.home.HomeFacade
 import io.github.bengidev.opencore.home.HomeScreen
 import io.github.bengidev.opencore.home.application.HomeComponent
 import io.github.bengidev.opencore.onboarding.OnboardingFacade
 import io.github.bengidev.opencore.onboarding.OnboardingScreen
 import io.github.bengidev.opencore.onboarding.application.OnboardingComponent
+import io.github.bengidev.opencore.ui.decompose.rememberComponentContext
 import io.github.bengidev.opencore.ui.theme.OpenCoreTheme
 
 class MainActivity : ComponentActivity() {
@@ -58,7 +54,8 @@ class MainActivity : ComponentActivity() {
                     )
                     false -> HomeRoute(
                         facade = homeFacade,
-                        darkTheme = darkTheme
+                        darkTheme = darkTheme,
+                        onThemeToggle = { darkTheme = !darkTheme }
                     )
                 }
             }
@@ -74,13 +71,7 @@ private fun OnboardingRoute(
     onThemeToggle: () -> Unit,
     onComplete: () -> Unit
 ) {
-    val childLifecycle = remember { LifecycleRegistry() }
-    DisposableEffect(childLifecycle) {
-        childLifecycle.resume()
-        onDispose { childLifecycle.destroy() }
-    }
-
-    val componentContext = remember(childLifecycle) { DefaultComponentContext(lifecycle = childLifecycle) }
+    val componentContext = rememberComponentContext()
     val onboardingComponent: OnboardingComponent = remember(componentContext) {
         facade.createComponent(
             context = activity,
@@ -99,21 +90,17 @@ private fun OnboardingRoute(
 @Composable
 private fun HomeRoute(
     facade: HomeFacade,
-    darkTheme: Boolean
+    darkTheme: Boolean,
+    onThemeToggle: () -> Unit
 ) {
-    val childLifecycle = remember { LifecycleRegistry() }
-    DisposableEffect(childLifecycle) {
-        childLifecycle.resume()
-        onDispose { childLifecycle.destroy() }
-    }
-
-    val componentContext = remember(childLifecycle) { DefaultComponentContext(lifecycle = childLifecycle) }
+    val componentContext = rememberComponentContext()
     val homeComponent: HomeComponent = remember(componentContext) {
         facade.createComponent(componentContext = componentContext)
     }
 
     HomeScreen(
         component = homeComponent,
-        darkTheme = darkTheme
+        darkTheme = darkTheme,
+        onThemeToggle = onThemeToggle
     )
 }

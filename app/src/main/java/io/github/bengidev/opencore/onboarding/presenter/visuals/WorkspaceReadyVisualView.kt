@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.bengidev.opencore.onboarding.domain.OnboardingFeatureHighlight
 import io.github.bengidev.opencore.onboarding.domain.OnboardingPage
-import io.github.bengidev.opencore.onboarding.presenter.components.ScaleToFitText
+import io.github.bengidev.opencore.ui.components.ScaleToFitText
 import io.github.bengidev.opencore.onboarding.theme.OnboardingTheme
 import kotlinx.coroutines.delay
 

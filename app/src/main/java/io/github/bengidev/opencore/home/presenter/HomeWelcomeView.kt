@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.bengidev.opencore.home.presenter.visuals.HomeParticleOrbView
 import io.github.bengidev.opencore.home.theme.HomeTheme
-import io.github.bengidev.opencore.onboarding.presenter.components.ScaleToFitText
+import io.github.bengidev.opencore.ui.components.ScaleToFitText
 
 @Composable
 internal fun HomeWelcomeView(modifier: Modifier = Modifier) {
