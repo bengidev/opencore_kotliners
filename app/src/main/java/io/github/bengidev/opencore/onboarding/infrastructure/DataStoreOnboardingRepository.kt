@@ -9,21 +9,21 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
+private val Context.onboardingPreferencesDataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "onboarding_prefs"
+)
+
 internal class DataStoreOnboardingRepository(
     private val context: Context
 ) : OnboardingRepository {
 
-    private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
-        name = "onboarding_prefs"
-    )
-
     override suspend fun isOnboardingCompleted(): Boolean =
-        context.dataStore.data.map { preferences ->
+        context.onboardingPreferencesDataStore.data.map { preferences ->
             preferences[KEY_ONBOARDING_COMPLETED] ?: false
         }.first()
 
     override suspend fun completeOnboarding() {
-        context.dataStore.edit { preferences ->
+        context.onboardingPreferencesDataStore.edit { preferences ->
             preferences[KEY_ONBOARDING_COMPLETED] = true
         }
     }

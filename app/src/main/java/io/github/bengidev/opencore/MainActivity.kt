@@ -19,6 +19,9 @@ import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.arkivanov.essenty.lifecycle.destroy
 import com.arkivanov.essenty.lifecycle.resume
+import io.github.bengidev.opencore.home.HomeFacade
+import io.github.bengidev.opencore.home.HomeScreen
+import io.github.bengidev.opencore.home.application.HomeComponent
 import io.github.bengidev.opencore.onboarding.OnboardingFacade
 import io.github.bengidev.opencore.onboarding.OnboardingScreen
 import io.github.bengidev.opencore.onboarding.application.OnboardingComponent
@@ -30,7 +33,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val facade = OnboardingFacade()
+        val onboardingFacade = OnboardingFacade()
+        val homeFacade = HomeFacade()
 
         setContent {
             var darkTheme by rememberSaveable { mutableStateOf(false) }
@@ -38,7 +42,7 @@ class MainActivity : ComponentActivity() {
 
             LaunchedEffect(Unit) {
                 if (showOnboarding == null) {
-                    showOnboarding = !facade.isOnboardingCompleted(this@MainActivity)
+                    showOnboarding = !onboardingFacade.isOnboardingCompleted(this@MainActivity)
                 }
             }
 
@@ -46,13 +50,16 @@ class MainActivity : ComponentActivity() {
                 when (showOnboarding) {
                     null -> Box(modifier = Modifier.fillMaxSize())
                     true -> OnboardingRoute(
-                        facade = facade,
+                        facade = onboardingFacade,
                         activity = this@MainActivity,
                         darkTheme = darkTheme,
                         onThemeToggle = { darkTheme = !darkTheme },
                         onComplete = { showOnboarding = false }
                     )
-                    false -> OpenCoreHomePlaceholder()
+                    false -> HomeRoute(
+                        facade = homeFacade,
+                        darkTheme = darkTheme
+                    )
                 }
             }
         }
@@ -86,5 +93,27 @@ private fun OnboardingRoute(
         component = onboardingComponent,
         darkTheme = darkTheme,
         onThemeToggle = onThemeToggle
+    )
+}
+
+@Composable
+private fun HomeRoute(
+    facade: HomeFacade,
+    darkTheme: Boolean
+) {
+    val childLifecycle = remember { LifecycleRegistry() }
+    DisposableEffect(childLifecycle) {
+        childLifecycle.resume()
+        onDispose { childLifecycle.destroy() }
+    }
+
+    val componentContext = remember(childLifecycle) { DefaultComponentContext(lifecycle = childLifecycle) }
+    val homeComponent: HomeComponent = remember(componentContext) {
+        facade.createComponent(componentContext = componentContext)
+    }
+
+    HomeScreen(
+        component = homeComponent,
+        darkTheme = darkTheme
     )
 }
