@@ -1,4 +1,4 @@
-package io.github.bengidev.opencore.onboarding.presenter.components
+package io.github.bengidev.opencore.ui.components
 
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -24,10 +24,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import io.github.bengidev.opencore.onboarding.theme.OnboardingTheme
-import io.github.bengidev.opencore.onboarding.theme.AppTheme
-import io.github.bengidev.opencore.onboarding.theme.LocalAppTheme
+import io.github.bengidev.opencore.onboarding.theme.OpenCorePalette
 import kotlinx.coroutines.delay
 
 private val TrackWidth = 32.dp
@@ -40,14 +40,12 @@ private val ThumbCenterOffset = (TrackWidth - ThumbWidth) / 2
 /** Theme toggle track — matches iOS ThemeToggleButton (32×28, sliding accent thumb). */
 @Composable
 internal fun ThemeToggleButton(
+    palette: OpenCorePalette,
+    isDark: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isSystemMode: Boolean = false
 ) {
-    val palette = OnboardingTheme.palette
-    val appTheme = LocalAppTheme.current
-    val isSystemMode = appTheme == AppTheme.System
-    val isDark = palette.isDark
-
     var tapped by remember { mutableStateOf(false) }
 
     val thumbOffset by animateDpAsState(
@@ -101,6 +99,7 @@ internal fun ThemeToggleButton(
                 color = if (isSystemMode) palette.lineStrong else palette.lineSoft,
                 shape = RoundedCornerShape(6.dp)
             )
+            .semantics { contentDescription = "Toggle theme" }
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
