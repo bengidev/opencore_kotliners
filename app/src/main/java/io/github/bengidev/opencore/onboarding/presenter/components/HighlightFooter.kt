@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.bengidev.opencore.onboarding.domain.OnboardingFeatureHighlight
 import io.github.bengidev.opencore.onboarding.theme.OnboardingTheme
+import io.github.bengidev.opencore.ui.components.ScaleToFitText
 
 /** Two-tile highlight footer inside demo card — iOS highlightFooter. */
 @Composable

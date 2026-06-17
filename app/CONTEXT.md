@@ -11,7 +11,7 @@ The app composes feature packages as siblings under `io.github.bengidev.opencore
 
 - **MainActivity**: Composition root, Decompose lifecycle owner
 - **OnboardingFacade**: Wiring entry for the onboarding internal module
-- **OpenCoreHomePlaceholder**: Post-onboarding shell until Home exists
+- **HomeFacade**: Wiring entry for the home internal module
 
 ## Internal modules (in `:app`)
 
@@ -22,6 +22,10 @@ io.github.bengidev.opencore/
 │   ├── domain/
 │   ├── application/
 │   ├── infrastructure/
+│   ├── presenter/
+│   └── theme/
+├── home/                # Home internal module
+│   ├── application/
 │   ├── presenter/
 │   └── theme/
 └── ui/theme/            # App-wide theme
