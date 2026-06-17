@@ -5,7 +5,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -26,12 +25,10 @@ internal class DataStoreOnboardingRepository(
     override suspend fun completeOnboarding() {
         context.dataStore.edit { preferences ->
             preferences[KEY_ONBOARDING_COMPLETED] = true
-            preferences[KEY_COMPLETED_AT] = System.currentTimeMillis()
         }
     }
 
     companion object {
         private val KEY_ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
-        private val KEY_COMPLETED_AT = longPreferencesKey("onboarding_completed_at")
     }
 }

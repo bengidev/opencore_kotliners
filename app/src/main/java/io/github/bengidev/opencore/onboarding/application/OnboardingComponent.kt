@@ -4,6 +4,7 @@ import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
+import com.arkivanov.essenty.lifecycle.doOnDestroy
 import io.github.bengidev.opencore.onboarding.infrastructure.OnboardingRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,6 +23,10 @@ internal class OnboardingComponent(
     val state: Value<OnboardingState> = _state
 
     init {
+        lifecycle.doOnDestroy {
+            scope.cancel()
+        }
+
         dispatch(OnboardingIntent.OnAppear)
         scope.launch {
             val completed = repository.isOnboardingCompleted()
@@ -53,8 +58,4 @@ internal class OnboardingComponent(
     internal fun onAddQueuedPromptTapped() = dispatch(OnboardingIntent.AddQueuedPromptButtonTapped)
     internal fun onReasoningLevelChanged(value: Double) = dispatch(OnboardingIntent.ReasoningLevelChanged(value))
     internal fun onPairingToggleTapped() = dispatch(OnboardingIntent.PairingToggleTapped)
-
-    internal fun onDestroy() {
-        scope.cancel()
-    }
 }

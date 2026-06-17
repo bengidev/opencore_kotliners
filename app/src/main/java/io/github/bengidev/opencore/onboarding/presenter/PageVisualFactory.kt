@@ -1,7 +1,6 @@
 package io.github.bengidev.opencore.onboarding.presenter
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import io.github.bengidev.opencore.onboarding.application.OnboardingState
 import io.github.bengidev.opencore.onboarding.domain.OnboardingPage
@@ -9,7 +8,6 @@ import io.github.bengidev.opencore.onboarding.domain.OnboardingPageType
 import io.github.bengidev.opencore.onboarding.presenter.visuals.EncryptedPairingVisualView
 import io.github.bengidev.opencore.onboarding.presenter.visuals.IdeaStudioVisualView
 import io.github.bengidev.opencore.onboarding.presenter.visuals.PromptQueueVisualView
-import io.github.bengidev.opencore.onboarding.presenter.visuals.DefaultReasoningLevel
 import io.github.bengidev.opencore.onboarding.presenter.visuals.ReasoningControlVisualView
 import io.github.bengidev.opencore.onboarding.presenter.visuals.WorkspaceReadyVisualView
 
@@ -55,9 +53,6 @@ internal fun PageVisualFactory(
         }
 
         OnboardingPageType.ReasoningControl -> {
-            LaunchedEffect(page.id) {
-                onReasoningLevelChanged(DefaultReasoningLevel.toDouble())
-            }
             ReasoningControlVisualView(
                 reasoningLevel = state.demoState.reasoningLevel.toFloat(),
                 onReasoningLevelChanged = { onReasoningLevelChanged(it.toDouble()) },
