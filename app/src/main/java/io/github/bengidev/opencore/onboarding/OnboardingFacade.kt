@@ -12,6 +12,9 @@ import io.github.bengidev.opencore.onboarding.infrastructure.OnboardingRepositor
 internal class OnboardingFacade(
     private val repositoryFactory: (Context) -> OnboardingRepository = { DataStoreOnboardingRepository(it) }
 ) {
+    suspend fun isOnboardingCompleted(context: Context): Boolean =
+        repositoryFactory(context.applicationContext).isOnboardingCompleted()
+
     fun createComponent(
         context: Context,
         componentContext: ComponentContext,
