@@ -54,8 +54,7 @@ class MainActivity : ComponentActivity() {
                     )
                     false -> HomeRoute(
                         facade = homeFacade,
-                        darkTheme = darkTheme,
-                        onThemeToggle = { darkTheme = !darkTheme }
+                        darkTheme = darkTheme
                     )
                 }
             }
@@ -90,8 +89,7 @@ private fun OnboardingRoute(
 @Composable
 private fun HomeRoute(
     facade: HomeFacade,
-    darkTheme: Boolean,
-    onThemeToggle: () -> Unit
+    darkTheme: Boolean
 ) {
     val componentContext = rememberComponentContext()
     val homeComponent: HomeComponent = remember(componentContext) {
@@ -100,7 +98,6 @@ private fun HomeRoute(
 
     HomeScreen(
         component = homeComponent,
-        darkTheme = darkTheme,
-        onThemeToggle = onThemeToggle
+        darkTheme = darkTheme
     )
 }

@@ -38,7 +38,6 @@ internal fun HomeView(
     onModelSelectorTapped: () -> Unit,
     onSpeedModeTapped: () -> Unit,
     onContextUsageTapped: () -> Unit,
-    onThemeToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val palette = HomeTheme.palette
@@ -54,8 +53,7 @@ internal fun HomeView(
         Column(modifier = Modifier.fillMaxSize()) {
             HomeTopBar(
                 onSidebarTapped = onSidebarTapped,
-                onNewConversationTapped = onNewConversationTapped,
-                onThemeToggle = onThemeToggle
+                onNewConversationTapped = onNewConversationTapped
             )
 
             Box(
