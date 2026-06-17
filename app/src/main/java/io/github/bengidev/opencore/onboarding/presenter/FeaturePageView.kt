@@ -50,7 +50,7 @@ import io.github.bengidev.opencore.onboarding.presenter.components.DiagonalHatch
 import io.github.bengidev.opencore.onboarding.presenter.components.HighlightFooter
 import io.github.bengidev.opencore.onboarding.presenter.components.IndexLabelChip
 import io.github.bengidev.opencore.onboarding.presenter.components.PixelGridBackground
-import io.github.bengidev.opencore.onboarding.presenter.components.ScaleToFitText
+import io.github.bengidev.opencore.ui.components.ScaleToFitText
 import io.github.bengidev.opencore.onboarding.presenter.components.TerminalHeader
 import io.github.bengidev.opencore.onboarding.presenter.components.iconForPageType
 import io.github.bengidev.opencore.onboarding.theme.OnboardingTheme

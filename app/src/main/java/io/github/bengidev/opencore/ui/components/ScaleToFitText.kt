@@ -1,4 +1,4 @@
-package io.github.bengidev.opencore.onboarding.presenter.components
+package io.github.bengidev.opencore.ui.components
 
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Text
