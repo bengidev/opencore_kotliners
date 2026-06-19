@@ -1,9 +1,9 @@
 package io.github.bengidev.opencore.home.presenter
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -17,8 +17,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.home.application.HomeState
 import io.github.bengidev.opencore.home.theme.HomeTheme
@@ -43,6 +45,7 @@ internal fun HomeView(
     val palette = HomeTheme.palette
     val density = LocalDensity.current
     var composerClearance by remember { mutableStateOf(DefaultComposerClearance) }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     Box(
         modifier = modifier
@@ -53,46 +56,48 @@ internal fun HomeView(
         Column(modifier = Modifier.fillMaxSize()) {
             HomeTopBar(
                 onSidebarTapped = onSidebarTapped,
-                onNewConversationTapped = onNewConversationTapped
+                onNewConversationTapped = onNewConversationTapped,
+                modifier = Modifier.pointerInput(Unit) {
+                    detectTapGestures { keyboardController?.hide() }
+                }
             )
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = composerClearance),
-                contentAlignment = Alignment.TopCenter
-            ) {
-                HomeWelcomeView(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight()
-                        .widthIn(max = 680.dp)
-                        .padding(horizontal = 8.dp)
-                )
-            }
-        }
-
-        HomeComposerView(
-            state = state,
-            onDraftMessageChanged = onDraftMessageChanged,
-            onAttachmentTapped = onAttachmentTapped,
-            onMicrophoneTapped = onMicrophoneTapped,
-            onSendTapped = onSendTapped,
-            onModelSelectorTapped = onModelSelectorTapped,
-            onSpeedModeTapped = onSpeedModeTapped,
-            onContextUsageTapped = onContextUsageTapped,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .widthIn(max = 620.dp)
-                .padding(horizontal = 8.dp)
-                .padding(bottom = 10.dp)
-                .imePadding()
-                .onSizeChanged { size ->
-                    composerClearance = with(density) {
-                        size.height.toDp() + ComposerClearancePadding
-                    }
+            WelcomeScrollContainer(
+                composerClearance = composerClearance,
+                content = { viewportHeight ->
+                    HomeWelcomeView(
+                        viewportHeight = viewportHeight,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 680.dp)
+                            .padding(horizontal = 8.dp)
+                    )
+                },
+                composer = {
+                    HomeComposerView(
+                        state = state,
+                        onDraftMessageChanged = onDraftMessageChanged,
+                        onAttachmentTapped = onAttachmentTapped,
+                        onMicrophoneTapped = onMicrophoneTapped,
+                        onSendTapped = onSendTapped,
+                        onModelSelectorTapped = onModelSelectorTapped,
+                        onSpeedModeTapped = onSpeedModeTapped,
+                        onContextUsageTapped = onContextUsageTapped,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 620.dp)
+                            .padding(horizontal = 8.dp)
+                            .padding(bottom = 10.dp)
+                            .imePadding()
+                            .onSizeChanged { size ->
+                                composerClearance = with(density) {
+                                    size.height.toDp() + ComposerClearancePadding
+                                }
+                            }
+                    )
                 }
-        )
+            )
+        }
     }
 }
+

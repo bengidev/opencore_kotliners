@@ -1,6 +1,5 @@
 package io.github.bengidev.opencore.home.presenter
 
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,58 +19,55 @@ import io.github.bengidev.opencore.home.theme.HomeTheme
 import io.github.bengidev.opencore.ui.components.ScaleToFitText
 
 @Composable
-internal fun HomeWelcomeView(modifier: Modifier = Modifier) {
+internal fun HomeWelcomeView(
+    viewportHeight: Dp,
+    modifier: Modifier = Modifier
+) {
     val palette = HomeTheme.palette
+    val layout = remember(viewportHeight) { HomeWelcomeLayoutMetrics.resolve(viewportHeight) }
 
-    BoxWithConstraints(
-        modifier = modifier.fillMaxWidth(),
-        contentAlignment = Alignment.TopCenter
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 28.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        val layout = remember(maxHeight) { HomeWelcomeLayoutMetrics.resolve(maxHeight) }
+        Spacer(modifier = Modifier.height(layout.topSpacer))
 
-        Column(
+        HomeParticleOrbView(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(modifier = Modifier.height(layout.topSpacer))
+                .height(layout.orbHeight)
+                .padding(bottom = layout.orbBottomPadding)
+        )
 
-            HomeParticleOrbView(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(layout.orbHeight)
-                    .padding(bottom = layout.orbBottomPadding)
-            )
+        ScaleToFitText(
+            text = "Hi! How can I help you?",
+            style = HomeTheme.typography.welcomeTitle,
+            color = palette.textPrimary,
+            maxLines = 1,
+            minFontSize = 19.sp,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center
+        )
 
-            ScaleToFitText(
-                text = "Hi! How can I help you?",
-                style = HomeTheme.typography.welcomeTitle,
-                color = palette.textPrimary,
-                maxLines = 1,
-                minFontSize = 19.sp,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center
-            )
+        Text(
+            text = "Chats are end-to-end encrypted.",
+            style = HomeTheme.typography.welcomeCaption,
+            color = palette.textSecondary,
+            modifier = Modifier.padding(top = 12.dp),
+            textAlign = TextAlign.Center
+        )
 
-            Text(
-                text = "Chats are end-to-end encrypted.",
-                style = HomeTheme.typography.welcomeCaption,
-                color = palette.textSecondary,
-                modifier = Modifier.padding(top = 12.dp),
-                textAlign = TextAlign.Center
-            )
+        Text(
+            text = "Your data is safe.",
+            style = HomeTheme.typography.welcomeCaption,
+            color = palette.textSecondary,
+            modifier = Modifier.padding(top = 4.dp),
+            textAlign = TextAlign.Center
+        )
 
-            Text(
-                text = "Your data is safe.",
-                style = HomeTheme.typography.welcomeCaption,
-                color = palette.textSecondary,
-                modifier = Modifier.padding(top = 4.dp),
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(layout.bottomSpacer))
-        }
+        Spacer(modifier = Modifier.height(layout.bottomSpacer))
     }
 }
 
