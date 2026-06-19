@@ -21,6 +21,10 @@ Internal module with `HomeFacade` and `HomeScreen` as the app-shell entry points
 - **HomeParticleOrbView**: Pre-rasterized animated pixel orb (from openzone-kotliners)
 - **OpenCorePalette**: Shared graphite tokens via onboarding theme
 
+## Keyboard avoidance
+
+The welcome content scrolls inside `WelcomeScrollContainer` (in `HomeView.kt`). A `restingViewportHeight` is frozen while the IME is visible so content keeps full height when the viewport shrinks. `LaunchedEffect(isImeVisible)` animates `scrollState.animateScrollTo` to bottom on keyboard show and to top on keyboard hide. The composer is overlaid at `BottomCenter` with `imePadding()` so it rides above the keyboard. Tapping the content area or top bar dismisses the keyboard via `LocalSoftwareKeyboardController`.
+
 ## Current scope
 
 | Implemented | Not yet |
