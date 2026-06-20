@@ -34,4 +34,4 @@ Internal module with `SidePanelFacade` and the `SidePanelDrawer` / `SidePanelSet
 
 ## Gear button wiring
 
-The drawer header's gear IconButton calls `SidePanelComponent.onSettingsTapped()`, which dispatches `SettingsTapped` (flips `isSettingsVisible` true) and invokes `onSettingsTappedCallback`. The host renders `SidePanelSettingsSheetRoute`, which shows the `SidePanelSettingsSheet` ModalBottomSheet when `isSettingsVisible` is true. This is the wired path — the gear button is never a dead no-op.
+The drawer header's gear `IconButton` calls `SidePanelComponent.onSettingsTapped()`, which dispatches `SettingsTapped` (flips `isSettingsVisible` true) and invokes `onSettingsTappedCallback`. `HomeScreen` passes that callback to close the navigation drawer so the host-layer `SidePanelSettingsSheetRoute` can present the settings `ModalBottomSheet`. Without the host callback the sheet state flips but the drawer stays open on top — the gear looks like a no-op.

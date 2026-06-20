@@ -95,21 +95,15 @@ private fun HomeRoute(
     sidePanelFacade: SidePanelFacade,
     darkTheme: Boolean
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
     val componentContext = rememberComponentContext()
     val homeComponent: HomeComponent = remember(componentContext) {
         facade.createComponent(componentContext = componentContext)
     }
-    val sidePanelComponent: io.github.bengidev.opencore.sidepanel.application.SidePanelComponent = remember(componentContext) {
-        sidePanelFacade.createComponent(
-            context = context,
-            componentContext = componentContext
-        )
-    }
 
     HomeScreen(
         component = homeComponent,
-        sidePanelComponent = sidePanelComponent,
+        sidePanelFacade = sidePanelFacade,
+        componentContext = componentContext,
         darkTheme = darkTheme
     )
 }
