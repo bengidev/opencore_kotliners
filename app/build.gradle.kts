@@ -42,7 +42,7 @@ dependencies {
     implementation(libs.decompose.extensions.compose)
     implementation(libs.essenty.lifecycle)
     implementation(libs.androidx.datastore.preferences)
-    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.androidx.security.crypto)
     implementation(libs.kotlinx.coroutines.android)
 
     implementation(platform(libs.androidx.compose.bom))
