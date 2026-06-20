@@ -15,6 +15,7 @@ import io.github.bengidev.opencore.sidepanel.SidePanelSettingsSheetRoute
 import io.github.bengidev.opencore.sidepanel.application.SidePanelComponent
 import kotlinx.coroutines.launch
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 internal fun HomeScreen(
     component: HomeComponent,

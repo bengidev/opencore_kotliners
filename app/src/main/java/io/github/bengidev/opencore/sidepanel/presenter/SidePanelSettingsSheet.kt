@@ -26,6 +26,7 @@ import io.github.bengidev.opencore.sidepanel.application.SidePanelState
 import io.github.bengidev.opencore.sidepanel.domain.SessionProvider
 import io.github.bengidev.opencore.sidepanel.theme.SidePanelTheme
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 internal fun SidePanelSettingsSheet(
     state: SidePanelState,

@@ -30,6 +30,7 @@ import io.github.bengidev.opencore.sidepanel.application.SidePanelState
 import io.github.bengidev.opencore.sidepanel.domain.SessionItem
 import io.github.bengidev.opencore.sidepanel.theme.SidePanelTheme
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 internal fun SidePanelDrawerContent(
     state: SidePanelState,
