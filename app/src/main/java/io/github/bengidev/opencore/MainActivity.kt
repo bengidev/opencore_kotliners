@@ -18,6 +18,7 @@ import io.github.bengidev.opencore.home.HomeFacade
 import io.github.bengidev.opencore.home.HomeScreen
 import io.github.bengidev.opencore.home.application.HomeComponent
 import io.github.bengidev.opencore.onboarding.OnboardingFacade
+import io.github.bengidev.opencore.sidepanel.SidePanelFacade
 import io.github.bengidev.opencore.onboarding.OnboardingScreen
 import io.github.bengidev.opencore.onboarding.application.OnboardingComponent
 import io.github.bengidev.opencore.ui.decompose.rememberComponentContext
@@ -30,6 +31,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val onboardingFacade = OnboardingFacade()
+        val sidePanelFacade = SidePanelFacade()
         val homeFacade = HomeFacade()
 
         setContent {
@@ -54,6 +56,7 @@ class MainActivity : ComponentActivity() {
                     )
                     false -> HomeRoute(
                         facade = homeFacade,
+                        sidePanelFacade = sidePanelFacade,
                         darkTheme = darkTheme
                     )
                 }
@@ -89,15 +92,24 @@ private fun OnboardingRoute(
 @Composable
 private fun HomeRoute(
     facade: HomeFacade,
+    sidePanelFacade: SidePanelFacade,
     darkTheme: Boolean
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val componentContext = rememberComponentContext()
     val homeComponent: HomeComponent = remember(componentContext) {
         facade.createComponent(componentContext = componentContext)
     }
+    val sidePanelComponent: io.github.bengidev.opencore.sidepanel.application.SidePanelComponent = remember(componentContext) {
+        sidePanelFacade.createComponent(
+            context = context,
+            componentContext = componentContext
+        )
+    }
 
     HomeScreen(
         component = homeComponent,
+        sidePanelComponent = sidePanelComponent,
         darkTheme = darkTheme
     )
 }
