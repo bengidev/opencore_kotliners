@@ -30,7 +30,6 @@ import kotlinx.coroutines.CancellationException
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 internal fun WelcomeScrollContainer(
-    composerClearance: Dp,
     content: @Composable (viewportHeight: Dp) -> Unit,
     composer: @Composable () -> Unit
 ) {
@@ -40,26 +39,13 @@ internal fun WelcomeScrollContainer(
     var frozenViewportHeight by remember { mutableStateOf(0.dp) }
     var previousImeVisible by remember { mutableStateOf<Boolean?>(null) }
 
-    LaunchedEffect(imeVisible) {
-        if (previousImeVisible == null) {
-            previousImeVisible = imeVisible
-            return@LaunchedEffect
-        }
-        if (previousImeVisible == imeVisible) return@LaunchedEffect
-        previousImeVisible = imeVisible
-        try {
-            if (imeVisible) {
-                scrollState.animateScrollTo(scrollState.maxValue)
-            } else {
-                scrollState.animateScrollTo(0)
-            }
-        } catch (_: CancellationException) {
-            // Scroll animation cancelled — safe to ignore.
-        }
-    }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    // ponytail: Column + weight mirrors iOS safeAreaInset — composer outside scroll viewport
+    Column(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+        ) {
             val measuredViewportHeight = maxHeight
             LaunchedEffect(imeVisible, measuredViewportHeight) {
                 if (!imeVisible && measuredViewportHeight > 0.dp) {
@@ -71,7 +57,32 @@ internal fun WelcomeScrollContainer(
                 measuredViewportHeight > 0.dp -> measuredViewportHeight
                 else -> frozenViewportHeight
             }
-            val heroViewportHeight = (viewportHeight - composerClearance).coerceAtLeast(0.dp)
+
+            LaunchedEffect(imeVisible, scrollState.maxValue) {
+                if (previousImeVisible == null) {
+                    previousImeVisible = imeVisible
+                    return@LaunchedEffect
+                }
+                when {
+                    imeVisible && previousImeVisible == false -> {
+                        if (scrollState.maxValue == 0) return@LaunchedEffect
+                        previousImeVisible = true
+                        try {
+                            scrollState.animateScrollTo(scrollState.maxValue)
+                        } catch (_: CancellationException) {
+                            // Scroll animation cancelled — safe to ignore.
+                        }
+                    }
+                    !imeVisible && previousImeVisible == true -> {
+                        previousImeVisible = false
+                        try {
+                            scrollState.animateScrollTo(0)
+                        } catch (_: CancellationException) {
+                            // Scroll animation cancelled — safe to ignore.
+                        }
+                    }
+                }
+            }
 
             Column(
                 modifier = Modifier
@@ -95,18 +106,13 @@ internal fun WelcomeScrollContainer(
                         ),
                     contentAlignment = Alignment.TopCenter
                 ) {
-                    content(heroViewportHeight)
+                    content(viewportHeight)
                 }
 
                 Spacer(Modifier.height(1.dp))
-                Spacer(Modifier.height(composerClearance))
             }
         }
 
-        Box(
-            modifier = Modifier.align(Alignment.BottomCenter)
-        ) {
-            composer()
-        }
+        composer()
     }
 }
