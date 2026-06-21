@@ -57,24 +57,36 @@ internal fun WelcomeScrollContainer(
                     restingViewportHeight = measuredViewportHeight
                 }
             }
-            // Live height while keyboard is open so hero re-centers above it; frozen fallback on first frame.
-            val viewportHeight = measuredViewportHeight.takeIf { it > 0.dp }
-                ?: restingViewportHeight
+            // ponytail: freeze layout while IME open — matches iOS restingViewportHeight when composer focused
+            val layoutViewportHeight = when {
+                imeVisible && restingViewportHeight > 0.dp -> restingViewportHeight
+                measuredViewportHeight > 0.dp -> measuredViewportHeight
+                else -> restingViewportHeight
+            }
 
-            LaunchedEffect(imeVisible) {
+            LaunchedEffect(imeVisible, scrollState.maxValue) {
                 if (previousImeVisible == null) {
                     previousImeVisible = imeVisible
                     return@LaunchedEffect
                 }
-                if (previousImeVisible == true && !imeVisible) {
-                    previousImeVisible = false
-                    try {
-                        scrollState.animateScrollTo(0)
-                    } catch (_: CancellationException) {
-                        // Scroll animation cancelled — safe to ignore.
+                when {
+                    imeVisible && previousImeVisible == false -> {
+                        if (scrollState.maxValue == 0) return@LaunchedEffect
+                        previousImeVisible = true
+                        try {
+                            scrollState.animateScrollTo(scrollState.maxValue)
+                        } catch (_: CancellationException) {
+                            // Scroll animation cancelled — safe to ignore.
+                        }
                     }
-                } else if (previousImeVisible != imeVisible) {
-                    previousImeVisible = imeVisible
+                    !imeVisible && previousImeVisible == true -> {
+                        previousImeVisible = false
+                        try {
+                            scrollState.animateScrollTo(0)
+                        } catch (_: CancellationException) {
+                            // Scroll animation cancelled — safe to ignore.
+                        }
+                    }
                 }
             }
 
@@ -92,15 +104,15 @@ internal fun WelcomeScrollContainer(
                     modifier = Modifier
                         .fillMaxWidth()
                         .then(
-                            if (viewportHeight > 0.dp) {
-                                Modifier.heightIn(min = viewportHeight)
+                            if (layoutViewportHeight > 0.dp) {
+                                Modifier.heightIn(min = layoutViewportHeight)
                             } else {
                                 Modifier
                             }
                         ),
                     contentAlignment = Alignment.TopCenter
                 ) {
-                    content(viewportHeight)
+                    content(layoutViewportHeight)
                 }
 
                 Spacer(Modifier.height(1.dp))
