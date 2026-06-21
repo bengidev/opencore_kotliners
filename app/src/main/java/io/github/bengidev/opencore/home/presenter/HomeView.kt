@@ -11,22 +11,15 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.home.application.HomeState
 import io.github.bengidev.opencore.home.theme.HomeTheme
 
-private val DefaultComposerClearance = 180.dp
-private val ComposerClearancePadding = 12.dp
+private val ComposerBottomPadding = 10.dp
 
 @Composable
 internal fun HomeView(
@@ -43,8 +36,6 @@ internal fun HomeView(
     modifier: Modifier = Modifier
 ) {
     val palette = HomeTheme.palette
-    val density = LocalDensity.current
-    var composerClearance by remember { mutableStateOf(DefaultComposerClearance) }
     val keyboardController = LocalSoftwareKeyboardController.current
 
     Box(
@@ -63,7 +54,6 @@ internal fun HomeView(
             )
 
             WelcomeScrollContainer(
-                composerClearance = composerClearance,
                 content = { viewportHeight ->
                     HomeWelcomeView(
                         viewportHeight = viewportHeight,
@@ -87,13 +77,8 @@ internal fun HomeView(
                             .fillMaxWidth()
                             .widthIn(max = 620.dp)
                             .padding(horizontal = 8.dp)
-                            .padding(bottom = 10.dp)
+                            .padding(bottom = ComposerBottomPadding)
                             .imePadding()
-                            .onSizeChanged { size ->
-                                composerClearance = with(density) {
-                                    size.height.toDp() + ComposerClearancePadding
-                                }
-                            }
                     )
                 }
             )
