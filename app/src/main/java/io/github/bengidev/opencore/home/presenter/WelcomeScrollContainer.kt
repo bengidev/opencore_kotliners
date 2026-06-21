@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -30,17 +31,21 @@ import kotlinx.coroutines.CancellationException
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 internal fun WelcomeScrollContainer(
+    modifier: Modifier = Modifier,
     content: @Composable (viewportHeight: Dp) -> Unit,
     composer: @Composable () -> Unit
 ) {
     val scrollState = rememberScrollState()
     val imeVisible = WindowInsets.isImeVisible
     val keyboardController = LocalSoftwareKeyboardController.current
-    var frozenViewportHeight by remember { mutableStateOf(0.dp) }
+    var restingViewportHeight by remember { mutableStateOf(0.dp) }
     var previousImeVisible by remember { mutableStateOf<Boolean?>(null) }
 
-    // ponytail: Column + weight mirrors iOS safeAreaInset — composer outside scroll viewport
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .imePadding()
+    ) {
         BoxWithConstraints(
             modifier = Modifier
                 .weight(1f)
@@ -49,38 +54,27 @@ internal fun WelcomeScrollContainer(
             val measuredViewportHeight = maxHeight
             LaunchedEffect(imeVisible, measuredViewportHeight) {
                 if (!imeVisible && measuredViewportHeight > 0.dp) {
-                    frozenViewportHeight = measuredViewportHeight
+                    restingViewportHeight = measuredViewportHeight
                 }
             }
-            val viewportHeight = when {
-                imeVisible && frozenViewportHeight > 0.dp -> frozenViewportHeight
-                measuredViewportHeight > 0.dp -> measuredViewportHeight
-                else -> frozenViewportHeight
-            }
+            // Live height while keyboard is open so hero re-centers above it; frozen fallback on first frame.
+            val viewportHeight = measuredViewportHeight.takeIf { it > 0.dp }
+                ?: restingViewportHeight
 
-            LaunchedEffect(imeVisible, scrollState.maxValue) {
+            LaunchedEffect(imeVisible) {
                 if (previousImeVisible == null) {
                     previousImeVisible = imeVisible
                     return@LaunchedEffect
                 }
-                when {
-                    imeVisible && previousImeVisible == false -> {
-                        if (scrollState.maxValue == 0) return@LaunchedEffect
-                        previousImeVisible = true
-                        try {
-                            scrollState.animateScrollTo(scrollState.maxValue)
-                        } catch (_: CancellationException) {
-                            // Scroll animation cancelled — safe to ignore.
-                        }
+                if (previousImeVisible == true && !imeVisible) {
+                    previousImeVisible = false
+                    try {
+                        scrollState.animateScrollTo(0)
+                    } catch (_: CancellationException) {
+                        // Scroll animation cancelled — safe to ignore.
                     }
-                    !imeVisible && previousImeVisible == true -> {
-                        previousImeVisible = false
-                        try {
-                            scrollState.animateScrollTo(0)
-                        } catch (_: CancellationException) {
-                            // Scroll animation cancelled — safe to ignore.
-                        }
-                    }
+                } else if (previousImeVisible != imeVisible) {
+                    previousImeVisible = imeVisible
                 }
             }
 
