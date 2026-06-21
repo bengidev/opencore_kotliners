@@ -135,9 +135,9 @@ private fun rememberOrbTimeSec(active: Boolean): Float {
     return timeSec
 }
 
-private fun linearLoop(timeSec: Float, durationSec: Double, phaseOffset: Double = 0.0): Float {
+private fun linearLoop(timeSec: Float, durationSec: Double): Float {
     if (durationSec <= 0.0) return 0f
-    return ((timeSec / durationSec.toFloat() + phaseOffset.toFloat()) % 1f + 1f) % 1f
+    return ((timeSec / durationSec.toFloat()) % 1f + 1f) % 1f
 }
 
 private fun reverseWave(timeSec: Float, durationSec: Double): Float {
@@ -173,7 +173,7 @@ private fun OrbMainLayer(
         return
     }
 
-    val driftProgress = linearLoop(timeSec, descriptor.driftDuration, descriptor.phaseOffset)
+    val driftProgress = linearLoop(timeSec, descriptor.driftDuration)
     val rotation = lerp(
         -descriptor.rotationRange,
         descriptor.rotationRange,
@@ -244,7 +244,7 @@ private fun OrbOrbitDotLayer(
         return
     }
 
-    val orbitProgress = linearLoop(timeSec, descriptor.orbitDuration, descriptor.phaseOffset)
+    val orbitProgress = linearLoop(timeSec, descriptor.orbitDuration)
     val opacity = lerp(
         (descriptor.restOpacity * 0.64f).coerceAtLeast(0.02f),
         (descriptor.restOpacity * 1.22f).coerceAtMost(0.30f),
@@ -299,7 +299,7 @@ private fun OrbSparkLayer(
         return
     }
 
-    val orbitProgress = linearLoop(timeSec, descriptor.orbitDuration, descriptor.phaseOffset)
+    val orbitProgress = linearLoop(timeSec, descriptor.orbitDuration)
     val opacity = lerp(
         (descriptor.restOpacity * 0.58f).coerceAtLeast(0.03f),
         (descriptor.restOpacity * 1.18f).coerceAtMost(0.42f),
