@@ -15,7 +15,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,7 +61,7 @@ internal fun WelcomeScrollContainer(
     Box(modifier = Modifier.fillMaxSize()) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val measuredViewportHeight = maxHeight
-            SideEffect {
+            LaunchedEffect(imeVisible, measuredViewportHeight) {
                 if (!imeVisible && measuredViewportHeight > 0.dp) {
                     frozenViewportHeight = measuredViewportHeight
                 }
