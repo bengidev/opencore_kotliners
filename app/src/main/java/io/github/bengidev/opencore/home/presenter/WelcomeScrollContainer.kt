@@ -2,6 +2,7 @@ package io.github.bengidev.opencore.home.presenter
 
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -14,15 +15,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -36,12 +36,18 @@ internal fun WelcomeScrollContainer(
     composer: @Composable () -> Unit
 ) {
     val scrollState = rememberScrollState()
-    val density = LocalDensity.current
-    var restingViewportHeightPx by remember { mutableIntStateOf(0) }
     val imeVisible = WindowInsets.isImeVisible
     val keyboardController = LocalSoftwareKeyboardController.current
+    var frozenViewportHeight by remember { mutableStateOf(0.dp) }
+    var previousImeVisible by remember { mutableStateOf<Boolean?>(null) }
 
     LaunchedEffect(imeVisible) {
+        if (previousImeVisible == null) {
+            previousImeVisible = imeVisible
+            return@LaunchedEffect
+        }
+        if (previousImeVisible == imeVisible) return@LaunchedEffect
+        previousImeVisible = imeVisible
         try {
             if (imeVisible) {
                 scrollState.animateScrollTo(scrollState.maxValue)
@@ -53,33 +59,49 @@ internal fun WelcomeScrollContainer(
         }
     }
 
-    val restingViewportHeightDp = with(density) { restingViewportHeightPx.toDp() }
-
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-                .onSizeChanged { size ->
-                    if (!imeVisible) restingViewportHeightPx = size.height
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val measuredViewportHeight = maxHeight
+            SideEffect {
+                if (!imeVisible && measuredViewportHeight > 0.dp) {
+                    frozenViewportHeight = measuredViewportHeight
                 }
-                .pointerInput(Unit) {
-                    detectTapGestures { keyboardController?.hide() }
-                }
-        ) {
-            Spacer(Modifier.height(1.dp))
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = restingViewportHeightDp),
-                contentAlignment = Alignment.TopCenter
-            ) {
-                content(restingViewportHeightDp)
             }
+            val viewportHeight = when {
+                imeVisible && frozenViewportHeight > 0.dp -> frozenViewportHeight
+                measuredViewportHeight > 0.dp -> measuredViewportHeight
+                else -> frozenViewportHeight
+            }
+            val heroViewportHeight = (viewportHeight - composerClearance).coerceAtLeast(0.dp)
 
-            Spacer(Modifier.height(1.dp))
-            Spacer(Modifier.height(composerClearance))
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .pointerInput(Unit) {
+                        detectTapGestures { keyboardController?.hide() }
+                    }
+            ) {
+                Spacer(Modifier.height(1.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (viewportHeight > 0.dp) {
+                                Modifier.heightIn(min = viewportHeight)
+                            } else {
+                                Modifier
+                            }
+                        ),
+                    contentAlignment = Alignment.TopCenter
+                ) {
+                    content(heroViewportHeight)
+                }
+
+                Spacer(Modifier.height(1.dp))
+                Spacer(Modifier.height(composerClearance))
+            }
         }
 
         Box(
