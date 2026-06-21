@@ -21,7 +21,7 @@ Internal module with `HomeFacade` and `HomeScreen` as the app-shell entry points
 
 ## Keyboard avoidance
 
-The welcome content scrolls inside `WelcomeScrollContainer` (in `HomeView.kt`). The composer sits below the scroll area (like iOS `safeAreaInset`), so `BoxWithConstraints` measures the true viewport above the composer. `frozenViewportHeight` is captured while the IME is hidden and reused while the IME is visible so hero layout keeps full height when the scroll viewport shrinks. `LaunchedEffect(imeVisible)` scrolls to the bottom on keyboard show and back to top on hide, waiting for `scrollState.maxValue` before animating. The composer uses `imePadding()` so it rides above the keyboard. Tapping the content area or top bar dismisses the keyboard via `LocalSoftwareKeyboardController`.
+The welcome content scrolls inside `WelcomeScrollContainer` (in `HomeView.kt`). The composer sits below the scroll area (like iOS `safeAreaInset`). `WelcomeScrollContainer` applies `imePadding()` so the scroll viewport and composer move up together when the keyboard opens. `restingViewportHeight` is captured while the IME is hidden and used only as a first-frame fallback. While the keyboard is open, layout uses the live measured viewport so the orb and greeting re-center above the composer. `LaunchedEffect(imeVisible)` scrolls back to top when the keyboard hides. Tapping the content area or top bar dismisses the keyboard via `LocalSoftwareKeyboardController`.
 
 ## Current scope
 
