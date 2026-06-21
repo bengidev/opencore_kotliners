@@ -10,23 +10,28 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imeNestedScroll
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.CancellationException
+import kotlin.math.roundToInt
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -37,9 +42,11 @@ internal fun WelcomeScrollContainer(
 ) {
     val scrollState = rememberScrollState()
     val imeVisible = WindowInsets.isImeVisible
+    val density = LocalDensity.current
+    val imeBottomPx = WindowInsets.ime.getBottom(density)
     val keyboardController = LocalSoftwareKeyboardController.current
     var restingViewportHeight by remember { mutableStateOf(0.dp) }
-    var previousImeVisible by remember { mutableStateOf<Boolean?>(null) }
+    var peakImeBottomPx by remember { mutableIntStateOf(0) }
 
     Column(
         modifier = modifier
@@ -57,35 +64,30 @@ internal fun WelcomeScrollContainer(
                     restingViewportHeight = measuredViewportHeight
                 }
             }
-            // ponytail: freeze layout while IME open — matches iOS restingViewportHeight when composer focused
             val layoutViewportHeight = when {
                 imeVisible && restingViewportHeight > 0.dp -> restingViewportHeight
                 measuredViewportHeight > 0.dp -> measuredViewportHeight
                 else -> restingViewportHeight
             }
 
-            LaunchedEffect(imeVisible, scrollState.maxValue) {
-                if (previousImeVisible == null) {
-                    previousImeVisible = imeVisible
-                    return@LaunchedEffect
-                }
+            SideEffect {
                 when {
-                    imeVisible && previousImeVisible == false -> {
-                        if (scrollState.maxValue == 0) return@LaunchedEffect
-                        previousImeVisible = true
-                        try {
-                            scrollState.animateScrollTo(scrollState.maxValue)
-                        } catch (_: CancellationException) {
-                            // Scroll animation cancelled — safe to ignore.
-                        }
+                    imeBottomPx == 0 -> peakImeBottomPx = 0
+                    imeBottomPx > peakImeBottomPx -> peakImeBottomPx = imeBottomPx
+                }
+            }
+
+            LaunchedEffect(imeBottomPx, scrollState.maxValue, peakImeBottomPx) {
+                val maxScroll = scrollState.maxValue
+                when {
+                    imeBottomPx == 0 -> {
+                        if (scrollState.value != 0) scrollState.scrollTo(0)
                     }
-                    !imeVisible && previousImeVisible == true -> {
-                        previousImeVisible = false
-                        try {
-                            scrollState.animateScrollTo(0)
-                        } catch (_: CancellationException) {
-                            // Scroll animation cancelled — safe to ignore.
-                        }
+                    maxScroll > 0 && peakImeBottomPx > 0 -> {
+                        val target = (maxScroll * imeBottomPx.toFloat() / peakImeBottomPx)
+                            .roundToInt()
+                            .coerceIn(0, maxScroll)
+                        if (scrollState.value != target) scrollState.scrollTo(target)
                     }
                 }
             }
@@ -93,6 +95,7 @@ internal fun WelcomeScrollContainer(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .imeNestedScroll()
                     .verticalScroll(scrollState)
                     .pointerInput(Unit) {
                         detectTapGestures { keyboardController?.hide() }
