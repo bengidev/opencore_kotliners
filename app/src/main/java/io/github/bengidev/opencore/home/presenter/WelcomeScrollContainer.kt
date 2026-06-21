@@ -18,7 +18,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +46,7 @@ internal fun WelcomeScrollContainer(
     val keyboardController = LocalSoftwareKeyboardController.current
     var restingViewportHeight by remember { mutableStateOf(0.dp) }
     var peakImeBottomPx by remember { mutableIntStateOf(0) }
+    var readyForImeScroll by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -62,6 +62,7 @@ internal fun WelcomeScrollContainer(
             LaunchedEffect(imeVisible, measuredViewportHeight) {
                 if (!imeVisible && measuredViewportHeight > 0.dp) {
                     restingViewportHeight = measuredViewportHeight
+                    readyForImeScroll = true
                 }
             }
             val layoutViewportHeight = when {
@@ -70,25 +71,23 @@ internal fun WelcomeScrollContainer(
                 else -> restingViewportHeight
             }
 
-            SideEffect {
-                when {
-                    imeBottomPx == 0 -> peakImeBottomPx = 0
-                    imeBottomPx > peakImeBottomPx -> peakImeBottomPx = imeBottomPx
-                }
-            }
+            LaunchedEffect(imeBottomPx, scrollState.maxValue, readyForImeScroll) {
+                if (!readyForImeScroll) return@LaunchedEffect
 
-            LaunchedEffect(imeBottomPx, scrollState.maxValue, peakImeBottomPx) {
-                val maxScroll = scrollState.maxValue
-                when {
-                    imeBottomPx == 0 -> {
-                        if (scrollState.value != 0) scrollState.scrollTo(0)
-                    }
-                    maxScroll > 0 && peakImeBottomPx > 0 -> {
-                        val target = (maxScroll * imeBottomPx.toFloat() / peakImeBottomPx)
-                            .roundToInt()
-                            .coerceIn(0, maxScroll)
-                        if (scrollState.value != target) scrollState.scrollTo(target)
-                    }
+                if (imeBottomPx == 0) {
+                    peakImeBottomPx = 0
+                } else if (imeBottomPx > peakImeBottomPx) {
+                    peakImeBottomPx = imeBottomPx
+                }
+
+                val target = welcomeImeScrollTarget(
+                    imeBottomPx = imeBottomPx,
+                    peakImeBottomPx = peakImeBottomPx,
+                    maxScroll = scrollState.maxValue,
+                    currentScroll = scrollState.value
+                )
+                if (target != null && scrollState.value != target) {
+                    scrollState.scrollTo(target)
                 }
             }
 
@@ -124,4 +123,19 @@ internal fun WelcomeScrollContainer(
 
         composer()
     }
+}
+
+internal fun welcomeImeScrollTarget(
+    imeBottomPx: Int,
+    peakImeBottomPx: Int,
+    maxScroll: Int,
+    currentScroll: Int
+): Int? = when {
+    imeBottomPx == 0 -> if (currentScroll == 0) null else 0
+    maxScroll > 0 && peakImeBottomPx > 0 -> {
+        (maxScroll * imeBottomPx.toFloat() / peakImeBottomPx)
+            .roundToInt()
+            .coerceIn(0, maxScroll)
+    }
+    else -> null
 }
