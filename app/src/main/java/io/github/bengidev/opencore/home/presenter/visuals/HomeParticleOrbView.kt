@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.provider.Settings
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -32,6 +33,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -59,7 +61,7 @@ internal fun HomeParticleOrbView(
     val palette = HomeTheme.palette
     val density = LocalDensity.current
     // ponytail: cap at 2x — upgrade path: raise cap if orb looks soft on 3x+ devices
-    val renderScale = minOf(maxOf(density.density, 2f), 2f)
+    val renderScale = minOf(density.density, 2f)
     val reduceMotion = rememberReduceMotion()
     val shouldAnimate = !reduceMotion && rememberIsLifecycleActive()
     val timeSec = rememberOrbTimeSec(shouldAnimate)
@@ -140,11 +142,10 @@ private fun linearLoop(timeSec: Float, durationSec: Double, phaseOffset: Double 
 
 private fun reverseWave(timeSec: Float, durationSec: Double): Float {
     if (durationSec <= 0.0) return 0f
-    val phase = (timeSec / durationSec.toFloat()) * PI.toFloat() * 2f
-    return (sin(phase) + 1f) / 2f
+    val cycle = (timeSec / durationSec.toFloat()) % 2f
+    val t = if (cycle <= 1f) cycle else 2f - cycle
+    return FastOutSlowInEasing.transform(t)
 }
-
-private fun lerp(min: Float, max: Float, t: Float): Float = min + (max - min) * t
 
 @Composable
 private fun OrbMainLayer(

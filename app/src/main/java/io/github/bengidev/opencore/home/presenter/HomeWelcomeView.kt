@@ -84,7 +84,7 @@ internal fun HomeWelcomeView(
     }
 }
 
-internal data class HomeWelcomeLayoutMetrics(
+private data class HomeWelcomeLayoutMetrics(
     val topSpacer: Dp,
     val bottomSpacer: Dp,
     val orbHeight: Dp,
@@ -98,7 +98,7 @@ internal data class HomeWelcomeLayoutMetrics(
         private val compactOrbHeight = 200.dp
         private val compactOrbPadding = 20.dp
 
-        internal fun resolve(viewportHeight: Dp): HomeWelcomeLayoutMetrics {
+        fun resolve(viewportHeight: Dp): HomeWelcomeLayoutMetrics {
             if (viewportHeight <= 0.dp) {
                 return HomeWelcomeLayoutMetrics(
                     topSpacer = 72.dp,

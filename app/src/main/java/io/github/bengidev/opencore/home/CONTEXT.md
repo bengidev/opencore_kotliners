@@ -23,7 +23,7 @@ Internal module with `HomeFacade` and `HomeScreen` as the app-shell entry points
 
 ## Keyboard avoidance
 
-The welcome content scrolls inside `WelcomeScrollContainer` (in `HomeView.kt`). Viewport height comes from `BoxWithConstraints` (no zero-height first frame). Hero centering uses the viewport minus `composerClearance` so the orb stays above the overlaid composer. A `restingViewportHeight` is frozen while the IME is visible so content keeps full height when the viewport shrinks. `LaunchedEffect(isImeVisible)` scrolls only on keyboard show/hide transitions (not on first composition). The composer is overlaid at `BottomCenter` with `imePadding()` so it rides above the keyboard. Tapping the content area or top bar dismisses the keyboard via `LocalSoftwareKeyboardController`.
+The welcome content scrolls inside `WelcomeScrollContainer` (in `HomeView.kt`). Viewport height comes from `BoxWithConstraints` (no zero-height first frame). Hero centering uses the viewport minus `composerClearance` so the orb stays above the overlaid composer. `frozenViewportHeight` is captured while the IME is hidden and reused while the IME is visible so content keeps full height when the viewport shrinks. `LaunchedEffect(imeVisible)` scrolls only on keyboard show/hide transitions (not on first composition). The composer is overlaid at `BottomCenter` with `imePadding()` so it rides above the keyboard. Tapping the content area or top bar dismisses the keyboard via `LocalSoftwareKeyboardController`.
 
 ## Current scope
 
