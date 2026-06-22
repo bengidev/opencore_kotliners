@@ -13,6 +13,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
+import io.github.bengidev.opencore.chat.application.ChatState
+import io.github.bengidev.opencore.chat.presenter.ChatThreadView
 import io.github.bengidev.opencore.home.application.HomeState
 import io.github.bengidev.opencore.home.theme.HomeTheme
 
@@ -21,6 +23,7 @@ private val ComposerBottomPadding = 10.dp
 @Composable
 internal fun HomeView(
     state: HomeState,
+    chatState: ChatState,
     onDraftMessageChanged: (String) -> Unit,
     onSidebarTapped: () -> Unit,
     onNewConversationTapped: () -> Unit,
@@ -47,13 +50,22 @@ internal fun HomeView(
                 .statusBarsPadding()
                 .padding(top = HomeTopBarClearance),
             content = { viewportHeight ->
-                HomeWelcomeView(
-                    viewportHeight = viewportHeight,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .widthIn(max = 680.dp)
-                        .padding(horizontal = 8.dp)
-                )
+                if (chatState.isThreadActive) {
+                    ChatThreadView(
+                        state = chatState,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 620.dp)
+                    )
+                } else {
+                    HomeWelcomeView(
+                        viewportHeight = viewportHeight,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 680.dp)
+                            .padding(horizontal = 8.dp)
+                    )
+                }
             },
             composer = {
                 HomeComposerView(
@@ -78,6 +90,7 @@ internal fun HomeView(
             onSidebarTapped = onSidebarTapped,
             onNewConversationTapped = onNewConversationTapped,
             onDismissKeyboard = { keyboardController?.hide() },
+            threadTitle = chatState.headerTitle.takeIf { chatState.isThreadActive },
             modifier = Modifier.align(Alignment.TopCenter)
         )
     }

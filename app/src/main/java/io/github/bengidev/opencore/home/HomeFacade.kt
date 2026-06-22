@@ -6,9 +6,11 @@ import io.github.bengidev.opencore.home.application.HomeComponent
 internal class HomeFacade {
     fun createComponent(
         componentContext: ComponentContext,
-        onSendMessage: ((String) -> Unit)? = null
+        onSendMessage: ((String) -> Unit)? = null,
+        onNewConversation: (() -> Unit)? = null
     ): HomeComponent = HomeComponent(
         componentContext = componentContext,
-        onSendMessage = onSendMessage
+        onSendMessage = onSendMessage,
+        onNewConversation = onNewConversation
     )
 }
