@@ -20,6 +20,8 @@ import io.github.bengidev.opencore.home.application.HomeComponent
 import io.github.bengidev.opencore.onboarding.OnboardingFacade
 import io.github.bengidev.opencore.onboarding.OnboardingScreen
 import io.github.bengidev.opencore.onboarding.application.OnboardingComponent
+import io.github.bengidev.opencore.sidepanel.SidePanelFacade
+import io.github.bengidev.opencore.sidepanel.application.SidePanelComponent
 import io.github.bengidev.opencore.ui.decompose.rememberComponentContext
 import io.github.bengidev.opencore.ui.theme.OpenCoreTheme
 
@@ -31,6 +33,7 @@ class MainActivity : ComponentActivity() {
 
         val onboardingFacade = OnboardingFacade()
         val homeFacade = HomeFacade()
+        val sidePanelFacade = SidePanelFacade()
 
         setContent {
             var darkTheme by rememberSaveable { mutableStateOf(false) }
@@ -54,6 +57,8 @@ class MainActivity : ComponentActivity() {
                     )
                     false -> HomeRoute(
                         facade = homeFacade,
+                        sidePanelFacade = sidePanelFacade,
+                        activity = this@MainActivity,
                         darkTheme = darkTheme
                     )
                 }
@@ -89,15 +94,24 @@ private fun OnboardingRoute(
 @Composable
 private fun HomeRoute(
     facade: HomeFacade,
+    sidePanelFacade: SidePanelFacade,
+    activity: ComponentActivity,
     darkTheme: Boolean
 ) {
     val componentContext = rememberComponentContext()
     val homeComponent: HomeComponent = remember(componentContext) {
         facade.createComponent(componentContext = componentContext)
     }
+    val sidePanelComponent: SidePanelComponent = remember(componentContext) {
+        sidePanelFacade.createComponent(
+            context = activity,
+            componentContext = componentContext
+        )
+    }
 
     HomeScreen(
         component = homeComponent,
+        sidePanelComponent = sidePanelComponent,
         darkTheme = darkTheme
     )
 }
