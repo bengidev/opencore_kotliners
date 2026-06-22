@@ -24,6 +24,7 @@ import io.github.bengidev.opencore.onboarding.OnboardingScreen
 import io.github.bengidev.opencore.onboarding.application.OnboardingComponent
 import io.github.bengidev.opencore.sidepanel.SidePanelFacade
 import io.github.bengidev.opencore.sidepanel.application.SidePanelComponent
+import io.github.bengidev.opencore.sidepanel.infrastructure.DataStoreSidePanelPreferenceStore
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelHistoryRepository
 import io.github.bengidev.opencore.ui.decompose.rememberComponentContext
 import io.github.bengidev.opencore.ui.theme.OpenCoreTheme
@@ -106,11 +107,13 @@ private fun HomeRoute(
 ) {
     val componentContext = rememberComponentContext()
     val history = remember { InMemorySidePanelHistoryRepository() }
-    val sidePanelComponent: SidePanelComponent = remember(componentContext, history) {
+    val preferenceStore = remember(activity) { DataStoreSidePanelPreferenceStore(activity) }
+    val sidePanelComponent: SidePanelComponent = remember(componentContext, history, preferenceStore) {
         sidePanelFacade.createComponent(
             context = activity,
             componentContext = componentContext,
-            history = history
+            history = history,
+            preferenceStore = preferenceStore
         )
     }
     val chatComponent: ChatComponent = remember(componentContext, history) {
@@ -119,15 +122,16 @@ private fun HomeRoute(
             history = history
         )
     }
-    val homeComponent: HomeComponent = remember(componentContext, chatComponent, sidePanelComponent) {
+    val homeComponent: HomeComponent = remember(componentContext, chatComponent, sidePanelComponent, preferenceStore) {
         facade.createComponent(
             componentContext = componentContext,
+            preferenceStore = preferenceStore,
             onSendMessage = chatComponent::sendUserMessage,
             onNewConversation = chatComponent::startNewConversation
         )
     }
 
-    LaunchedEffect(chatComponent, sidePanelComponent) {
+    LaunchedEffect(chatComponent, sidePanelComponent, homeComponent) {
         chatComponent.onActiveConversationChanged = { id ->
             sidePanelComponent.session.setActiveConversationId(id)
         }
@@ -137,6 +141,7 @@ private fun HomeRoute(
         sidePanelComponent.onOpenConversation = chatComponent::openConversation
         sidePanelComponent.onActiveConversationRenamed = chatComponent::onActiveConversationRenamed
         sidePanelComponent.onActiveConversationDeleted = chatComponent::onActiveConversationDeleted
+        sidePanelComponent.onProviderChanged = { homeComponent.onProviderChanged() }
     }
 
     HomeScreen(

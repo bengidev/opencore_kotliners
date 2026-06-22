@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import io.github.bengidev.opencore.chat.application.ChatComponent
 import io.github.bengidev.opencore.home.application.HomeComponent
+import io.github.bengidev.opencore.home.presenter.HomeModelPickerSheet
 import io.github.bengidev.opencore.home.presenter.HomeView
 import io.github.bengidev.opencore.home.theme.OpenCoreHomeTheme
 import io.github.bengidev.opencore.sidepanel.SidePanelScreen
@@ -39,6 +40,11 @@ internal fun HomeScreen(
                 onContextUsageTapped = component::onContextUsageTapped
             )
             SidePanelScreen(component = sidePanelComponent)
+            HomeModelPickerSheet(
+                state = state,
+                onDismiss = component::onModelPickerDismissed,
+                onModelSelected = component::onModelSelected
+            )
         }
     }
 }

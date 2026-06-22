@@ -32,9 +32,10 @@ The welcome content scrolls inside `WelcomeScrollContainer` (`WelcomeScrollConta
 
 | Implemented | Not yet |
 |---|---|
-| Welcome hero + particle orb | Model popup |
-| Composer prompt panel | API key validation |
-| Model / speed / context rail (static demo) | Real provider streaming |
+| Welcome hero + particle orb | API key validation |
+| Composer prompt panel | Real provider streaming |
+| Model picker sheet (static catalog per provider) | Live GET /models fetch |
+| Model / speed / context rail | |
 | Top bar chrome (menu opens side panel) | |
 | Draft text input + send clears field | |
 | Side panel overlay (via `SidePanelScreen`) | |
