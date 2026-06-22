@@ -2,8 +2,11 @@ package io.github.bengidev.opencore.home.presenter
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -37,6 +40,23 @@ internal fun HomeView(
 ) {
     val palette = HomeTheme.palette
     val keyboardController = LocalSoftwareKeyboardController.current
+    val composer: @Composable () -> Unit = {
+        HomeComposerView(
+            state = state,
+            onDraftMessageChanged = onDraftMessageChanged,
+            onAttachmentTapped = onAttachmentTapped,
+            onMicrophoneTapped = onMicrophoneTapped,
+            onSendTapped = onSendTapped,
+            onModelSelectorTapped = onModelSelectorTapped,
+            onSpeedModeTapped = onSpeedModeTapped,
+            onContextUsageTapped = onContextUsageTapped,
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 620.dp)
+                .padding(horizontal = 8.dp)
+                .padding(bottom = ComposerBottomPadding)
+        )
+    }
 
     Box(
         modifier = modifier
@@ -44,20 +64,32 @@ internal fun HomeView(
             .background(palette.surfaceBase)
             .navigationBarsPadding()
     ) {
-        WelcomeScrollContainer(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .padding(top = HomeTopBarClearance),
-            content = { viewportHeight ->
-                if (chatState.isThreadActive) {
-                    ChatThreadView(
-                        state = chatState,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .widthIn(max = 620.dp)
-                    )
-                } else {
+        if (chatState.isThreadActive) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .padding(top = HomeTopBarClearance)
+                    .imePadding()
+            ) {
+                ChatThreadView(
+                    state = chatState,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .fillMaxHeight()
+                        .widthIn(max = 620.dp)
+                        .padding(horizontal = 8.dp)
+                )
+                composer()
+            }
+        } else {
+            WelcomeScrollContainer(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .padding(top = HomeTopBarClearance),
+                content = { viewportHeight ->
                     HomeWelcomeView(
                         viewportHeight = viewportHeight,
                         modifier = Modifier
@@ -65,26 +97,10 @@ internal fun HomeView(
                             .widthIn(max = 680.dp)
                             .padding(horizontal = 8.dp)
                     )
-                }
-            },
-            composer = {
-                HomeComposerView(
-                    state = state,
-                    onDraftMessageChanged = onDraftMessageChanged,
-                    onAttachmentTapped = onAttachmentTapped,
-                    onMicrophoneTapped = onMicrophoneTapped,
-                    onSendTapped = onSendTapped,
-                    onModelSelectorTapped = onModelSelectorTapped,
-                    onSpeedModeTapped = onSpeedModeTapped,
-                    onContextUsageTapped = onContextUsageTapped,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .widthIn(max = 620.dp)
-                        .padding(horizontal = 8.dp)
-                        .padding(bottom = ComposerBottomPadding)
-                )
-            }
-        )
+                },
+                composer = composer
+            )
+        }
 
         HomeTopBarOverlay(
             onSidebarTapped = onSidebarTapped,
