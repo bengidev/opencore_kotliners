@@ -17,4 +17,27 @@ internal data class SidePanelConversation(
     val updatedAt: Instant = Instant.now(),
     val isPinned: Boolean = false,
     val groupName: String? = null
-)
+) {
+    companion object {
+        private val previewNow: Instant = Instant.parse("2024-06-01T12:00:00Z")
+
+        fun previewSamples(now: Instant = previewNow): List<SidePanelConversation> = listOf(
+            SidePanelConversation(
+                title = "Kotlin coroutines",
+                createdAt = now.minusSeconds(3_600),
+                updatedAt = now.minusSeconds(300)
+            ),
+            SidePanelConversation(
+                title = "Compose side panel",
+                createdAt = now.minusSeconds(86_400),
+                updatedAt = now.minusSeconds(7_200)
+            ),
+            SidePanelConversation(
+                title = "Pinned notes",
+                createdAt = now.minusSeconds(172_800),
+                updatedAt = now.minusSeconds(172_800),
+                isPinned = true
+            )
+        )
+    }
+}

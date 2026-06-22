@@ -121,4 +121,30 @@ internal class SidePanelSessionComponent(
 
     fun toggleGroupHeader(group: String) =
         dispatch(SidePanelSessionIntent.GroupHeaderToggled(group))
+
+    fun recordDraftConversation(title: String) {
+        val trimmed = title.trim()
+        if (trimmed.isEmpty()) return
+        scope.launch {
+            val conversation = SidePanelConversation(
+                title = trimmed.take(80),
+                updatedAt = java.time.Instant.now()
+            )
+            history.saveConversation(conversation)
+            if (_state.value.isSidebarVisible) {
+                refreshConversations()
+            }
+        }
+    }
+
+    private suspend fun refreshConversations() {
+        val conversations = history.listConversations()
+        val groups = history.listGroups()
+        dispatch(
+            SidePanelSessionIntent.ConversationsLoaded(
+                conversations = conversations,
+                groups = groups
+            )
+        )
+    }
 }
