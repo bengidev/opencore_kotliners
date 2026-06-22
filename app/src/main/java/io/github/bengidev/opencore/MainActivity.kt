@@ -14,6 +14,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import io.github.bengidev.opencore.chat.ChatFacade
+import io.github.bengidev.opencore.chat.application.ChatComponent
 import io.github.bengidev.opencore.home.HomeFacade
 import io.github.bengidev.opencore.home.HomeScreen
 import io.github.bengidev.opencore.home.application.HomeComponent
@@ -35,6 +37,7 @@ class MainActivity : ComponentActivity() {
         val onboardingFacade = OnboardingFacade()
         val homeFacade = HomeFacade()
         val sidePanelFacade = SidePanelFacade()
+        val chatFacade = ChatFacade()
 
         setContent {
             var darkTheme by rememberSaveable { mutableStateOf(false) }
@@ -59,6 +62,7 @@ class MainActivity : ComponentActivity() {
                     false -> HomeRoute(
                         facade = homeFacade,
                         sidePanelFacade = sidePanelFacade,
+                        chatFacade = chatFacade,
                         activity = this@MainActivity,
                         darkTheme = darkTheme
                     )
@@ -96,6 +100,7 @@ private fun OnboardingRoute(
 private fun HomeRoute(
     facade: HomeFacade,
     sidePanelFacade: SidePanelFacade,
+    chatFacade: ChatFacade,
     activity: ComponentActivity,
     darkTheme: Boolean
 ) {
@@ -108,14 +113,35 @@ private fun HomeRoute(
             history = history
         )
     }
-    val homeComponent: HomeComponent = remember(componentContext, sidePanelComponent) {
-        facade.createComponent(componentContext = componentContext) { draft ->
-            sidePanelComponent.session.recordDraftConversation(draft)
+    val chatComponent: ChatComponent = remember(componentContext, history) {
+        chatFacade.createComponent(
+            componentContext = componentContext,
+            history = history
+        )
+    }
+    val homeComponent: HomeComponent = remember(componentContext, chatComponent, sidePanelComponent) {
+        facade.createComponent(
+            componentContext = componentContext,
+            onSendMessage = chatComponent::sendUserMessage,
+            onNewConversation = chatComponent::startNewConversation
+        )
+    }
+
+    LaunchedEffect(chatComponent, sidePanelComponent) {
+        chatComponent.onActiveConversationChanged = { id ->
+            sidePanelComponent.session.setActiveConversationId(id)
         }
+        chatComponent.onHistoryChanged = {
+            sidePanelComponent.session.refreshConversationsIfVisible()
+        }
+        sidePanelComponent.onOpenConversation = chatComponent::openConversation
+        sidePanelComponent.onActiveConversationRenamed = chatComponent::onActiveConversationRenamed
+        sidePanelComponent.onActiveConversationDeleted = chatComponent::onActiveConversationDeleted
     }
 
     HomeScreen(
         component = homeComponent,
+        chatComponent = chatComponent,
         sidePanelComponent = sidePanelComponent,
         darkTheme = darkTheme
     )
