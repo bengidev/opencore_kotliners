@@ -61,7 +61,7 @@ internal data class SidePanelSessionSection(
             return sections
         }
 
-        fun relativeLabel(for date: Instant, now: Instant = Instant.now()): String {
+        fun relativeLabel(date: Instant, now: Instant = Instant.now()): String {
             val intervalSeconds = (now.epochSecond - date.epochSecond).coerceAtLeast(0)
             val minute = 60L
             val hour = 60 * minute

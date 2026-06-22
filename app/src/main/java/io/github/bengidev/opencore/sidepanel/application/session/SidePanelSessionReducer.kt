@@ -3,8 +3,8 @@ package io.github.bengidev.opencore.sidepanel.application.session
 import java.time.Instant
 
 internal object SidePanelSessionReducer {
-    fun reduce(state: SidePanelSessionState, intent: SidePanelSessionIntent): SidePanelSessionState =
-        when (intent) {
+    fun reduce(state: SidePanelSessionState, intent: SidePanelSessionIntent): SidePanelSessionState {
+        return when (intent) {
             SidePanelSessionIntent.SidebarToggled ->
                 state.copy(isSidebarVisible = !state.isSidebarVisible)
             SidePanelSessionIntent.SidebarDismissed ->
@@ -20,29 +20,33 @@ internal object SidePanelSessionReducer {
                 val matching = state.conversations.indices.filter {
                     state.conversations[it].id == intent.conversation.id
                 }
-                if (matching.isEmpty()) return state
-                val newValue = !state.conversations[matching.first()].isPinned
-                val updated = state.conversations.map { conversation ->
-                    if (conversation.id == intent.conversation.id) {
-                        conversation.copy(isPinned = newValue)
-                    } else {
-                        conversation
+                if (matching.isEmpty()) state else {
+                    val newValue = !state.conversations[matching.first()].isPinned
+                    val updated = state.conversations.map { conversation ->
+                        if (conversation.id == intent.conversation.id) {
+                            conversation.copy(isPinned = newValue)
+                        } else {
+                            conversation
+                        }
                     }
+                    state.copy(conversations = SidePanelSessionState.deduplicatedPinnedFirst(updated))
                 }
-                state.copy(conversations = SidePanelSessionState.deduplicatedPinnedFirst(updated))
             }
             is SidePanelSessionIntent.ConversationRenamed -> {
                 val trimmed = intent.title.trim()
-                if (trimmed.isEmpty()) return state
-                val now = Instant.now()
-                val updated = state.conversations.map { conversation ->
-                    if (conversation.id == intent.id) {
-                        conversation.copy(title = trimmed, updatedAt = now)
-                    } else {
-                        conversation
+                if (trimmed.isEmpty()) {
+                    state
+                } else {
+                    val now = Instant.now()
+                    val updated = state.conversations.map { conversation ->
+                        if (conversation.id == intent.id) {
+                            conversation.copy(title = trimmed, updatedAt = now)
+                        } else {
+                            conversation
+                        }
                     }
+                    state.copy(conversations = SidePanelSessionState.sortedPinnedFirst(updated))
                 }
-                state.copy(conversations = SidePanelSessionState.sortedPinnedFirst(updated))
             }
             is SidePanelSessionIntent.ConversationDeleted ->
                 state.copy(conversations = state.conversations.filter { it.id != intent.id })
@@ -76,4 +80,5 @@ internal object SidePanelSessionReducer {
             is SidePanelSessionIntent.ActiveConversationIdChanged ->
                 state.copy(activeConversationId = intent.id)
         }
+    }
 }
