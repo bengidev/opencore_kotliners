@@ -22,6 +22,7 @@ import io.github.bengidev.opencore.onboarding.OnboardingScreen
 import io.github.bengidev.opencore.onboarding.application.OnboardingComponent
 import io.github.bengidev.opencore.sidepanel.SidePanelFacade
 import io.github.bengidev.opencore.sidepanel.application.SidePanelComponent
+import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelHistoryRepository
 import io.github.bengidev.opencore.ui.decompose.rememberComponentContext
 import io.github.bengidev.opencore.ui.theme.OpenCoreTheme
 
@@ -99,14 +100,18 @@ private fun HomeRoute(
     darkTheme: Boolean
 ) {
     val componentContext = rememberComponentContext()
-    val homeComponent: HomeComponent = remember(componentContext) {
-        facade.createComponent(componentContext = componentContext)
-    }
-    val sidePanelComponent: SidePanelComponent = remember(componentContext) {
+    val history = remember { InMemorySidePanelHistoryRepository() }
+    val sidePanelComponent: SidePanelComponent = remember(componentContext, history) {
         sidePanelFacade.createComponent(
             context = activity,
-            componentContext = componentContext
+            componentContext = componentContext,
+            history = history
         )
+    }
+    val homeComponent: HomeComponent = remember(componentContext, sidePanelComponent) {
+        facade.createComponent(componentContext = componentContext) { draft ->
+            sidePanelComponent.session.recordDraftConversation(draft)
+        }
     }
 
     HomeScreen(

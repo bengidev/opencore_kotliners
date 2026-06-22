@@ -4,8 +4,12 @@ import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import java.util.UUID
 
-internal class InMemorySidePanelHistoryRepository : SidePanelHistoryRepository {
-    private val conversations = linkedMapOf<UUID, SidePanelConversation>()
+internal class InMemorySidePanelHistoryRepository(
+    seed: List<SidePanelConversation> = SidePanelConversation.previewSamples()
+) : SidePanelHistoryRepository {
+    private val conversations = linkedMapOf<UUID, SidePanelConversation>().apply {
+        seed.forEach { put(it.id, it) }
+    }
     private val messages = mutableMapOf<UUID, MutableList<SidePanelMessage>>()
 
     override suspend fun listConversations(): List<SidePanelConversation> =
