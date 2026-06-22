@@ -1,7 +1,6 @@
 package io.github.bengidev.opencore.sidepanel.domain
 
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
@@ -92,8 +91,8 @@ private enum class RecencyBucket(val id: String, val title: String) {
 
     companion object {
         fun classify(date: Instant, now: Instant, zoneId: ZoneId): RecencyBucket {
-            val today = LocalDate.ofInstant(now, zoneId)
-            val dateDay = LocalDate.ofInstant(date, zoneId)
+            val today = now.atZone(zoneId).toLocalDate()
+            val dateDay = date.atZone(zoneId).toLocalDate()
             val daysAgo = ChronoUnit.DAYS.between(dateDay, today).toInt()
             return when {
                 daysAgo <= 0 -> Today
