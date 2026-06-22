@@ -39,4 +39,7 @@ internal data class SidePanelProviderApi(
         fun resolve(id: String?): SidePanelProviderApi =
             id?.let { providerId -> all.firstOrNull { it.id == providerId } } ?: default
     }
+
+    val chatCompletionsUrl: String
+        get() = "$baseUrl/chat/completions"
 }

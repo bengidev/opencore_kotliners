@@ -16,7 +16,7 @@ Internal module with `ChatFacade` as the app-shell wiring entry. `ChatComponent`
 
 - **ChatComponent**: Decompose component for thread lifecycle and send
 - **ChatIntent** / **ChatReducer**: Command-style state mutations
-- **ChatCompletionClient**: Strategy seam for provider responses (stub echo today)
+- **ChatCompletionClient**: Strategy seam for provider responses (`ProviderChatCompletionClient` → OpenAI-compatible HTTP)
 - **SidePanelHistoryRepository**: Persistence for conversations and messages (owned by SidePanel infrastructure)
 
 ## Integration
@@ -35,5 +35,5 @@ Internal module with `ChatFacade` as the app-shell wiring entry. `ChatComponent`
 |---|---|
 | Thread message list UI | Provider streaming / SSE |
 | Send creates conversation + user message | Model catalog fetch |
-| Echo assistant reply via stub client | Credential gating on send |
+| OpenAI-compatible provider completions | Credential gating on send (composer) |
 | Resume from history | Room-backed persistence |
