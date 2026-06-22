@@ -23,6 +23,7 @@ internal class DataStoreSidePanelPreferenceStore(
         context.sidePanelPreferencesDataStore.data.map { preferences ->
             SidePanelProviderPreference(
                 providerId = preferences[KEY_PROVIDER_ID],
+                modelId = preferences[KEY_MODEL_ID],
                 reasoningModel = SidePanelReasoningModel.fromWire(preferences[KEY_REASONING_MODEL])
             )
         }.first()
@@ -30,6 +31,16 @@ internal class DataStoreSidePanelPreferenceStore(
     override suspend fun setProviderId(id: String) {
         context.sidePanelPreferencesDataStore.edit { preferences ->
             preferences[KEY_PROVIDER_ID] = id
+        }
+    }
+
+    override suspend fun setModelId(id: String?) {
+        context.sidePanelPreferencesDataStore.edit { preferences ->
+            if (id.isNullOrBlank()) {
+                preferences.remove(KEY_MODEL_ID)
+            } else {
+                preferences[KEY_MODEL_ID] = id
+            }
         }
     }
 
@@ -41,6 +52,7 @@ internal class DataStoreSidePanelPreferenceStore(
 
     companion object {
         private val KEY_PROVIDER_ID = stringPreferencesKey("opencore.provider.selectedProviderID")
+        private val KEY_MODEL_ID = stringPreferencesKey("opencore.provider.selectedModelID")
         private val KEY_REASONING_MODEL = stringPreferencesKey("opencore.provider.reasoningModel")
     }
 }
