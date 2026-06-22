@@ -180,7 +180,8 @@ internal fun SidePanelSessionDrawer(
         }
     }
 
-    renameTarget?.let { target ->
+    val renameConversation = renameTarget
+    if (renameConversation != null) {
         AlertDialog(
             onDismissRequest = { renameTarget = null },
             title = { Text("Rename conversation") },
@@ -193,7 +194,7 @@ internal fun SidePanelSessionDrawer(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    component.renameConversation(target.id, renameText)
+                    component.renameConversation(renameConversation.id, renameText)
                     renameTarget = null
                 }) { Text("Save") }
             },
@@ -236,45 +237,47 @@ internal fun SidePanelSessionDrawer(
         state.filteredConversations.firstOrNull { it.id == target.id } ?: target
     }
     if (showContextMenu && liveConversation != null) {
+        val conversation = liveConversation
         AlertDialog(
             onDismissRequest = { showContextMenu = false },
-            title = { Text(liveConversation.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            title = { Text(conversation.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             text = {
                 Column {
                     TextButton(onClick = {
-                        renameTarget = liveConversation
-                        renameText = liveConversation.title
+                        renameTarget = conversation
+                        renameText = conversation.title
                         showContextMenu = false
                     }) { Text("Rename") }
                     TextButton(onClick = {
-                        component.pinConversation(liveConversation)
+                        component.pinConversation(conversation)
                         showContextMenu = false
-                    }) { Text(if (liveConversation.isPinned) "Unpin" else "Pin") }
+                    }) { Text(if (conversation.isPinned) "Unpin" else "Pin") }
                     state.availableGroups.forEach { group ->
                         TextButton(onClick = {
-                            val nextGroup = if (liveConversation.groupName == group) null else group
-                            component.changeGroup(liveConversation.id, nextGroup)
+                            val nextGroup = if (conversation.groupName == group) null else group
+                            component.changeGroup(conversation.id, nextGroup)
                             showContextMenu = false
-                        }) { Text(if (liveConversation.groupName == group) "Remove from $group" else "Move to $group") }
+                        }) { Text(if (conversation.groupName == group) "Remove from $group" else "Move to $group") }
                     }
-                    liveConversation.groupName?.let { currentGroup ->
+                    if (conversation.groupName != null) {
+                        val currentGroup = conversation.groupName
                         TextButton(onClick = {
-                            component.changeGroup(liveConversation.id, null)
+                            component.changeGroup(conversation.id, null)
                             showContextMenu = false
                         }) { Text("Remove from $currentGroup") }
                     }
                     TextButton(onClick = {
-                        newGroupTargetId = liveConversation.id
+                        newGroupTargetId = conversation.id
                         newGroupText = ""
                         showContextMenu = false
                     }) { Text("New Group...") }
                     TextButton(onClick = {
-                        component.deleteConversation(liveConversation.id)
+                        component.deleteConversation(conversation.id)
                         showContextMenu = false
-                    }) { Text("Delete", color = HomeTheme.palette.accentPrimary) }
+                    }) { Text("Delete", color = palette.accentPrimary) }
                 }
             },
-            dismissButton = {
+            confirmButton = {
                 TextButton(onClick = { showContextMenu = false }) { Text("Close") }
             }
         )
