@@ -6,11 +6,11 @@
 | **Package** | `io.github.bengidev.opencore.home` |
 | **Module** | Internal module inside `:app` |
 
-Welcome-state home screen with particle orb hero, message composer, and context rail. Visual design only in this phase — chat, sidebar, and model catalog are not wired yet.
+Welcome-state home screen with particle orb hero, message composer, and context rail. Visual design only in this phase — chat and model catalog are not wired yet. Sidebar opens the side panel overlay.
 
 ## Visibility
 
-Internal module with `HomeFacade` and `HomeScreen` as the app-shell entry points.
+Internal module with `HomeFacade` and `HomeScreen` as the app-shell entry points. `HomeScreen` composes `SidePanelScreen` as an overlay.
 
 ## Language
 
@@ -31,7 +31,8 @@ The welcome content scrolls inside `WelcomeScrollContainer` (`WelcomeScrollConta
 | Implemented | Not yet |
 |---|---|
 | Welcome hero + particle orb | Chat thread |
-| Composer prompt panel | Sidebar |
-| Model / speed / context rail (static demo) | Model popup |
-| Top bar chrome | API key validation |
-| Draft text input + send clears field | Real send / streaming |
+| Composer prompt panel | Model popup |
+| Model / speed / context rail (static demo) | API key validation |
+| Top bar chrome (menu opens side panel) | Real send / streaming |
+| Draft text input + send clears field | |
+| Side panel overlay (via `SidePanelScreen`) | |
