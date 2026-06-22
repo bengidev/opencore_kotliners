@@ -30,9 +30,10 @@ The welcome content scrolls inside `WelcomeScrollContainer` (`WelcomeScrollConta
 
 | Implemented | Not yet |
 |---|---|
-| Welcome hero + particle orb | Chat thread |
-| Composer prompt panel | Model popup |
-| Model / speed / context rail (static demo) | API key validation |
-| Top bar chrome (menu opens side panel) | Real send / streaming |
+| Welcome hero + particle orb | Model popup |
+| Composer prompt panel | API key validation |
+| Model / speed / context rail (static demo) | Real provider streaming |
+| Top bar chrome (menu opens side panel) | |
 | Draft text input + send clears field | |
 | Side panel overlay (via `SidePanelScreen`) | |
+| Thread view when chat active (via `ChatThreadView`) | |

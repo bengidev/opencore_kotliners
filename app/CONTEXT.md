@@ -12,6 +12,7 @@ The app composes feature packages as siblings under `io.github.bengidev.opencore
 - **MainActivity**: Composition root, Decompose lifecycle owner
 - **OnboardingFacade**: Wiring entry for the onboarding internal module
 - **HomeFacade**: Wiring entry for the home internal module
+- **ChatFacade**: Wiring entry for the chat internal module
 
 ## Internal modules (in `:app`)
 
@@ -28,5 +29,10 @@ io.github.bengidev.opencore/
 │   ├── application/
 │   ├── presenter/
 │   └── theme/
+├── chat/                # Chat internal module
+│   ├── domain/
+│   ├── application/
+│   ├── infrastructure/
+│   └── presenter/
 └── ui/theme/            # App-wide theme
 ```
