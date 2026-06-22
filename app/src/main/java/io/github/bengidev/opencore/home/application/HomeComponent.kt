@@ -7,7 +7,8 @@ import com.arkivanov.decompose.value.update
 
 internal class HomeComponent(
     componentContext: ComponentContext,
-    private val onSendMessage: ((String) -> Unit)? = null
+    private val onSendMessage: ((String) -> Unit)? = null,
+    private val onNewConversation: (() -> Unit)? = null
 ) : ComponentContext by componentContext {
 
     private val _state = MutableValue(HomeState())
@@ -19,7 +20,10 @@ internal class HomeComponent(
 
     fun onDraftMessageChanged(value: String) = dispatch(HomeIntent.DraftMessageChanged(value))
     fun onSidebarTapped() = dispatch(HomeIntent.SidebarTapped)
-    fun onNewConversationTapped() = dispatch(HomeIntent.NewConversationTapped)
+    fun onNewConversationTapped() {
+        onNewConversation?.invoke()
+        dispatch(HomeIntent.NewConversationTapped)
+    }
     fun onAttachmentTapped() = dispatch(HomeIntent.AttachmentTapped)
     fun onMicrophoneTapped() = dispatch(HomeIntent.MicrophoneTapped)
     fun onSendTapped() {

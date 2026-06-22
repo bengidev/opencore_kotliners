@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
@@ -18,6 +19,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.home.theme.HomeTheme
 
@@ -28,6 +31,7 @@ internal fun HomeTopBarOverlay(
     onSidebarTapped: () -> Unit,
     onNewConversationTapped: () -> Unit,
     onDismissKeyboard: () -> Unit,
+    threadTitle: String? = null,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -51,6 +55,19 @@ internal fun HomeTopBarOverlay(
             contentDescription = "New conversation",
             modifier = Modifier.align(Alignment.CenterEnd)
         )
+        if (!threadTitle.isNullOrBlank()) {
+            Text(
+                text = threadTitle,
+                style = HomeTheme.typography.welcomeCaption,
+                color = HomeTheme.palette.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 56.dp)
+            )
+        }
     }
 }
 
