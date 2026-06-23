@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -34,7 +33,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.chat.theme.ChatTheme
 
@@ -107,17 +110,12 @@ internal fun ChatReasoningCardView(
         }
 
         if (showsBody && isExpanded) {
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    text = content.ifEmpty { if (isStreaming) "…" else "" },
-                    style = typography.reasoningBody,
-                    color = palette.reasoningText,
-                    modifier = Modifier.weight(1f)
-                )
-                if (isStreaming) {
-                    ChatStreamingCursor()
-                }
-            }
+            StreamingReasoningText(
+                content = content,
+                isStreaming = isStreaming,
+                textColor = palette.reasoningText,
+                cursorColor = palette.streamingDot
+            )
         }
     }
 }
@@ -142,19 +140,41 @@ private fun ChatReasoningPulseDot() {
 }
 
 @Composable
-private fun ChatStreamingCursor() {
-    val palette = ChatTheme.palette
-    val transition = rememberInfiniteTransition(label = "reasoning-cursor")
-    val alpha by transition.animateFloat(
-        initialValue = 1f,
-        targetValue = 0.2f,
-        animationSpec = infiniteRepeatable(tween(550), RepeatMode.Reverse),
-        label = "cursor-alpha"
-    )
+private fun StreamingReasoningText(
+    content: String,
+    isStreaming: Boolean,
+    textColor: Color,
+    cursorColor: Color
+) {
+    val typography = ChatTheme.typography
+    val displayedContent = content.ifEmpty { if (isStreaming) "…" else "" }
+
+    val cursorAlpha by if (isStreaming) {
+        val transition = rememberInfiniteTransition(label = "reasoning-cursor")
+        transition.animateFloat(
+            initialValue = 1f,
+            targetValue = 0.2f,
+            animationSpec = infiniteRepeatable(tween(550), RepeatMode.Reverse),
+            label = "cursor-alpha"
+        )
+    } else {
+        remember { mutableStateOf(0f) }
+    }
+
+    // Inline caret so it trails the last character (and wraps with it), not the row edge.
+    val text = buildAnnotatedString {
+        append(displayedContent)
+        if (isStreaming) {
+            withStyle(SpanStyle(color = cursorColor.copy(alpha = cursorAlpha))) {
+                append("▍")
+            }
+        }
+    }
 
     Text(
-        text = "▍",
-        style = ChatTheme.typography.reasoningBody,
-        color = palette.streamingDot.copy(alpha = alpha)
+        text = text,
+        style = typography.reasoningBody,
+        color = textColor,
+        modifier = Modifier.fillMaxWidth()
     )
 }
