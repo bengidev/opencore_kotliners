@@ -8,6 +8,7 @@ import com.arkivanov.essenty.lifecycle.doOnDestroy
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModelCatalog
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
+import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelCredentialStore
 import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelPreferenceStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +19,7 @@ import kotlinx.coroutines.launch
 internal class HomeComponent(
     componentContext: ComponentContext,
     private val preferenceStore: SidePanelPreferenceStore,
+    private val credentialStore: SidePanelCredentialStore,
     private val onSendMessage: ((String) -> Unit)? = null,
     private val onNewConversation: (() -> Unit)? = null
 ) : ComponentContext by componentContext {
@@ -44,9 +46,10 @@ internal class HomeComponent(
     fun onAttachmentTapped() = dispatch(HomeIntent.AttachmentTapped)
     fun onMicrophoneTapped() = dispatch(HomeIntent.MicrophoneTapped)
     fun onSendTapped() {
-        val message = _state.value.draftMessage.trim()
+        val current = _state.value
+        val message = current.draftMessage.trim()
         dispatch(HomeIntent.SendTapped)
-        if (message.isNotEmpty() && _state.value.selectedModelId != null) {
+        if (message.isNotEmpty() && current.selectedModelId != null && current.hasApiKey) {
             onSendMessage?.invoke(message)
         }
     }
@@ -66,6 +69,10 @@ internal class HomeComponent(
 
     fun onProviderChanged() {
         scope.launch { reloadModelSelection(resetToDefault = true) }
+    }
+
+    fun onCredentialsChanged() {
+        scope.launch { reloadApiKeyStatus() }
     }
 
     private suspend fun reloadModelSelection(resetToDefault: Boolean) {
@@ -89,6 +96,14 @@ internal class HomeComponent(
                 models = models
             )
         )
+        reloadApiKeyStatus()
+    }
+
+    private suspend fun reloadApiKeyStatus() {
+        val preference = preferenceStore.preference()
+        val provider = SidePanelProviderApi.resolve(preference.providerId)
+        val hasApiKey = !credentialStore.secret(provider.id).isNullOrBlank()
+        dispatch(HomeIntent.CredentialsLoaded(hasApiKey))
     }
 
     private suspend fun ensureModelsLoaded() {

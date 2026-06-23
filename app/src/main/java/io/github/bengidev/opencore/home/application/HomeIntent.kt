@@ -17,6 +17,7 @@ internal sealed interface HomeIntent {
         val modelTitle: String,
         val models: List<SidePanelModel>
     ) : HomeIntent
+    data class CredentialsLoaded(val hasApiKey: Boolean) : HomeIntent
     data object SpeedModeTapped : HomeIntent
     data object ContextUsageTapped : HomeIntent
 }

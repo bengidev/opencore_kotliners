@@ -13,7 +13,7 @@ class HomeReducerTest {
     @Test
     fun draftMessageChanged_updatesDraft() {
         val result = HomeReducer.reduce(
-            HomeState(selectedModelId = sampleModel.id),
+            HomeState(selectedModelId = sampleModel.id, hasApiKey = true),
             HomeIntent.DraftMessageChanged("Hello")
         )
         assertEquals("Hello", result.draftMessage)
@@ -23,15 +23,47 @@ class HomeReducerTest {
     @Test
     fun canSend_requiresSelectedModel() {
         assertFalse(HomeState(draftMessage = "Hello").canSend)
-        assertTrue(
-            HomeState(draftMessage = "Hello", selectedModelId = sampleModel.id).canSend
+        assertFalse(
+            HomeState(
+                draftMessage = "Hello",
+                selectedModelId = sampleModel.id,
+                hasLoadedCredentials = true
+            ).canSend
         )
+        assertTrue(
+            HomeState(
+                draftMessage = "Hello",
+                selectedModelId = sampleModel.id,
+                hasApiKey = true
+            ).canSend
+        )
+    }
+
+    @Test
+    fun showMissingApiKeyHint_requiresLoadedCredentialsWithoutKey() {
+        assertFalse(HomeState(hasLoadedCredentials = false, hasApiKey = false).showMissingApiKeyHint)
+        assertTrue(HomeState(hasLoadedCredentials = true, hasApiKey = false).showMissingApiKeyHint)
+        assertFalse(HomeState(hasLoadedCredentials = true, hasApiKey = true).showMissingApiKeyHint)
+    }
+
+    @Test
+    fun credentialsLoaded_updatesApiKeyState() {
+        val result = HomeReducer.reduce(
+            HomeState(),
+            HomeIntent.CredentialsLoaded(hasApiKey = true)
+        )
+        assertTrue(result.hasApiKey)
+        assertTrue(result.hasLoadedCredentials)
     }
 
     @Test
     fun sendTapped_clearsDraftWhenNotBlank() {
         val result = HomeReducer.reduce(
-            HomeState(draftMessage = "Hello", selectedModelId = sampleModel.id),
+            HomeState(
+                draftMessage = "Hello",
+                selectedModelId = sampleModel.id,
+                hasApiKey = true
+            ),
             HomeIntent.SendTapped
         )
         assertEquals("", result.draftMessage)
@@ -59,7 +91,43 @@ class HomeReducerTest {
         )
         assertEquals(sampleModel.id, result.selectedModelId)
         assertEquals(sampleModel.displayTitle, result.selectedModelTitle)
+        assertFalse(result.selectedModelSupportsReasoning)
         assertFalse(result.isModelPickerVisible)
+    }
+
+    @Test
+    fun modelSelected_tracksReasoningSupport() {
+        val reasoningModel = SidePanelModel(
+            id = "deepseek/deepseek-r1:free",
+            displayTitle = "DeepSeek R1 (free)",
+            supportsReasoning = true
+        )
+        val result = HomeReducer.reduce(
+            HomeState(),
+            HomeIntent.ModelSelected(reasoningModel)
+        )
+        assertTrue(result.selectedModelSupportsReasoning)
+    }
+
+    @Test
+    fun modelSelectionLoaded_tracksReasoningSupport() {
+        val models = listOf(
+            sampleModel,
+            SidePanelModel(
+                id = "deepseek/deepseek-r1:free",
+                displayTitle = "DeepSeek R1 (free)",
+                supportsReasoning = true
+            )
+        )
+        val result = HomeReducer.reduce(
+            HomeState(),
+            HomeIntent.ModelSelectionLoaded(
+                modelId = "deepseek/deepseek-r1:free",
+                modelTitle = "DeepSeek R1 (free)",
+                models = models
+            )
+        )
+        assertTrue(result.selectedModelSupportsReasoning)
     }
 
     @Test

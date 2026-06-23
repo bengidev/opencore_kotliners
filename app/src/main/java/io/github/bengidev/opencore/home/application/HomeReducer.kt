@@ -9,12 +9,21 @@ internal object HomeReducer {
         is HomeIntent.ModelSelected -> state.copy(
             selectedModelId = intent.model.id,
             selectedModelTitle = intent.model.displayTitle,
+            selectedModelSupportsReasoning = intent.model.supportsReasoning,
             isModelPickerVisible = false
         )
-        is HomeIntent.ModelSelectionLoaded -> state.copy(
-            selectedModelId = intent.modelId,
-            selectedModelTitle = intent.modelTitle,
-            availableModels = intent.models
+        is HomeIntent.ModelSelectionLoaded -> {
+            val selectedModel = intent.models.firstOrNull { it.id == intent.modelId }
+            state.copy(
+                selectedModelId = intent.modelId,
+                selectedModelTitle = intent.modelTitle,
+                selectedModelSupportsReasoning = selectedModel?.supportsReasoning == true,
+                availableModels = intent.models
+            )
+        }
+        is HomeIntent.CredentialsLoaded -> state.copy(
+            hasApiKey = intent.hasApiKey,
+            hasLoadedCredentials = true
         )
         HomeIntent.AttachmentTapped,
         HomeIntent.ContextUsageTapped,
