@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -21,6 +22,8 @@ import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.chat.theme.OpenCoreChatTheme
 import io.github.bengidev.opencore.home.theme.HomeTheme
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 
 @Composable
 internal fun ChatThreadView(
@@ -65,9 +68,15 @@ internal fun ChatThreadView(
             state.currentPartialThinking.length,
             awaitingAssistantReply
         ) {
-            val lastIndex = state.messages.lastIndex + if (awaitingAssistantReply) 1 else 0
-            if (lastIndex >= 0) {
-                listState.scrollToItem(lastIndex)
+            val targetIndex = state.messages.lastIndex + if (awaitingAssistantReply) 1 else 0
+            if (targetIndex < 0) return@LaunchedEffect
+            snapshotFlow { listState.layoutInfo.totalItemsCount }
+                .filter { it > targetIndex }
+                .first()
+            try {
+                listState.animateScrollToItem(targetIndex)
+            } catch (_: IllegalArgumentException) {
+                // ponytail: layout race during rapid stream updates — safe to ignore
             }
         }
 
