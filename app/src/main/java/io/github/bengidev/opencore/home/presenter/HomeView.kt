@@ -14,9 +14,11 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.chat.application.ChatState
+import io.github.bengidev.opencore.chat.presenter.ChatErrorBannerView
 import io.github.bengidev.opencore.chat.presenter.ChatThreadView
 import io.github.bengidev.opencore.home.application.HomeState
 import io.github.bengidev.opencore.home.theme.HomeTheme
@@ -33,23 +35,54 @@ internal fun HomeView(
     onAttachmentTapped: () -> Unit,
     onMicrophoneTapped: () -> Unit,
     onSendTapped: () -> Unit,
+    onConfigureApiKeyTapped: () -> Unit,
     onModelSelectorTapped: () -> Unit,
     onSpeedModeTapped: () -> Unit,
     onContextUsageTapped: () -> Unit,
+    onChatRetryTapped: () -> Unit = {},
+    onChatErrorDismissed: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val palette = HomeTheme.palette
     val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    val dismissKeyboard: () -> Unit = {
+        focusManager.clearFocus()
+        keyboardController?.hide()
+    }
     val composer: @Composable () -> Unit = {
         HomeComposerView(
             state = state,
+            isSending = chatState.isSending,
             onDraftMessageChanged = onDraftMessageChanged,
-            onAttachmentTapped = onAttachmentTapped,
-            onMicrophoneTapped = onMicrophoneTapped,
-            onSendTapped = onSendTapped,
-            onModelSelectorTapped = onModelSelectorTapped,
-            onSpeedModeTapped = onSpeedModeTapped,
-            onContextUsageTapped = onContextUsageTapped,
+            onAttachmentTapped = {
+                dismissKeyboard()
+                onAttachmentTapped()
+            },
+            onMicrophoneTapped = {
+                dismissKeyboard()
+                onMicrophoneTapped()
+            },
+            onSendTapped = {
+                dismissKeyboard()
+                onSendTapped()
+            },
+            onConfigureApiKeyTapped = {
+                dismissKeyboard()
+                onConfigureApiKeyTapped()
+            },
+            onModelSelectorTapped = {
+                dismissKeyboard()
+                onModelSelectorTapped()
+            },
+            onSpeedModeTapped = {
+                dismissKeyboard()
+                onSpeedModeTapped()
+            },
+            onContextUsageTapped = {
+                dismissKeyboard()
+                onContextUsageTapped()
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .widthIn(max = 620.dp)
@@ -74,12 +107,20 @@ internal fun HomeView(
             ) {
                 ChatThreadView(
                     state = chatState,
+                    onDismissKeyboard = dismissKeyboard,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
                         .fillMaxHeight()
                         .widthIn(max = 620.dp)
                         .padding(horizontal = 8.dp)
+                )
+                ChatErrorBannerView(
+                    streamingStatus = chatState.streamingStatus,
+                    errorMessage = chatState.streamErrorMessage,
+                    onRetry = onChatRetryTapped,
+                    onDismiss = onChatErrorDismissed,
+                    modifier = Modifier.fillMaxWidth()
                 )
                 composer()
             }
@@ -103,9 +144,15 @@ internal fun HomeView(
         }
 
         HomeTopBarOverlay(
-            onSidebarTapped = onSidebarTapped,
-            onNewConversationTapped = onNewConversationTapped,
-            onDismissKeyboard = { keyboardController?.hide() },
+            onSidebarTapped = {
+                dismissKeyboard()
+                onSidebarTapped()
+            },
+            onNewConversationTapped = {
+                dismissKeyboard()
+                onNewConversationTapped()
+            },
+            onDismissKeyboard = dismissKeyboard,
             threadTitle = chatState.headerTitle.takeIf { chatState.isThreadActive },
             modifier = Modifier.align(Alignment.TopCenter)
         )
