@@ -29,7 +29,8 @@ class OpenAiCompatibleChatCompletionClientTest {
         )
 
         assertEquals(ChatMessageRole.ASSISTANT, reply.role)
-        assertTrue(reply.content.contains("internet connection"))
+        assertTrue(reply.content.contains("openrouter.ai"))
+        assertTrue(reply.content.contains("DNS lookup failed"))
     }
 
     private fun sampleMessages(): List<SidePanelMessage> = listOf(
