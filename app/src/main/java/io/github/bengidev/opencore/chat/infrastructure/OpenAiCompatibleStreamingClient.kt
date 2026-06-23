@@ -7,15 +7,11 @@ import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelReasoningModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
-import java.net.SocketTimeoutException
 import java.net.URL
-import java.net.UnknownHostException
 
 internal class OpenAiCompatibleStreamingClient(
     private val httpStream: suspend (
@@ -31,7 +27,7 @@ internal class OpenAiCompatibleStreamingClient(
         apiKey: String,
         messages: List<SidePanelMessage>,
         reasoning: SidePanelReasoningModel
-    ): Flow<ChatStreamingEvent> = callbackFlow {
+    ): Flow<ChatStreamingEvent> = channelFlow {
         try {
             val body = ChatCompletionsCodec.encodeRequest(
                 modelId = modelId,
@@ -70,23 +66,20 @@ internal class OpenAiCompatibleStreamingClient(
                 }
             ) {
                 is HttpStreamResult.Failure -> {
-                    trySend(ChatStreamingEvent.Error(ChatStreamError(formatHttpError(result))))
+                    send(ChatStreamingEvent.Error(ChatStreamError(formatHttpError(result))))
                     didEmitDone = true
                 }
                 is HttpStreamResult.Success -> Unit
             }
 
             if (!didEmitDone) {
-                trySend(ChatStreamingEvent.Done)
+                send(ChatStreamingEvent.Done)
             }
-            close()
-        } catch (_: CancellationException) {
-            close()
+        } catch (e: CancellationException) {
+            throw e
         } catch (error: Exception) {
-            trySend(ChatStreamingEvent.Error(ChatStreamError(formatRequestError(error))))
-            close()
+            send(ChatStreamingEvent.Error(ChatStreamError(formatChatRequestError(error))))
         }
-        awaitClose { }
     }.flowOn(Dispatchers.IO)
 
     private fun formatHttpError(result: HttpStreamResult.Failure): String {
@@ -105,13 +98,6 @@ internal class OpenAiCompatibleStreamingClient(
             ?: "Request failed with status $status."
     }
 
-    private fun formatRequestError(error: Exception): String = when (error) {
-        is UnknownHostException ->
-            "No internet connection. Check your network and try again."
-        is SocketTimeoutException ->
-            "Request timed out. Check your connection and try again."
-        else -> error.message?.takeIf { it.isNotBlank() } ?: "Request failed"
-    }
 }
 
 internal sealed class HttpStreamResult {
@@ -124,7 +110,7 @@ private suspend fun defaultHttpStream(
     headers: Map<String, String>,
     body: String,
     onChunk: (ByteArray) -> Unit
-): HttpStreamResult = withContext(Dispatchers.IO) {
+): HttpStreamResult {
     val connection = (URL(url).openConnection() as HttpURLConnection).apply {
         requestMethod = "POST"
         doOutput = true
@@ -143,7 +129,7 @@ private suspend fun defaultHttpStream(
                 ?.bufferedReader()
                 ?.use { it.readText(limit = 64 * 1024) }
                 .orEmpty()
-            return@withContext HttpStreamResult.Failure(responseCode, errorBody)
+            return HttpStreamResult.Failure(responseCode, errorBody)
         }
         connection.inputStream.use { stream ->
             val buffer = ByteArray(8_192)
@@ -153,7 +139,7 @@ private suspend fun defaultHttpStream(
                 onChunk(if (read == buffer.size) buffer else buffer.copyOf(read))
             }
         }
-        HttpStreamResult.Success
+        return HttpStreamResult.Success
     } finally {
         connection.disconnect()
     }

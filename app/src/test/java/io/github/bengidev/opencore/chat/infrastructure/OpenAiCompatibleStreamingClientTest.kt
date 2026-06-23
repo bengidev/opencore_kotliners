@@ -10,52 +10,79 @@ import kotlinx.coroutines.withContext
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.IOException
+import java.net.UnknownHostException
 
 class OpenAiCompatibleStreamingClientTest {
 
-  @Test
-  fun stream_emitsFromChunkCallbackWithoutFlowInvariantViolation() = runTest {
-    val payload =
-      """data: {"choices":[{"delta":{"content":"Hello"}}]}""" + "\n\n" +
-        "data: [DONE]\n\n"
-    val client = OpenAiCompatibleStreamingClient { _, _, _, onChunk ->
-      withContext(Dispatchers.IO) {
-        onChunk(payload.toByteArray())
-      }
-      HttpStreamResult.Success
+    @Test
+    fun stream_emitsFromChunkCallbackWithoutFlowInvariantViolation() = runTest {
+        val payload =
+            """data: {"choices":[{"delta":{"content":"Hello"}}]}""" + "\n\n" +
+                "data: [DONE]\n\n"
+        val client = OpenAiCompatibleStreamingClient { _, _, _, onChunk ->
+            withContext(Dispatchers.IO) {
+                onChunk(payload.toByteArray())
+            }
+            HttpStreamResult.Success
+        }
+
+        val events = client
+            .stream(
+                provider = SidePanelProviderApi.openRouter,
+                modelId = "test-model",
+                apiKey = "test-key",
+                messages = emptyList(),
+                reasoning = SidePanelReasoningModel.Off
+            )
+            .toList()
+
+        assertEquals(ChatStreamingEvent.TextDelta("Hello"), events[0])
+        assertEquals(ChatStreamingEvent.Done, events[1])
     }
 
-    val events = client
-      .stream(
-        provider = SidePanelProviderApi.openRouter,
-        modelId = "test-model",
-        apiKey = "test-key",
-        messages = emptyList(),
-        reasoning = SidePanelReasoningModel.Off
-      )
-      .toList()
+    @Test
+    fun stream_httpFailure_emitsError() = runTest {
+        val client = OpenAiCompatibleStreamingClient { _, _, _, _ ->
+            HttpStreamResult.Failure(401, """{"error":{"message":"Invalid key"}}""")
+        }
 
-    assertEquals(ChatStreamingEvent.TextDelta("Hello"), events[0])
-    assertEquals(ChatStreamingEvent.Done, events[1])
-  }
+        val events = client
+            .stream(
+                provider = SidePanelProviderApi.openRouter,
+                modelId = "test-model",
+                apiKey = "bad-key",
+                messages = emptyList(),
+                reasoning = SidePanelReasoningModel.Off
+            )
+            .toList()
 
-  @Test
-  fun stream_httpFailure_emitsError() = runTest {
-    val client = OpenAiCompatibleStreamingClient { _, _, _, _ ->
-      HttpStreamResult.Failure(401, """{"error":{"message":"Invalid key"}}""")
+        assertTrue(events.first() is ChatStreamingEvent.Error)
+        assertTrue((events.first() as ChatStreamingEvent.Error).error.message.contains("401"))
     }
 
-    val events = client
-      .stream(
-        provider = SidePanelProviderApi.openRouter,
-        modelId = "test-model",
-        apiKey = "bad-key",
-        messages = emptyList(),
-        reasoning = SidePanelReasoningModel.Off
-      )
-      .toList()
+    @Test
+    fun stream_wrappedUnknownHost_emitsDnsError() = runTest {
+        val client = OpenAiCompatibleStreamingClient { _, _, _, _ ->
+            throw IOException(
+                "failed to connect",
+                UnknownHostException("""Unable to resolve host "openrouter.ai"""")
+            )
+        }
 
-    assertTrue(events.first() is ChatStreamingEvent.Error)
-    assertTrue((events.first() as ChatStreamingEvent.Error).error.message.contains("401"))
-  }
+        val events = client
+            .stream(
+                provider = SidePanelProviderApi.openRouter,
+                modelId = "test-model",
+                apiKey = "test-key",
+                messages = emptyList(),
+                reasoning = SidePanelReasoningModel.Off
+            )
+            .toList()
+
+        assertTrue(events.first() is ChatStreamingEvent.Error)
+        val message = (events.first() as ChatStreamingEvent.Error).error.message
+        assertTrue(message.contains("openrouter.ai"))
+        assertTrue(message.contains("DNS lookup failed"))
+    }
 }
