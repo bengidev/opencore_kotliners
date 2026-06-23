@@ -12,6 +12,7 @@ import io.github.bengidev.opencore.chat.infrastructure.ChatStreamingClient
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelHistoryRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -32,6 +33,7 @@ internal class ChatComponent(
     private val _state = MutableValue(ChatState())
     val state: Value<ChatState> = _state
     private var streamJob: Job? = null
+    private var activeStreamId = 0
 
     var onActiveConversationChanged: ((UUID?) -> Unit)? = null
     var onHistoryChanged: (() -> Unit)? = null
@@ -107,17 +109,22 @@ internal class ChatComponent(
 
     private suspend fun startStream(conversationId: UUID) {
         cancelStream()
+        val streamId = ++activeStreamId
         dispatch(ChatIntent.StreamingTurnStarted)
 
         streamJob = scope.launch {
             try {
                 streamingClient.stream(_state.value.messages).collect { event ->
+                    if (streamId != activeStreamId) return@collect
                     handleStreamingEvent(event, conversationId)
                 }
-            } finally {
-                if (_state.value.streamingStatus == ChatStreamingStatus.Running) {
+                if (streamId == activeStreamId &&
+                    _state.value.streamingStatus == ChatStreamingStatus.Running
+                ) {
                     handleStreamingEvent(ChatStreamingEvent.Done, conversationId)
                 }
+            } catch (_: CancellationException) {
+                // Turn cancelled (new message, new chat) — do not finalize.
             }
         }
         streamJob?.join()
