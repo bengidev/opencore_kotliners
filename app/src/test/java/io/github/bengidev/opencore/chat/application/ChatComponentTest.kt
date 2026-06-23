@@ -2,9 +2,9 @@ package io.github.bengidev.opencore.chat.application
 
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
+import io.github.bengidev.opencore.chat.domain.ChatMessageKind
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
-import io.github.bengidev.opencore.chat.infrastructure.ChatCompletionClient
-import io.github.bengidev.opencore.chat.infrastructure.EchoChatCompletionClient
+import io.github.bengidev.opencore.chat.infrastructure.EchoChatStreamingClient
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelHistoryRepository
@@ -43,19 +43,17 @@ class ChatComponentTest {
         Dispatchers.resetMain()
     }
 
-    private fun createComponent(
-        completionClient: ChatCompletionClient = EchoChatCompletionClient()
-    ): ChatComponent {
+    private fun createComponent(): ChatComponent {
         val lifecycle = LifecycleRegistry()
         return ChatComponent(
             componentContext = DefaultComponentContext(lifecycle = lifecycle),
             history = history,
-            completionClient = completionClient
+            streamingClient = EchoChatStreamingClient()
         )
     }
 
     @Test
-    fun sendUserMessage_createsConversationAndPersistsMessages() = runTest(testDispatcher) {
+    fun sendUserMessage_createsConversationWithThinkingAndReply() = runTest(testDispatcher) {
         val component = createComponent()
 
         component.sendUserMessage("Hello OpenCore")
@@ -63,15 +61,16 @@ class ChatComponentTest {
 
         val state = component.state.value
         assertNotNull(state.activeConversation)
-        assertEquals(2, state.messages.size)
-        assertEquals(ChatMessageRole.USER, state.messages.first().role)
-        assertEquals("Hello OpenCore", state.messages.first().content)
-        assertEquals(ChatMessageRole.ASSISTANT, state.messages.last().role)
-        assertEquals("Echo: Hello OpenCore", state.messages.last().content)
+        assertEquals(3, state.messages.size)
+        assertEquals(ChatMessageRole.USER, state.messages[0].role)
+        assertEquals(ChatMessageKind.THINKING, state.messages[1].kind)
+        assertTrue(state.messages[1].isComplete)
+        assertEquals(ChatMessageRole.ASSISTANT, state.messages[2].role)
+        assertEquals("Echo: Hello OpenCore", state.messages[2].content)
 
         val stored = history.listConversations()
         assertEquals(1, stored.size)
-        assertEquals(2, history.loadMessages(stored.first().id).size)
+        assertEquals(3, history.loadMessages(stored.first().id).size)
     }
 
     @Test
