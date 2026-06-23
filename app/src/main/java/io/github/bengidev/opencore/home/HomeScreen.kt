@@ -3,6 +3,7 @@ package io.github.bengidev.opencore.home
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
@@ -24,6 +25,10 @@ internal fun HomeScreen(
     val state by component.state.subscribeAsState()
     val chatState by chatComponent.state.subscribeAsState()
 
+    LaunchedEffect(state.selectedModelSupportsReasoning) {
+        sidePanelComponent.setModelSupportsReasoning(state.selectedModelSupportsReasoning)
+    }
+
     OpenCoreHomeTheme(darkTheme = darkTheme) {
         Box(modifier = Modifier.fillMaxSize()) {
             HomeView(
@@ -35,9 +40,12 @@ internal fun HomeScreen(
                 onAttachmentTapped = component::onAttachmentTapped,
                 onMicrophoneTapped = component::onMicrophoneTapped,
                 onSendTapped = component::onSendTapped,
+                onConfigureApiKeyTapped = sidePanelComponent::settingsButtonTapped,
                 onModelSelectorTapped = component::onModelSelectorTapped,
                 onSpeedModeTapped = component::onSpeedModeTapped,
-                onContextUsageTapped = component::onContextUsageTapped
+                onContextUsageTapped = component::onContextUsageTapped,
+                onChatRetryTapped = chatComponent::retry,
+                onChatErrorDismissed = chatComponent::dismissError
             )
             SidePanelScreen(component = sidePanelComponent)
             HomeModelPickerSheet(
