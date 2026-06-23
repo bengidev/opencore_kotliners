@@ -12,6 +12,11 @@ internal object SidePanelModelCatalog {
             displayTitle = "Llama 3.3 70B (free)"
         ),
         SidePanelModel(
+            id = "deepseek/deepseek-r1:free",
+            displayTitle = "DeepSeek R1 (free)",
+            supportsReasoning = true
+        ),
+        SidePanelModel(
             id = "google/gemini-2.0-flash-exp:free",
             displayTitle = "Gemini 2.0 Flash (free)"
         )

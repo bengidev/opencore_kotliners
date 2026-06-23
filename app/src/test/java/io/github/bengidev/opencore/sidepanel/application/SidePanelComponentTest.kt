@@ -56,6 +56,23 @@ class SidePanelComponentTest {
     }
 
     @Test
+    fun settingsButtonTapped_canReopenAfterDismiss() = runTest(testDispatcher) {
+        val component = createComponent()
+
+        component.settingsButtonTapped()
+        advanceUntilIdle()
+        assertTrue(component.showSettings.value)
+
+        component.dismissSettings()
+        advanceUntilIdle()
+        assertFalse(component.showSettings.value)
+
+        component.settingsButtonTapped()
+        advanceUntilIdle()
+        assertTrue(component.showSettings.value)
+    }
+
+    @Test
     fun settingSaveAndClear_updatesStoredKeyIndicator() = runTest(testDispatcher) {
         val credentialStore = InMemorySidePanelCredentialStore()
         val component = createComponent(credentialStore = credentialStore)
