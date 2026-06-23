@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Text
@@ -62,22 +63,23 @@ internal fun ChatThreadView(
             it.role == ChatMessageRole.ASSISTANT && it.kind == ChatMessageKind.TEXT
         }?.id
 
-        LaunchedEffect(
-            state.messages.size,
-            state.currentPartialText.length,
-            state.currentPartialThinking.length,
-            awaitingAssistantReply
-        ) {
+        LaunchedEffect(state.messages.size, awaitingAssistantReply) {
             val targetIndex = state.messages.lastIndex + if (awaitingAssistantReply) 1 else 0
-            if (targetIndex < 0) return@LaunchedEffect
-            snapshotFlow { listState.layoutInfo.totalItemsCount }
-                .filter { it > targetIndex }
-                .first()
-            try {
-                listState.animateScrollToItem(targetIndex)
-            } catch (_: IllegalArgumentException) {
-                // ponytail: layout race during rapid stream updates — safe to ignore
-            }
+            scrollThreadToBottom(listState, targetIndex, animate = true)
+        }
+
+        LaunchedEffect(
+            state.currentPartialText.length,
+            state.currentPartialThinking.length
+        ) {
+            if (state.currentPartialText.isEmpty() && state.currentPartialThinking.isEmpty()) return@LaunchedEffect
+            val targetIndex = state.messages.lastIndex + if (awaitingAssistantReply) 1 else 0
+            scrollThreadToBottom(listState, targetIndex, animate = false)
+        }
+
+        LaunchedEffect(state.streamingStatus) {
+            val targetIndex = state.messages.lastIndex + if (awaitingAssistantReply) 1 else 0
+            scrollThreadToBottom(listState, targetIndex, animate = true)
         }
 
         LazyColumn(
@@ -110,5 +112,26 @@ internal fun ChatThreadView(
                 }
             }
         }
+    }
+}
+
+/** Bottom-anchor scroll — mirrors iOS `scrollTo(_, anchor: .bottom)`. */
+private suspend fun scrollThreadToBottom(
+    listState: LazyListState,
+    targetIndex: Int,
+    animate: Boolean
+) {
+    if (targetIndex < 0) return
+    snapshotFlow { listState.layoutInfo.totalItemsCount }
+        .filter { it > targetIndex }
+        .first()
+    try {
+        if (animate) {
+            listState.animateScrollToItem(targetIndex, scrollOffset = Int.MAX_VALUE)
+        } else {
+            listState.scrollToItem(targetIndex, scrollOffset = Int.MAX_VALUE)
+        }
+    } catch (_: IllegalArgumentException) {
+        // ponytail: layout race during rapid stream updates — safe to ignore
     }
 }
