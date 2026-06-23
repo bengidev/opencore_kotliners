@@ -108,10 +108,15 @@ class ChatReducerTest {
     }
 
     @Test
-    fun sendStartedAndFinished_toggleSendingFlag() {
-        val sending = ChatReducer.reduce(ChatState(), ChatIntent.SendStarted)
+    fun streamingTurnStarted_setsSendingFlag() {
+        val sending = ChatReducer.reduce(ChatState(), ChatIntent.StreamingTurnStarted)
         assertTrue(sending.isSending)
-        val finished = ChatReducer.reduce(sending, ChatIntent.SendFinished)
-        assertFalse(finished.isSending)
+    }
+
+    @Test
+    fun streamingErrorDismissed_clearsError() {
+        val failed = ChatState(streamErrorMessage = "Oops")
+        val result = ChatReducer.reduce(failed, ChatIntent.StreamingErrorDismissed)
+        assertNull(result.streamErrorMessage)
     }
 }

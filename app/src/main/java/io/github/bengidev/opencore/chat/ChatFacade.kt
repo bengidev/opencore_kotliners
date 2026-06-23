@@ -2,7 +2,7 @@ package io.github.bengidev.opencore.chat
 
 import com.arkivanov.decompose.ComponentContext
 import io.github.bengidev.opencore.chat.application.ChatComponent
-import io.github.bengidev.opencore.chat.infrastructure.ProviderChatCompletionClient
+import io.github.bengidev.opencore.chat.infrastructure.ProviderChatStreamingClient
 import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelCredentialStore
 import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelHistoryRepository
 import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelPreferenceStore
@@ -17,7 +17,7 @@ internal class ChatFacade {
     ): ChatComponent = ChatComponent(
         componentContext = componentContext,
         history = history,
-        completionClient = ProviderChatCompletionClient(
+        streamingClient = ProviderChatStreamingClient(
             preferenceStore = preferenceStore,
             credentialStore = credentialStore
         )
