@@ -4,6 +4,8 @@ import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.arkivanov.essenty.lifecycle.resume
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderPreference
+import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
+import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelCredentialStore
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelPreferenceStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -43,6 +45,9 @@ class HomeComponentTest {
             preferenceStore = InMemorySidePanelPreferenceStore(
                 SidePanelProviderPreference(modelId = "openrouter/free")
             ),
+            credentialStore = InMemorySidePanelCredentialStore().apply {
+                save("sk-test", SidePanelProviderApi.openRouter.id)
+            },
             onSendMessage = { sent = it }
         )
         advanceUntilIdle()
@@ -63,6 +68,9 @@ class HomeComponentTest {
             preferenceStore = InMemorySidePanelPreferenceStore(
                 SidePanelProviderPreference(modelId = "openrouter/free")
             ),
+            credentialStore = InMemorySidePanelCredentialStore().apply {
+                save("sk-test", SidePanelProviderApi.openRouter.id)
+            },
             onSendMessage = { sent = true }
         )
         advanceUntilIdle()
@@ -74,12 +82,55 @@ class HomeComponentTest {
     }
 
     @Test
+    fun sendTapped_withoutApiKey_doesNotInvokeCallback() = runTest(testDispatcher) {
+        var sent = false
+        val lifecycle = LifecycleRegistry().apply { resume() }
+        val component = HomeComponent(
+            componentContext = DefaultComponentContext(lifecycle),
+            preferenceStore = InMemorySidePanelPreferenceStore(
+                SidePanelProviderPreference(modelId = "openrouter/free")
+            ),
+            credentialStore = InMemorySidePanelCredentialStore(),
+            onSendMessage = { sent = true }
+        )
+        advanceUntilIdle()
+
+        component.onDraftMessageChanged("Hello")
+        component.onSendTapped()
+
+        assertFalse(sent)
+        assertEquals("Hello", component.state.value.draftMessage)
+    }
+
+    @Test
+    fun onCredentialsChanged_refreshesApiKeyState() = runTest(testDispatcher) {
+        val store = InMemorySidePanelCredentialStore()
+        val lifecycle = LifecycleRegistry().apply { resume() }
+        val component = HomeComponent(
+            componentContext = DefaultComponentContext(lifecycle),
+            preferenceStore = InMemorySidePanelPreferenceStore(
+                SidePanelProviderPreference(modelId = "openrouter/free")
+            ),
+            credentialStore = store
+        )
+        advanceUntilIdle()
+        assertFalse(component.state.value.hasApiKey)
+
+        store.save("sk-test", SidePanelProviderApi.openRouter.id)
+        component.onCredentialsChanged()
+        advanceUntilIdle()
+
+        assertTrue(component.state.value.hasApiKey)
+    }
+
+    @Test
     fun modelSelected_persistsSelection() = runTest(testDispatcher) {
         val store = InMemorySidePanelPreferenceStore()
         val lifecycle = LifecycleRegistry().apply { resume() }
         val component = HomeComponent(
             componentContext = DefaultComponentContext(lifecycle),
-            preferenceStore = store
+            preferenceStore = store,
+            credentialStore = InMemorySidePanelCredentialStore()
         )
         advanceUntilIdle()
 
