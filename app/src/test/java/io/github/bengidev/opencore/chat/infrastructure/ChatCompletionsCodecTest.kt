@@ -48,6 +48,25 @@ class ChatCompletionsCodecTest {
     }
 
     @Test
+    fun encodeRequest_withStream_includesStreamFlag() {
+        val body = ChatCompletionsCodec.encodeRequest(
+            modelId = "openrouter/free",
+            messages = listOf(
+                SidePanelMessage(
+                    id = UUID.randomUUID(),
+                    role = ChatMessageRole.USER,
+                    content = "hello",
+                    createdAt = Instant.now()
+                )
+            ),
+            reasoning = SidePanelReasoningModel.Off,
+            stream = true
+        )
+
+        assertTrue(body.contains(""""stream":true"""))
+    }
+
+    @Test
     fun parseErrorMessage_readsNestedError() {
         val message = ChatCompletionsCodec.parseErrorMessage(
             """{"error":{"message":"Invalid API key"}}"""
