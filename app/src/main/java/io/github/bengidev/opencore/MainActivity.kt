@@ -127,10 +127,11 @@ private fun HomeRoute(
             credentialStore = credentialStore
         )
     }
-    val homeComponent: HomeComponent = remember(componentContext, chatComponent, sidePanelComponent, preferenceStore) {
+    val homeComponent: HomeComponent = remember(componentContext, chatComponent, sidePanelComponent, preferenceStore, credentialStore) {
         facade.createComponent(
             componentContext = componentContext,
             preferenceStore = preferenceStore,
+            credentialStore = credentialStore,
             onSendMessage = chatComponent::sendUserMessage,
             onNewConversation = chatComponent::startNewConversation
         )
@@ -147,6 +148,7 @@ private fun HomeRoute(
         sidePanelComponent.onActiveConversationRenamed = chatComponent::onActiveConversationRenamed
         sidePanelComponent.onActiveConversationDeleted = chatComponent::onActiveConversationDeleted
         sidePanelComponent.onProviderChanged = { homeComponent.onProviderChanged() }
+        sidePanelComponent.onCredentialsChanged = { homeComponent.onCredentialsChanged() }
     }
 
     HomeScreen(

@@ -7,7 +7,9 @@ import io.github.bengidev.opencore.sidepanel.domain.SidePanelReasoningModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
+import java.net.SocketTimeoutException
 import java.net.URL
+import java.net.UnknownHostException
 import java.time.Instant
 import java.util.UUID
 
@@ -32,8 +34,16 @@ internal class OpenAiCompatibleChatCompletionClient(
         } catch (error: ChatCompletionException) {
             assistantMessage(error.message.orEmpty())
         } catch (error: Exception) {
-            assistantMessage(error.message ?: "Request failed")
+            assistantMessage(formatRequestError(error))
         }
+    }
+
+    private fun formatRequestError(error: Exception): String = when (error) {
+        is UnknownHostException ->
+            "No internet connection. Check your network and try again."
+        is SocketTimeoutException ->
+            "Request timed out. Check your connection and try again."
+        else -> error.message?.takeIf { it.isNotBlank() } ?: "Request failed"
     }
 
     private fun assistantMessage(content: String): SidePanelMessage =
