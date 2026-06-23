@@ -1,64 +1,24 @@
 package io.github.bengidev.opencore.chat.infrastructure
 
-import io.github.bengidev.opencore.chat.domain.ChatMessageKind
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelReasoningModel
+import io.github.bengidev.opencore.chat.domain.ChatStreamError
+import io.github.bengidev.opencore.chat.domain.ChatStreamingEvent
 
-internal object ChatCompletionsCodec {
-    fun encodeRequest(
-        modelId: String,
-        messages: List<SidePanelMessage>,
-        reasoning: SidePanelReasoningModel,
-        stream: Boolean = false
-    ): String = buildString {
-        val wireMessages = messages.filter { it.kind != ChatMessageKind.THINKING }
-        append("""{"model":""")
-        appendQuoted(modelId)
-        append(""","messages":[""")
-        wireMessages.forEachIndexed { index, message ->
-            if (index > 0) append(',')
-            append("""{"role":""")
-            appendQuoted(message.role)
-            append(""","content":""")
-            appendQuoted(message.content)
-            append('}')
+internal object ChatStreamingCodec {
+    fun mapDataPayload(payload: String): List<ChatStreamingEvent>? {
+        ChatCompletionsCodec.parseErrorMessage(payload)?.let { message ->
+            return listOf(ChatStreamingEvent.Error(ChatStreamError(message)))
         }
-        append(']')
-        reasoning.effort?.let { effort ->
-            append(""","reasoning":{"effort":""")
-            appendQuoted(effort)
-            append('}')
-        }
-        if (stream) {
-            append(""","stream":true""")
-        }
-        append('}')
-    }
 
-    fun decodeAssistantContent(responseBody: String): String {
-        val content = extractJsonString(responseBody, "content")?.trim().orEmpty()
-        if (content.isNotEmpty()) return content
-        throw ChatCompletionException(parseErrorMessage(responseBody) ?: "Empty assistant response")
-    }
-
-    fun parseErrorMessage(responseBody: String): String? {
-        if (responseBody.isBlank()) return null
-        return extractJsonString(responseBody, "message")?.takeIf { it.isNotBlank() }
-    }
-
-    private fun StringBuilder.appendQuoted(value: String) {
-        append('"')
-        value.forEach { char ->
-            when (char) {
-                '\\' -> append("\\\\")
-                '"' -> append("\\\"")
-                '\n' -> append("\\n")
-                '\r' -> append("\\r")
-                '\t' -> append("\\t")
-                else -> append(char)
-            }
+        val events = mutableListOf<ChatStreamingEvent>()
+        val reasoning = extractJsonString(payload, "reasoning")
+            ?: extractJsonString(payload, "reasoning_content")
+        if (!reasoning.isNullOrBlank() && reasoning.trim().isNotEmpty()) {
+            events += ChatStreamingEvent.ThinkingDelta(reasoning)
         }
-        append('"')
+        extractJsonString(payload, "content")
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { events += ChatStreamingEvent.TextDelta(it) }
+        return events.takeIf { it.isNotEmpty() }
     }
 
     private fun extractJsonString(json: String, key: String): String? {
@@ -113,5 +73,3 @@ internal object ChatCompletionsCodec {
         }
     }
 }
-
-internal class ChatCompletionException(message: String) : Exception(message)
