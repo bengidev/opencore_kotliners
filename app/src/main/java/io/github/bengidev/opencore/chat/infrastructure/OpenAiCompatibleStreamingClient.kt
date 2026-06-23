@@ -5,9 +5,11 @@ import io.github.bengidev.opencore.chat.domain.ChatStreamingEvent
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelReasoningModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
@@ -20,7 +22,7 @@ internal class OpenAiCompatibleStreamingClient(
         String,
         Map<String, String>,
         String,
-        suspend (ByteArray) -> Unit
+        (ByteArray) -> Unit
     ) -> HttpStreamResult = ::defaultHttpStream
 ) {
     fun stream(
@@ -29,7 +31,7 @@ internal class OpenAiCompatibleStreamingClient(
         apiKey: String,
         messages: List<SidePanelMessage>,
         reasoning: SidePanelReasoningModel
-    ): Flow<ChatStreamingEvent> = flow {
+    ): Flow<ChatStreamingEvent> = callbackFlow {
         try {
             val body = ChatCompletionsCodec.encodeRequest(
                 modelId = modelId,
@@ -45,39 +47,46 @@ internal class OpenAiCompatibleStreamingClient(
             var decoder = ChatSSEDecoder()
             var didEmitDone = false
 
+            fun dispatchSseEvent(event: ChatSSEDecoder.SseEvent) {
+                when (event) {
+                    is ChatSSEDecoder.SseEvent.Done -> {
+                        trySend(ChatStreamingEvent.Done)
+                        didEmitDone = true
+                    }
+                    is ChatSSEDecoder.SseEvent.Data -> {
+                        ChatStreamingCodec.mapDataPayload(event.payload)?.forEach { chatEvent ->
+                            trySend(chatEvent)
+                            if (chatEvent is ChatStreamingEvent.Error) didEmitDone = true
+                        }
+                    }
+                }
+            }
+
             when (
                 val result = httpStream(provider.chatCompletionsUrl, headers, body) { chunk ->
                     for (event in decoder.append(chunk)) {
-                        when (event) {
-                            is ChatSSEDecoder.SseEvent.Done -> {
-                                emit(ChatStreamingEvent.Done)
-                                didEmitDone = true
-                            }
-                            is ChatSSEDecoder.SseEvent.Data -> {
-                                ChatStreamingCodec.mapDataPayload(event.payload)?.forEach { chatEvent ->
-                                    emit(chatEvent)
-                                    if (chatEvent is ChatStreamingEvent.Error) didEmitDone = true
-                                }
-                            }
-                        }
+                        dispatchSseEvent(event)
                     }
                 }
             ) {
                 is HttpStreamResult.Failure -> {
-                    emit(ChatStreamingEvent.Error(ChatStreamError(formatHttpError(result))))
+                    trySend(ChatStreamingEvent.Error(ChatStreamError(formatHttpError(result))))
                     didEmitDone = true
                 }
                 is HttpStreamResult.Success -> Unit
             }
 
             if (!didEmitDone) {
-                emit(ChatStreamingEvent.Done)
+                trySend(ChatStreamingEvent.Done)
             }
-        } catch (_: kotlinx.coroutines.CancellationException) {
-            return@flow
+            close()
+        } catch (_: CancellationException) {
+            close()
         } catch (error: Exception) {
-            emit(ChatStreamingEvent.Error(ChatStreamError(formatRequestError(error))))
+            trySend(ChatStreamingEvent.Error(ChatStreamError(formatRequestError(error))))
+            close()
         }
+        awaitClose { }
     }.flowOn(Dispatchers.IO)
 
     private fun formatHttpError(result: HttpStreamResult.Failure): String {
@@ -114,7 +123,7 @@ private suspend fun defaultHttpStream(
     url: String,
     headers: Map<String, String>,
     body: String,
-    onChunk: suspend (ByteArray) -> Unit
+    onChunk: (ByteArray) -> Unit
 ): HttpStreamResult = withContext(Dispatchers.IO) {
     val connection = (URL(url).openConnection() as HttpURLConnection).apply {
         requestMethod = "POST"
