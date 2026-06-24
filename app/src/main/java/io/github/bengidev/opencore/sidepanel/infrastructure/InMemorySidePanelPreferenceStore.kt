@@ -14,6 +14,10 @@ internal class InMemorySidePanelPreferenceStore(
         current = current.copy(providerId = id)
     }
 
+    override suspend fun setModelId(id: String?) {
+        current = current.copy(modelId = id)
+    }
+
     override suspend fun setReasoningModel(model: SidePanelReasoningModel) {
         current = current.copy(reasoningModel = model)
     }

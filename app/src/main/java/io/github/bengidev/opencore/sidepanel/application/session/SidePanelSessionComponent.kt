@@ -122,6 +122,14 @@ internal class SidePanelSessionComponent(
     fun toggleGroupHeader(group: String) =
         dispatch(SidePanelSessionIntent.GroupHeaderToggled(group))
 
+    fun setActiveConversationId(id: UUID?) =
+        dispatch(SidePanelSessionIntent.ActiveConversationIdChanged(id))
+
+    fun refreshConversationsIfVisible() {
+        if (!_state.value.isSidebarVisible) return
+        scope.launch { refreshConversations() }
+    }
+
     fun recordDraftConversation(title: String) {
         val trimmed = title.trim()
         if (trimmed.isEmpty()) return
