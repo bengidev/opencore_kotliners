@@ -139,9 +139,11 @@ class HomeModelCatalogClientTest {
               ]
             }
         """.trimIndent()
-        val client = HomeModelCatalogClient { _, _ ->
-            HomeModelCatalogClient.HttpGetResult(statusCode = 200, body = body)
-        }
+        val client = HomeModelCatalogClient(
+            httpGet = { _, _ ->
+                HomeModelCatalogClient.HttpGetResult(statusCode = 200, body = body)
+            }
+        )
 
         val result = client.listModels(SidePanelProviderApi.openRouter, secret = "sk-test")
 
@@ -153,12 +155,14 @@ class HomeModelCatalogClientTest {
 
     @Test
     fun listModels_withForbiddenResponse_returnsFallbackAndHint() = runTest {
-        val client = HomeModelCatalogClient { _, _ ->
-            HomeModelCatalogClient.HttpGetResult(
-                statusCode = 403,
-                body = """{"error":{"message":"Plan upgrade required"}}"""
-            )
-        }
+        val client = HomeModelCatalogClient(
+            httpGet = { _, _ ->
+                HomeModelCatalogClient.HttpGetResult(
+                    statusCode = 403,
+                    body = """{"error":{"message":"Plan upgrade required"}}"""
+                )
+            }
+        )
 
         val result = client.listModels(SidePanelProviderApi.openRouter, secret = "sk-test")
 
