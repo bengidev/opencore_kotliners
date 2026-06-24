@@ -28,6 +28,9 @@ internal class ContextWindowUsage private constructor(
     val tokenLimitFormatted: String
         get() = compactTokenLabel(tokenLimit)
 
+    val tokensRemainingFormatted: String
+        get() = compactTokenLabel(tokensRemaining)
+
     companion object {
         val zero: ContextWindowUsage = invoke(tokensUsed = 0, tokenLimit = 0)
 
