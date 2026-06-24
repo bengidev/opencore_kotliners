@@ -92,8 +92,7 @@ internal object ProviderModelsResponseParser {
                 index++
                 continue
             }
-            val end = findMatchingBrace(json, index)
-            if (end < 0) break
+            val end = findMatchingBrace(json, index) ?: break
             objects += json.substring(index, end + 1)
             index = end + 1
             while (index < json.length && json[index].isWhitespace()) index++
