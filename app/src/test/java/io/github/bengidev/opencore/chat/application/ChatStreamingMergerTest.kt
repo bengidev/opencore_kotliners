@@ -1,11 +1,11 @@
 package io.github.bengidev.opencore.chat.application
 
-import io.github.bengidev.opencore.chat.domain.ChatMessageKind
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.domain.ChatStreamError
 import io.github.bengidev.opencore.chat.domain.ChatStreamingEvent
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
+import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -41,7 +41,7 @@ class ChatStreamingMergerTest {
         )
         assertEquals(2, result.state.messages.size)
         val thinking = result.state.messages.last()
-        assertEquals(ChatMessageKind.THINKING, thinking.kind)
+        assertEquals(SidePanelMessageKind.THINKING, thinking.kind)
         assertEquals("Weighing ", thinking.content)
         assertFalse(thinking.isComplete)
         assertEquals(thinkingId, result.state.streamingThinkingId)
@@ -75,7 +75,7 @@ class ChatStreamingMergerTest {
             ::makeId,
             now
         )
-        val thinkingRows = result.state.messages.filter { it.kind == ChatMessageKind.THINKING }
+        val thinkingRows = result.state.messages.filter { it.kind == SidePanelMessageKind.THINKING }
         assertEquals(1, thinkingRows.size)
         assertEquals("A B (note)", thinkingRows.first().content)
     }
@@ -90,7 +90,7 @@ class ChatStreamingMergerTest {
             now
         )
         val assistant = result.state.messages.last()
-        assertEquals(ChatMessageKind.TEXT, assistant.kind)
+        assertEquals(SidePanelMessageKind.TEXT, assistant.kind)
         assertEquals(ChatMessageRole.ASSISTANT, assistant.role)
         assertEquals("Hello", assistant.content)
         assertFalse(assistant.isComplete)
@@ -113,20 +113,19 @@ class ChatStreamingMergerTest {
     }
 
     @Test
-    fun error_setsFailedStatusAndClearsStreamingIds() {
-        val initial = ChatStreamingState(
-            messages = listOf(userMessage()),
-            streamingThinkingId = thinkingId,
-            streamingStatus = ChatStreamingStatus.Running
-        )
+    fun error_setsFailedStatusAndRemovesIncompleteRows() {
+        var state = ChatStreamingState(messages = listOf(userMessage()))
+        state = ChatStreamingMerger.merge(state, ChatStreamingEvent.TextDelta("Partial"), ::makeId, now).state
         val result = ChatStreamingMerger.merge(
-            initial,
+            state,
             ChatStreamingEvent.Error(ChatStreamError("Network down")),
             ::makeId,
             now
         )
         assertEquals(ChatStreamingStatus.Failed, result.state.streamingStatus)
         assertEquals("Network down", result.state.streamErrorMessage)
-        assertNull(result.state.streamingThinkingId)
+        assertNull(result.state.streamingAnswerId)
+        assertEquals(1, result.state.messages.size)
+        assertEquals(ChatMessageRole.USER, result.state.messages.first().role)
     }
 }

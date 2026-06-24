@@ -19,9 +19,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import io.github.bengidev.opencore.chat.domain.ChatMessageKind
+import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
-import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.chat.theme.ChatTheme
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import java.time.ZoneId
@@ -32,26 +31,22 @@ private val UserBubbleCorner = RoundedCornerShape(20.dp)
 
 private val TimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
-/** One row in the chat thread. Mirrors iOS `ChatMessageRowView`. */
+/** One row in the chat thread. */
 @Composable
 internal fun ChatMessageRowView(
     message: SidePanelMessage,
     isLastAssistantMessage: Boolean,
     isStreamingAssistant: Boolean = false,
-    streamingStatus: ChatStreamingStatus = ChatStreamingStatus.Idle,
-    streamErrorMessage: String? = null,
     onDismissKeyboard: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     when {
-        message.kind == ChatMessageKind.THINKING -> ThinkingRow(message, onDismissKeyboard, modifier)
+        message.kind == SidePanelMessageKind.THINKING -> ThinkingRow(message, onDismissKeyboard, modifier)
         message.role == ChatMessageRole.USER -> UserRow(message, onDismissKeyboard, modifier)
         message.role == ChatMessageRole.ASSISTANT -> AssistantRow(
             message = message,
             isLastAssistantMessage = isLastAssistantMessage,
             isStreamingAssistant = isStreamingAssistant,
-            streamingStatus = streamingStatus,
-            streamErrorMessage = streamErrorMessage,
             onDismissKeyboard = onDismissKeyboard,
             modifier = modifier
         )
@@ -129,8 +124,6 @@ private fun AssistantRow(
     message: SidePanelMessage,
     isLastAssistantMessage: Boolean,
     isStreamingAssistant: Boolean,
-    streamingStatus: ChatStreamingStatus,
-    streamErrorMessage: String?,
     onDismissKeyboard: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -158,11 +151,6 @@ private fun AssistantRow(
         }
         if (isLastAssistantMessage) {
             when {
-                streamErrorMessage != null && streamingStatus == ChatStreamingStatus.Failed -> Text(
-                    text = streamErrorMessage,
-                    style = typography.streamingLabel,
-                    color = palette.messageMetaText
-                )
                 isStreamingAssistant -> Text(
                     text = "Streaming…",
                     style = typography.streamingLabel,

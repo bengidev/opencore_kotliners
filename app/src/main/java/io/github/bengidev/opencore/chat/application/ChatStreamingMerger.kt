@@ -1,10 +1,10 @@
 package io.github.bengidev.opencore.chat.application
 
-import io.github.bengidev.opencore.chat.domain.ChatMessageKind
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.domain.ChatStreamingEvent
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
+import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
 import java.time.Instant
 import java.util.UUID
 
@@ -24,7 +24,7 @@ internal data class ChatStreamingMergeResult(
     val finalizedMessages: List<SidePanelMessage> = emptyList()
 )
 
-/** Pure merge logic for SSE events — mirrors iOS `ChatFlowController.handleStreamingEvent`. */
+/** Pure merge logic for SSE stream events. */
 internal object ChatStreamingMerger {
     fun merge(
         state: ChatStreamingState,
@@ -57,7 +57,7 @@ internal object ChatStreamingMerger {
         val thinkingId = state.streamingThinkingId
         return if (thinkingId != null) {
             val messages = state.messages.map { message ->
-                if (message.id == thinkingId && message.kind == ChatMessageKind.THINKING) {
+                if (message.id == thinkingId && message.kind == SidePanelMessageKind.THINKING) {
                     message.copy(content = partialThinking, isComplete = false)
                 } else {
                     message
@@ -77,7 +77,7 @@ internal object ChatStreamingMerger {
                 role = ChatMessageRole.ASSISTANT,
                 content = partialThinking,
                 createdAt = now,
-                kind = ChatMessageKind.THINKING,
+                kind = SidePanelMessageKind.THINKING,
                 isComplete = false
             )
             ChatStreamingMergeResult(
@@ -102,7 +102,7 @@ internal object ChatStreamingMerger {
 
         return if (answerId != null) {
             val messages = state.messages.map { message ->
-                if (message.id == answerId && message.kind == ChatMessageKind.TEXT) {
+                if (message.id == answerId && message.kind == SidePanelMessageKind.TEXT) {
                     message.copy(content = partialText, isComplete = false)
                 } else {
                     message
@@ -122,7 +122,7 @@ internal object ChatStreamingMerger {
                 role = ChatMessageRole.ASSISTANT,
                 content = partialText,
                 createdAt = now,
-                kind = ChatMessageKind.TEXT,
+                kind = SidePanelMessageKind.TEXT,
                 isComplete = false
             )
             ChatStreamingMergeResult(
@@ -162,9 +162,13 @@ internal object ChatStreamingMerger {
         )
     }
 
-    private fun mergeError(state: ChatStreamingState, message: String): ChatStreamingMergeResult =
-        ChatStreamingMergeResult(
+    private fun mergeError(state: ChatStreamingState, message: String): ChatStreamingMergeResult {
+        val cleanedMessages = state.messages.filter { row ->
+            row.isComplete || (row.id != state.streamingThinkingId && row.id != state.streamingAnswerId)
+        }
+        return ChatStreamingMergeResult(
             state.copy(
+                messages = cleanedMessages,
                 streamingStatus = ChatStreamingStatus.Failed,
                 streamErrorMessage = message,
                 currentPartialText = "",
@@ -173,4 +177,5 @@ internal object ChatStreamingMerger {
                 streamingAnswerId = null
             )
         )
+    }
 }
