@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -94,22 +95,50 @@ internal fun HomeModelPickerSheet(
                 )
             }
 
+            state.modelCatalogErrorHint?.let { hint ->
+                Text(
+                    text = hint,
+                    style = typography.chipLabel,
+                    color = palette.textSecondary,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                )
+            }
+
             HorizontalDivider(color = palette.lineSoft.copy(alpha = 0.4f))
 
-            if (state.filteredModels.isEmpty()) {
-                ModelPickerEmptyState(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 32.dp, vertical = 48.dp)
-                )
-            } else {
-                LazyColumn {
-                    items(state.filteredModels, key = { it.id }) { model ->
-                        HomeModelPickerRow(
-                            model = model,
-                            selected = model.id == state.selectedModelId,
-                            onClick = { onModelSelected(model) }
+            when {
+                state.isLoadingModels -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 48.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .testTag("home-model-picker-loading"),
+                            color = palette.accentPrimary,
+                            strokeWidth = 2.dp
                         )
+                    }
+                }
+                state.filteredModels.isEmpty() -> {
+                    ModelPickerEmptyState(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 32.dp, vertical = 48.dp)
+                    )
+                }
+                else -> {
+                    LazyColumn {
+                        items(state.filteredModels, key = { it.id }) { model ->
+                            HomeModelPickerRow(
+                                model = model,
+                                selected = model.id == state.selectedModelId,
+                                onClick = { onModelSelected(model) }
+                            )
+                        }
                     }
                 }
             }

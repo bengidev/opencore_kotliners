@@ -4,25 +4,31 @@ import io.github.bengidev.opencore.chat.infrastructure.ChatCompletionsCodec
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModelCatalog
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
 
 internal class HomeModelCatalogClient(
-    private val httpGet: suspend (String, Map<String, String>) -> HttpGetResult = ::defaultHttpGet
+    private val httpGet: suspend (String, Map<String, String>) -> HttpGetResult = ::defaultHttpGet,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
     data class CatalogResult(
         val models: List<SidePanelModel>,
-        val errorHint: String? = null
+        val errorHint: String? = null,
+        val isLive: Boolean = false
     )
 
     suspend fun listModels(
         provider: SidePanelProviderApi,
         secret: String?
-    ): CatalogResult = withContext(Dispatchers.IO) {
+    ): CatalogResult = withContext(ioDispatcher) {
         if (secret.isNullOrBlank()) {
-            return@withContext CatalogResult(SidePanelModelCatalog.modelsFor(provider))
+            return@withContext CatalogResult(
+                models = SidePanelModelCatalog.modelsFor(provider),
+                isLive = false
+            )
         }
 
         val headers = buildMap {
@@ -42,17 +48,24 @@ internal class HomeModelCatalogClient(
                 }
                 return@withContext CatalogResult(
                     models = SidePanelModelCatalog.modelsFor(provider),
-                    errorHint = hint
+                    errorHint = hint,
+                    isLive = false
                 )
             }
             val models = ProviderModelsResponseParser.parse(response.body)
             if (models.isEmpty()) {
-                CatalogResult(SidePanelModelCatalog.modelsFor(provider))
+                CatalogResult(
+                    models = SidePanelModelCatalog.modelsFor(provider),
+                    isLive = false
+                )
             } else {
-                CatalogResult(models)
+                CatalogResult(models = models, isLive = true)
             }
         } catch (_: Exception) {
-            CatalogResult(SidePanelModelCatalog.modelsFor(provider))
+            CatalogResult(
+                models = SidePanelModelCatalog.modelsFor(provider),
+                isLive = false
+            )
         }
     }
 

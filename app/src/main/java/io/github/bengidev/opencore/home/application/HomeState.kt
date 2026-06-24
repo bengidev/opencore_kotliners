@@ -14,6 +14,9 @@ internal data class HomeState(
     val contextUsagePercent: Int = 41,
     val isModelPickerVisible: Boolean = false,
     val availableModels: List<SidePanelModel> = emptyList(),
+    val isLoadingModels: Boolean = false,
+    val modelCatalogIsLive: Boolean = false,
+    val modelCatalogErrorHint: String? = null,
     val modelSearchQuery: String = "",
     val appliedSearchQuery: String = "",
     val modelFilterFreeOnly: Boolean = false

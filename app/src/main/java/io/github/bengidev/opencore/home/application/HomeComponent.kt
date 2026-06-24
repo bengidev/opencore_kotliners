@@ -32,10 +32,12 @@ internal class HomeComponent(
     private val _state = MutableValue(HomeState())
     val state: Value<HomeState> = _state
     private var searchDebounceJob: Job? = null
+    private var catalogReloadJob: Job? = null
+    private var catalogLoadGeneration = 0
 
     init {
         lifecycle.doOnDestroy { scope.cancel() }
-        scope.launch { reloadModelSelection(resetToDefault = false) }
+        startCatalogReload(resetToDefault = false)
     }
 
     fun dispatch(intent: HomeIntent) {
@@ -60,7 +62,7 @@ internal class HomeComponent(
     }
     fun onModelSelectorTapped() {
         dispatch(HomeIntent.ModelSelectorTapped)
-        scope.launch { ensureModelsLoaded() }
+        startCatalogReload(resetToDefault = false, onlyIfNeeded = true)
     }
     fun onModelPickerDismissed() = dispatch(HomeIntent.ModelPickerDismissed)
     fun onModelSelected(model: SidePanelModel) {
@@ -83,21 +85,41 @@ internal class HomeComponent(
     fun onContextUsageTapped() = dispatch(HomeIntent.ContextUsageTapped)
 
     fun onProviderChanged() {
-        scope.launch { reloadModelSelection(resetToDefault = true) }
+        ++catalogLoadGeneration
+        startCatalogReload(resetToDefault = true)
     }
 
     fun onCredentialsChanged() {
+        ++catalogLoadGeneration
         scope.launch {
             reloadApiKeyStatus()
-            reloadModelSelection(resetToDefault = false)
+            startCatalogReload(resetToDefault = false)
         }
     }
 
-    private suspend fun reloadModelSelection(resetToDefault: Boolean) {
+    private fun startCatalogReload(resetToDefault: Boolean, onlyIfNeeded: Boolean = false) {
+        if (onlyIfNeeded && !shouldReloadCatalog()) return
+        val generation = ++catalogLoadGeneration
+        catalogReloadJob?.cancel()
+        catalogReloadJob = scope.launch {
+            dispatch(HomeIntent.ModelsLoadingStarted)
+            reloadModelSelection(resetToDefault = resetToDefault, generation = generation)
+        }
+    }
+
+    private fun shouldReloadCatalog(): Boolean {
+        val current = _state.value
+        return current.availableModels.isEmpty() ||
+            (current.hasApiKey && !current.modelCatalogIsLive)
+    }
+
+    private suspend fun reloadModelSelection(resetToDefault: Boolean, generation: Int) {
         val preference = preferenceStore.preference()
         val provider = SidePanelProviderApi.resolve(preference.providerId)
         val secret = credentialStore.secret(provider.id)
         val catalogResult = modelCatalogClient.listModels(provider, secret)
+        if (generation != catalogLoadGeneration) return
+
         val models = catalogResult.models
         val modelId = when {
             resetToDefault -> SidePanelModelCatalog.defaultModel(provider).id
@@ -116,7 +138,9 @@ internal class HomeComponent(
                 modelId = modelId,
                 modelTitle = title,
                 providerId = provider.id,
-                models = models
+                models = models,
+                catalogIsLive = catalogResult.isLive,
+                catalogErrorHint = catalogResult.errorHint
             )
         )
         reloadApiKeyStatus()
@@ -127,10 +151,5 @@ internal class HomeComponent(
         val provider = SidePanelProviderApi.resolve(preference.providerId)
         val hasApiKey = !credentialStore.secret(provider.id).isNullOrBlank()
         dispatch(HomeIntent.CredentialsLoaded(hasApiKey))
-    }
-
-    private suspend fun ensureModelsLoaded() {
-        if (_state.value.availableModels.isNotEmpty()) return
-        reloadModelSelection(resetToDefault = false)
     }
 }

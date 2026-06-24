@@ -6,12 +6,22 @@ internal object HomeReducer {
     fun reduce(state: HomeState, intent: HomeIntent): HomeState = when (intent) {
         is HomeIntent.DraftMessageChanged -> state.copy(draftMessage = intent.value)
         HomeIntent.SendTapped -> if (state.canSend) state.copy(draftMessage = "") else state
-        HomeIntent.ModelSelectorTapped -> state.copy(
-            isModelPickerVisible = true,
-            modelSearchQuery = "",
-            appliedSearchQuery = "",
-            modelFilterFreeOnly = state.selectedProviderId == SidePanelProviderApi.openRouter.id
-        )
+        HomeIntent.ModelSelectorTapped -> {
+            val selectedIsPaid = state.availableModels
+                .firstOrNull { it.id == state.selectedModelId }
+                ?.isFree == false
+            state.copy(
+                isModelPickerVisible = true,
+                modelSearchQuery = "",
+                appliedSearchQuery = "",
+                modelFilterFreeOnly = when {
+                    state.selectedProviderId != SidePanelProviderApi.openRouter.id ->
+                        state.modelFilterFreeOnly
+                    selectedIsPaid -> false
+                    else -> true
+                }
+            )
+        }
         HomeIntent.ModelPickerDismissed -> state.copy(isModelPickerVisible = false)
         is HomeIntent.ModelSelected -> state.copy(
             selectedModelId = intent.model.id,
@@ -19,6 +29,7 @@ internal object HomeReducer {
             selectedModelSupportsReasoning = intent.model.supportsReasoning,
             isModelPickerVisible = false
         )
+        HomeIntent.ModelsLoadingStarted -> state.copy(isLoadingModels = true)
         is HomeIntent.ModelSelectionLoaded -> {
             val selectedModel = intent.models.firstOrNull { it.id == intent.modelId }
             state.copy(
@@ -26,7 +37,10 @@ internal object HomeReducer {
                 selectedModelTitle = intent.modelTitle,
                 selectedModelSupportsReasoning = selectedModel?.supportsReasoning == true,
                 selectedProviderId = intent.providerId,
-                availableModels = intent.models
+                availableModels = intent.models,
+                isLoadingModels = false,
+                modelCatalogIsLive = intent.catalogIsLive,
+                modelCatalogErrorHint = intent.catalogErrorHint
             )
         }
         is HomeIntent.CredentialsLoaded -> state.copy(

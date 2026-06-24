@@ -2,6 +2,7 @@ package io.github.bengidev.opencore.home.infrastructure
 
 import io.github.bengidev.opencore.chat.infrastructure.ChatJsonStringField
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
+import java.math.BigDecimal
 
 internal object ProviderModelsResponseParser {
     fun parse(responseBody: String): List<SidePanelModel> {
@@ -31,7 +32,7 @@ internal object ProviderModelsResponseParser {
         val isFree: Boolean
             get() = when {
                 promptPrice != null && completionPrice != null ->
-                    promptPrice == "0" && completionPrice == "0"
+                    isZeroPrice(promptPrice) && isZeroPrice(completionPrice)
                 name != null -> name.contains("free", ignoreCase = true)
                 else -> false
             }
@@ -129,6 +130,9 @@ internal object ProviderModelsResponseParser {
         if (start == index) return null
         return json.substring(start, index).toIntOrNull()
     }
+
+    private fun isZeroPrice(value: String): Boolean =
+        value.toBigDecimalOrNull()?.compareTo(BigDecimal.ZERO) == 0
 
     private fun findMatchingBrace(json: String, openIndex: Int): Int? {
         var depth = 0
