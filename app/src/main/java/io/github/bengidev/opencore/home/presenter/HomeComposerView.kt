@@ -84,10 +84,7 @@ internal fun HomeComposerView(
         )
 
         HomeComposerContextRail(
-            modelTitle = state.selectedModelTitle,
-            contextUsage = state.contextUsage,
-            speedMode = state.speedMode,
-            showSpeedModes = state.selectedModelSupportsSpeedModes,
+            state = state,
             onModelSelectorTapped = onModelSelectorTapped,
             onSpeedModeTapped = onSpeedModeTapped,
             onSpeedModeSelected = onSpeedModeSelected,
@@ -218,67 +215,96 @@ private fun MissingApiKeyHint(onClick: () -> Unit) {
 
 @Composable
 private fun HomeComposerContextRail(
-    modelTitle: String,
-    contextUsage: io.github.bengidev.opencore.home.contextwindow.models.ContextWindowUsage,
-    speedMode: HomeComposerSpeedMode,
-    showSpeedModes: Boolean,
+    state: HomeState,
     onModelSelectorTapped: () -> Unit,
     onSpeedModeTapped: () -> Unit,
     onSpeedModeSelected: (HomeComposerSpeedMode) -> Unit,
     onContextUsageTapped: () -> Unit
 ) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .weight(1f)
-                .padding(end = 8.dp)
-        ) {
-            HomeComposerModelChip(
-                title = modelTitle,
-                onClick = onModelSelectorTapped
-            )
+        if (state.hasApiKey && !state.isModelCatalogAvailable) {
+            state.modelCatalogErrorHint?.let { hint ->
+                CatalogUnavailableHint(message = hint)
+            }
         }
 
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (showSpeedModes) {
-                HomeComposerSpeedChip(
-                    speedMode = speedMode,
-                    onSpeedModeTapped = onSpeedModeTapped,
-                    onSpeedModeSelected = onSpeedModeSelected
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
+            ) {
+                HomeComposerModelChip(
+                    title = state.modelPickerTitle,
+                    enabled = state.isModelCatalogAvailable,
+                    onClick = onModelSelectorTapped
                 )
             }
-            HomeComposerContextUsageIndicator(
-                usage = contextUsage,
-                onClick = onContextUsageTapped
-            )
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (state.selectedModelSupportsSpeedModes) {
+                    HomeComposerSpeedChip(
+                        speedMode = state.speedMode,
+                        onSpeedModeTapped = onSpeedModeTapped,
+                        onSpeedModeSelected = onSpeedModeSelected
+                    )
+                }
+                HomeComposerContextUsageIndicator(
+                    usage = state.contextUsage,
+                    onClick = onContextUsageTapped
+                )
+            }
         }
     }
 }
 
 @Composable
+private fun CatalogUnavailableHint(message: String) {
+    val palette = HomeTheme.palette
+    Text(
+        text = message,
+        style = HomeTheme.typography.chipLabel,
+        color = palette.textSecondary,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis
+    )
+}
+
+@Composable
 private fun HomeComposerModelChip(
     title: String,
+    enabled: Boolean,
     onClick: () -> Unit
 ) {
     val palette = HomeTheme.palette
     val typography = HomeTheme.typography
+    val contentColor = if (enabled) palette.textSecondary else palette.textTertiary
 
     Row(
         modifier = Modifier
             .widthIn(min = 92.dp)
             .height(30.dp)
             .homeComposerGlass(cornerRadius = 16.dp, shadowOpacity = 0.06f)
-            .clickable(onClick = onClick)
+            .then(
+                if (enabled) {
+                    Modifier.clickable(onClick = onClick)
+                } else {
+                    Modifier
+                }
+            )
             .padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp)
@@ -286,22 +312,24 @@ private fun HomeComposerModelChip(
         Icon(
             imageVector = Icons.Default.AutoAwesome,
             contentDescription = null,
-            tint = palette.textSecondary,
+            tint = contentColor,
             modifier = Modifier.size(14.dp)
         )
         Text(
             text = title,
             style = typography.chipLabel,
-            color = palette.textSecondary,
+            color = contentColor,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-        Icon(
-            imageVector = Icons.Default.KeyboardArrowDown,
-            contentDescription = null,
-            tint = palette.textSecondary,
-            modifier = Modifier.size(16.dp)
-        )
+        if (enabled) {
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(16.dp)
+            )
+        }
     }
 }
 
@@ -415,25 +443,50 @@ private fun HomeComposerContextUsageIndicator(
         ) {
             DropdownMenuItem(
                 text = {
-                    Column(modifier = Modifier.widthIn(min = 160.dp)) {
-                        Text(
-                            text = "${usage.tokensUsedFormatted} / ${usage.tokenLimitFormatted} tokens",
-                            style = typography.chipLabel,
-                            color = palette.textPrimary,
-                            maxLines = 1
-                        )
-                        Text(
-                            text = "${usage.percentRemaining}% remaining",
-                            style = typography.chipLabel,
-                            color = palette.textSecondary,
-                            maxLines = 1
-                        )
+                    Column(
+                        modifier = Modifier.widthIn(min = 160.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        ContextMetricRow(label = "Free", value = if (usage.hasKnownLimit) usage.tokensRemainingFormatted else "—")
+                        ContextMetricRow(label = "Used", value = usage.tokensUsedFormatted)
+                        ContextMetricRow(label = "Total", value = if (usage.hasKnownLimit) usage.tokenLimitFormatted else "—")
+                        if (usage.hasKnownLimit) {
+                            Text(
+                                text = "${usage.percentUsed}% used",
+                                style = typography.chipLabel,
+                                color = palette.textSecondary,
+                                maxLines = 1
+                            )
+                        }
                     }
                 },
                 onClick = { popoverExpanded = false },
                 enabled = false
             )
         }
+    }
+}
+
+@Composable
+private fun ContextMetricRow(label: String, value: String) {
+    val palette = HomeTheme.palette
+    val typography = HomeTheme.typography
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = typography.chipLabel,
+            color = palette.textSecondary
+        )
+        Text(
+            text = value,
+            style = typography.chipLabel,
+            color = palette.textPrimary,
+            maxLines = 1
+        )
     }
 }
 

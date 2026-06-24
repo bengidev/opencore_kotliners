@@ -16,8 +16,7 @@ internal object HomeReducer {
                 modelSearchQuery = "",
                 appliedSearchQuery = "",
                 modelFilterFreeOnly = when {
-                    state.selectedProviderId != SidePanelProviderApi.openRouter.id ->
-                        state.modelFilterFreeOnly
+                    !state.catalogHasFreeModels -> false
                     selectedIsPaid -> false
                     else -> true
                 }
@@ -43,7 +42,9 @@ internal object HomeReducer {
         }
         HomeIntent.ModelsLoadingStarted -> state.copy(isLoadingModels = true)
         is HomeIntent.ModelSelectionLoaded -> {
-            val selectedModel = intent.models.firstOrNull { it.id == intent.modelId }
+            val selectedModel = intent.modelId?.let { id ->
+                intent.models.firstOrNull { it.id == id }
+            }
             val speedMode = if (selectedModel?.supportsSpeedModes == true &&
                 state.speedMode in supportedSpeedModes(selectedModel)
             ) {
@@ -53,7 +54,7 @@ internal object HomeReducer {
             }
             state.copy(
                 selectedModelId = intent.modelId,
-                selectedModelTitle = intent.modelTitle,
+                selectedModelTitle = intent.modelTitle ?: "Not Available",
                 selectedModelSupportsReasoning = selectedModel?.supportsReasoning == true,
                 selectedModelSupportsSpeedModes = selectedModel?.supportsSpeedModes == true,
                 selectedProviderId = intent.providerId,
@@ -64,6 +65,11 @@ internal object HomeReducer {
                 speedMode = speedMode
             )
         }
+        HomeIntent.CatalogCleared -> state.copy(
+            availableModels = emptyList(),
+            modelCatalogIsLive = false,
+            modelCatalogErrorHint = null
+        )
         is HomeIntent.CredentialsLoaded -> state.copy(
             hasApiKey = intent.hasApiKey,
             hasLoadedCredentials = true
