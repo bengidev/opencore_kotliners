@@ -61,6 +61,13 @@ class ContextWindowUsageTest {
     }
 
     @Test
+    fun tokenLabelFormatting_formatsRemainingTokens() {
+        val usage = ContextWindowUsage(tokensUsed = 50_000, tokenLimit = 131_072)
+
+        assertEquals("81.1K", usage.tokensRemainingFormatted)
+    }
+
+    @Test
     fun unknownLimit_reportsZeroFraction() {
         val usage = ContextWindowUsage(tokensUsed = 50_000, tokenLimit = 0)
 

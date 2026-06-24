@@ -19,6 +19,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -38,18 +39,15 @@ class HomeComponentTest {
         Dispatchers.resetMain()
     }
 
-    private fun testCatalogClient(
-        httpGet: suspend (String, Map<String, String>) -> HomeModelCatalogClient.HttpGetResult =
-            { _, _ -> HomeModelCatalogClient.HttpGetResult(statusCode = 200, body = """{"data":[]}""") }
-    ) = HomeModelCatalogClient(httpGet = httpGet, ioDispatcher = testDispatcher)
-
     private fun homeComponent(
         lifecycle: LifecycleRegistry,
         preferenceStore: InMemorySidePanelPreferenceStore = InMemorySidePanelPreferenceStore(
-            SidePanelProviderPreference(modelId = "openrouter/free")
+            SidePanelProviderPreference(modelId = "meta-llama/llama-3.3-70b-instruct:free")
         ),
-        credentialStore: InMemorySidePanelCredentialStore = InMemorySidePanelCredentialStore(),
-        modelCatalogClient: HomeModelCatalogClient = testCatalogClient(),
+        credentialStore: InMemorySidePanelCredentialStore = HomeTestCatalog.credentialStoreWithKey(),
+        modelCatalogClient: HomeModelCatalogClient = HomeTestCatalog.catalogClient(
+            ioDispatcher = testDispatcher
+        ),
         onSendMessage: ((String, String?) -> Unit)? = null,
         onNewConversation: (() -> Unit)? = null
     ) = HomeComponent(
@@ -67,9 +65,6 @@ class HomeComponentTest {
         val lifecycle = LifecycleRegistry().apply { resume() }
         val component = homeComponent(
             lifecycle = lifecycle,
-            credentialStore = InMemorySidePanelCredentialStore().apply {
-                save("sk-test", SidePanelProviderApi.openRouter.id)
-            },
             onSendMessage = { message, _ -> sent = message }
         )
         advanceUntilIdle()
@@ -87,9 +82,6 @@ class HomeComponentTest {
         val lifecycle = LifecycleRegistry().apply { resume() }
         val component = homeComponent(
             lifecycle = lifecycle,
-            credentialStore = InMemorySidePanelCredentialStore().apply {
-                save("sk-test", SidePanelProviderApi.openRouter.id)
-            },
             onSendMessage = { _: String, _: String? -> sent = true }
         )
         advanceUntilIdle()
@@ -106,6 +98,7 @@ class HomeComponentTest {
         val lifecycle = LifecycleRegistry().apply { resume() }
         val component = homeComponent(
             lifecycle = lifecycle,
+            credentialStore = InMemorySidePanelCredentialStore(),
             onSendMessage = { _: String, _: String? -> sent = true }
         )
         advanceUntilIdle()
@@ -123,7 +116,8 @@ class HomeComponentTest {
         val lifecycle = LifecycleRegistry().apply { resume() }
         val component = homeComponent(
             lifecycle = lifecycle,
-            credentialStore = store
+            credentialStore = store,
+            modelCatalogClient = HomeTestCatalog.catalogClient(ioDispatcher = testDispatcher)
         )
         advanceUntilIdle()
         assertFalse(component.state.value.hasApiKey)
@@ -161,7 +155,7 @@ class HomeComponentTest {
                 {
                   "id": "openrouter/free",
                   "name": "Free Models Router",
-                  "architecture": { "modality": "text" },
+                  "architecture": { "modality": "text", "tokenizer": "Router" },
                   "pricing": { "prompt": "0", "completion": "0" }
                 }
               ]
@@ -181,7 +175,7 @@ class HomeComponentTest {
         """.trimIndent()
         var requestCount = 0
         val catalogClient = HomeModelCatalogClient(
-            httpGet = { url, _ ->
+            httpGet = { _, _ ->
                 requestCount++
                 if (requestCount == 1) {
                     delay(1_000)
@@ -217,5 +211,34 @@ class HomeComponentTest {
 
         assertEquals(SidePanelProviderApi.openCode.id, component.state.value.selectedProviderId)
         assertEquals("gpt-4o-mini", component.state.value.selectedModelId)
+    }
+
+    @Test
+    fun withoutApiKey_catalogIsEmptyAndModelUnavailable() = runTest(testDispatcher) {
+        val lifecycle = LifecycleRegistry().apply { resume() }
+        val component = homeComponent(
+            lifecycle = lifecycle,
+            credentialStore = InMemorySidePanelCredentialStore(),
+            modelCatalogClient = HomeModelCatalogClient(ioDispatcher = testDispatcher)
+        )
+        advanceUntilIdle()
+
+        assertTrue(component.state.value.availableModels.isEmpty())
+        assertNull(component.state.value.selectedModelId)
+        assertEquals("Not Available", component.state.value.modelPickerTitle)
+    }
+
+    @Test
+    fun stalePersistedModelId_isReplacedFromLiveCatalog() = runTest(testDispatcher) {
+        val lifecycle = LifecycleRegistry().apply { resume() }
+        val component = homeComponent(
+            lifecycle = lifecycle,
+            preferenceStore = InMemorySidePanelPreferenceStore(
+                SidePanelProviderPreference(modelId = "stale/model-id")
+            )
+        )
+        advanceUntilIdle()
+
+        assertEquals(component.state.value.availableModels.first().id, component.state.value.selectedModelId)
     }
 }
