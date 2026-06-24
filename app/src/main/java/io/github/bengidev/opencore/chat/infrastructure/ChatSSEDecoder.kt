@@ -22,9 +22,16 @@ internal class ChatSSEDecoder {
         }
 
         if (lineStart > 0) {
-            repeat(lineStart) { buffer.removeAt(0) }
+            buffer.subList(0, lineStart).clear()
         }
         return events
+    }
+
+    fun flush(): List<SseEvent> {
+        if (buffer.isEmpty()) return emptyList()
+        val rawLine = buffer.toByteArray().toString(Charsets.UTF_8)
+        buffer.clear()
+        return listOfNotNull(interpret(rawLine))
     }
 
     sealed class SseEvent {
