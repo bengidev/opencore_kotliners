@@ -1,5 +1,7 @@
 package io.github.bengidev.opencore.home.application
 
+import io.github.bengidev.opencore.home.contextwindow.models.ContextWindowUsage
+import io.github.bengidev.opencore.home.speedmode.models.HomeComposerSpeedMode
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
 
 internal sealed interface HomeIntent {
@@ -26,5 +28,7 @@ internal sealed interface HomeIntent {
     data class ModelSearchQueryApplied(val query: String) : HomeIntent
     data class ModelFilterFreeOnlyChanged(val enabled: Boolean) : HomeIntent
     data object SpeedModeTapped : HomeIntent
+    data class SpeedModeSelected(val mode: HomeComposerSpeedMode) : HomeIntent
     data object ContextUsageTapped : HomeIntent
+    data class ContextUsageUpdated(val usage: ContextWindowUsage) : HomeIntent
 }

@@ -111,6 +111,44 @@ class ProviderModelsResponseParserTest {
         assertEquals(1, models.size)
         assertEquals("meta-llama/llama-3.3-70b-instruct:free", models.first().id)
     }
+
+    @Test
+    fun parse_routerTokenizer_enablesSpeedModes() {
+        val body = """
+            {
+              "data": [
+                {
+                  "id": "openrouter/free",
+                  "name": "Free Models Router",
+                  "architecture": { "modality": "text", "tokenizer": "Router" }
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val model = ProviderModelsResponseParser.parse(body).single()
+
+        assertTrue(model.supportsSpeedModes)
+    }
+
+    @Test
+    fun parse_standardTokenizer_hidesSpeedModes() {
+        val body = """
+            {
+              "data": [
+                {
+                  "id": "meta-llama/llama-3.3-70b-instruct:free",
+                  "name": "Llama 3.3 70B",
+                  "architecture": { "modality": "text", "tokenizer": "Llama3" }
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val model = ProviderModelsResponseParser.parse(body).single()
+
+        assertFalse(model.supportsSpeedModes)
+    }
 }
 
 class HomeModelCatalogClientTest {

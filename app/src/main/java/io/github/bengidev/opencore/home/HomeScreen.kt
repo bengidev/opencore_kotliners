@@ -29,6 +29,15 @@ internal fun HomeScreen(
         sidePanelComponent.setModelSupportsReasoning(state.selectedModelSupportsReasoning)
     }
 
+    LaunchedEffect(
+        chatState.messages,
+        state.draftMessage,
+        state.selectedModelId,
+        state.availableModels
+    ) {
+        component.refreshContextUsage(chatState.messages, state.draftMessage)
+    }
+
     OpenCoreHomeTheme(darkTheme = darkTheme) {
         Box(modifier = Modifier.fillMaxSize()) {
             HomeView(
@@ -43,8 +52,9 @@ internal fun HomeScreen(
                 onConfigureApiKeyTapped = sidePanelComponent::settingsButtonTapped,
                 onModelSelectorTapped = component::onModelSelectorTapped,
                 onSpeedModeTapped = component::onSpeedModeTapped,
+                onSpeedModeSelected = component::onSpeedModeSelected,
                 onContextUsageTapped = component::onContextUsageTapped,
-                onChatRetryTapped = chatComponent::retry,
+                onChatRetryTapped = { chatComponent.retry(state.activeProviderSortBy) },
                 onChatErrorDismissed = chatComponent::dismissError
             )
             SidePanelScreen(component = sidePanelComponent)

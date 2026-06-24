@@ -132,7 +132,9 @@ private fun HomeRoute(
             componentContext = componentContext,
             preferenceStore = preferenceStore,
             credentialStore = credentialStore,
-            onSendMessage = chatComponent::sendUserMessage,
+            onSendMessage = { message, providerSortBy ->
+                chatComponent.sendUserMessage(message, providerSortBy)
+            },
             onNewConversation = chatComponent::startNewConversation
         )
     }

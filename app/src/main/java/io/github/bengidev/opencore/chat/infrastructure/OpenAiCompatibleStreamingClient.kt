@@ -29,14 +29,16 @@ internal class OpenAiCompatibleStreamingClient(
         modelId: String,
         apiKey: String,
         messages: List<SidePanelMessage>,
-        reasoning: SidePanelReasoningModel
+        reasoning: SidePanelReasoningModel,
+        providerSortBy: String? = null
     ): Flow<ChatStreamingEvent> = channelFlow {
         try {
             val body = ChatCompletionsCodec.encodeRequest(
                 modelId = modelId,
                 messages = messages,
                 reasoning = reasoning,
-                stream = true
+                stream = true,
+                providerSortBy = providerSortBy
             )
             val headers = buildMap {
                 put("Authorization", "Bearer $apiKey")

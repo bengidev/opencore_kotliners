@@ -7,7 +7,8 @@ internal object SidePanelModelCatalog {
             id = "openrouter/free",
             displayTitle = "Free Models Router",
             isFree = true,
-            contextLength = 200_000
+            contextLength = 200_000,
+            supportsSpeedModes = true
         ),
         SidePanelModel(
             id = "meta-llama/llama-3.3-70b-instruct:free",

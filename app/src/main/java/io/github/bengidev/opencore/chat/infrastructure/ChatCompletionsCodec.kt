@@ -10,7 +10,8 @@ internal object ChatCompletionsCodec {
         modelId: String,
         messages: List<SidePanelMessage>,
         reasoning: SidePanelReasoningModel,
-        stream: Boolean = false
+        stream: Boolean = false,
+        providerSortBy: String? = null
     ): String = buildString {
         val wireMessages = messages.filter { message ->
             message.kind != SidePanelMessageKind.THINKING &&
@@ -35,6 +36,11 @@ internal object ChatCompletionsCodec {
         }
         if (stream) {
             append(""","stream":true""")
+        }
+        if (!providerSortBy.isNullOrBlank()) {
+            append(""","provider":{"sort":{"by":""")
+            appendQuoted(providerSortBy)
+            append(""","partition":"none"}}""")
         }
         append('}')
     }

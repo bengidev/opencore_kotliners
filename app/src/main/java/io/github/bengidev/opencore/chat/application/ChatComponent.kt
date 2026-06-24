@@ -88,7 +88,7 @@ internal class ChatComponent(
         dispatch(ChatIntent.StreamingErrorDismissed)
     }
 
-    fun sendUserMessage(rawText: String) {
+    fun sendUserMessage(rawText: String, providerSortBy: String? = null) {
         val text = rawText.trim()
         val current = _state.value
         if (text.isEmpty() || current.isSending || current.isLoadingMessages) return
@@ -103,19 +103,19 @@ internal class ChatComponent(
             )
             history.appendMessage(conversation.id, userMessage)
             dispatch(ChatIntent.UserMessageAppended(userMessage))
-            startStream(conversation.id)
+            startStream(conversation.id, providerSortBy)
         }
     }
 
-    fun retry() {
+    fun retry(providerSortBy: String? = null) {
         val conversation = _state.value.activeConversation ?: return
         if (_state.value.isSending) return
         scope.launch {
-            startStream(conversation.id)
+            startStream(conversation.id, providerSortBy)
         }
     }
 
-    private suspend fun startStream(conversationId: UUID) {
+    private suspend fun startStream(conversationId: UUID, providerSortBy: String? = null) {
         cancelStream()
         val streamId = ++activeStreamId
         dispatch(ChatIntent.StreamingTurnStarted)
@@ -126,7 +126,7 @@ internal class ChatComponent(
 
         streamJob = scope.launch {
             try {
-                streamingClient.stream(messagesForWire).collect { event ->
+                streamingClient.stream(messagesForWire, providerSortBy).collect { event ->
                     if (streamId != activeStreamId) return@collect
                     handleStreamingEvent(event, conversationId)
                 }

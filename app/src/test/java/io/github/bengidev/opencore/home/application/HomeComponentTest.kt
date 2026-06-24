@@ -50,7 +50,7 @@ class HomeComponentTest {
         ),
         credentialStore: InMemorySidePanelCredentialStore = InMemorySidePanelCredentialStore(),
         modelCatalogClient: HomeModelCatalogClient = testCatalogClient(),
-        onSendMessage: ((String) -> Unit)? = null,
+        onSendMessage: ((String, String?) -> Unit)? = null,
         onNewConversation: (() -> Unit)? = null
     ) = HomeComponent(
         componentContext = DefaultComponentContext(lifecycle),
@@ -70,7 +70,7 @@ class HomeComponentTest {
             credentialStore = InMemorySidePanelCredentialStore().apply {
                 save("sk-test", SidePanelProviderApi.openRouter.id)
             },
-            onSendMessage = { sent = it }
+            onSendMessage = { message, _ -> sent = message }
         )
         advanceUntilIdle()
 
@@ -90,7 +90,7 @@ class HomeComponentTest {
             credentialStore = InMemorySidePanelCredentialStore().apply {
                 save("sk-test", SidePanelProviderApi.openRouter.id)
             },
-            onSendMessage = { sent = true }
+            onSendMessage = { _: String, _: String? -> sent = true }
         )
         advanceUntilIdle()
 
@@ -106,7 +106,7 @@ class HomeComponentTest {
         val lifecycle = LifecycleRegistry().apply { resume() }
         val component = homeComponent(
             lifecycle = lifecycle,
-            onSendMessage = { sent = true }
+            onSendMessage = { _: String, _: String? -> sent = true }
         )
         advanceUntilIdle()
 

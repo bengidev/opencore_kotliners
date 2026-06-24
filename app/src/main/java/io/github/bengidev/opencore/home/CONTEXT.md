@@ -15,7 +15,9 @@ Internal module with `HomeFacade` and `HomeScreen` as the app-shell entry points
 ## Language
 
 - **HomeComponent**: Decompose component for local UI state
-- **HomeIntent** / **HomeReducer**: Draft message and placeholder actions
+- **HomeIntent** / **HomeReducer**: Draft message, speed mode, context usage
+- **ContextWindowTracker** (`home/contextwindow/`): Token estimate facade for composer ring
+- **HomeComposerSpeedMode** (`home/speedmode/`): Standard / fast presets with OpenRouter `provider.sort.by`
 - **HomeView**: Root layout (`WelcomeScrollContainer`, floating top bar overlay, composer)
 - **WelcomeScrollContainer**: IME-aware scroll viewport with composer below the scroll area
 - **HomeTopBarOverlay**: Menu and new-chat icons floated above the hero
@@ -32,9 +34,11 @@ The welcome content scrolls inside `WelcomeScrollContainer` (`WelcomeScrollConta
 | Implemented | Not yet |
 |---|---|
 | Welcome hero + particle orb | Live GET /models fetch |
-| Composer prompt panel | Token-based context usage ring |
-| Model picker sheet (static catalog per provider) | Attachment / voice capture |
-| Model / speed / context rail (speed/context placeholders) | |
+| Composer prompt panel | Attachment / voice capture |
+| Model picker sheet (static catalog per provider) | |
+| Context window ring + usage popover (`home/contextwindow/`) | |
+| Speed mode menu for router models (`home/speedmode/`) | |
+| Model / speed / context rail | |
 | Top bar chrome (menu opens side panel) | |
 | Draft text input + send clears field | |
 | Side panel overlay (via `SidePanelScreen`) | |

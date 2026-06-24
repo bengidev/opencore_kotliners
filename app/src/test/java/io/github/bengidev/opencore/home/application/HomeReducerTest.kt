@@ -1,5 +1,7 @@
 package io.github.bengidev.opencore.home.application
 
+import io.github.bengidev.opencore.home.contextwindow.models.ContextWindowUsage
+import io.github.bengidev.opencore.home.speedmode.models.HomeComposerSpeedMode
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
 import org.junit.Assert.assertEquals
@@ -213,5 +215,50 @@ class HomeReducerTest {
         intents.forEach { intent ->
             assertEquals(state, HomeReducer.reduce(state, intent))
         }
+    }
+
+    @Test
+    fun speedModeSelected_updatesSupportedRouterModel() {
+        val router = sampleModel.copy(id = "openrouter/free", supportsSpeedModes = true)
+        val state = HomeState(
+            selectedModelId = router.id,
+            selectedModelSupportsSpeedModes = true
+        )
+        val result = HomeReducer.reduce(state, HomeIntent.SpeedModeSelected(HomeComposerSpeedMode.FAST))
+        assertEquals(HomeComposerSpeedMode.FAST, result.speedMode)
+        assertEquals("throughput", result.activeProviderSortBy)
+    }
+
+    @Test
+    fun speedModeSelected_ignoredForUnsupportedModel() {
+        val state = HomeState(
+            selectedModelId = sampleModel.id,
+            selectedModelSupportsSpeedModes = false,
+            speedMode = HomeComposerSpeedMode.STANDARD
+        )
+        val result = HomeReducer.reduce(state, HomeIntent.SpeedModeSelected(HomeComposerSpeedMode.FAST))
+        assertEquals(HomeComposerSpeedMode.STANDARD, result.speedMode)
+    }
+
+    @Test
+    fun modelSelected_resetsUnsupportedSpeedMode() {
+        val standardModel = SidePanelModel(
+            id = "meta-llama/llama-3.3-70b-instruct:free",
+            displayTitle = "Llama 3.3 70B",
+            isFree = true
+        )
+        val result = HomeReducer.reduce(
+            HomeState(speedMode = HomeComposerSpeedMode.FAST),
+            HomeIntent.ModelSelected(standardModel)
+        )
+        assertEquals(HomeComposerSpeedMode.STANDARD, result.speedMode)
+        assertFalse(result.selectedModelSupportsSpeedModes)
+    }
+
+    @Test
+    fun contextUsageUpdated_updatesUsageSnapshot() {
+        val usage = ContextWindowUsage(tokensUsed = 102, tokenLimit = 131_072)
+        val result = HomeReducer.reduce(HomeState(), HomeIntent.ContextUsageUpdated(usage))
+        assertEquals(usage, result.contextUsage)
     }
 }

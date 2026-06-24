@@ -6,6 +6,7 @@ import io.github.bengidev.opencore.chat.domain.ChatStreamingEvent
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
+import io.github.bengidev.opencore.chat.utilities.ChatAssistantContentNormalizer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -78,6 +79,86 @@ class ChatStreamingMergerTest {
         val thinkingRows = result.state.messages.filter { it.kind == SidePanelMessageKind.THINKING }
         assertEquals(1, thinkingRows.size)
         assertEquals("A B (note)", thinkingRows.first().content)
+    }
+
+    @Test
+    fun textDelta_keepsRawContentUntilDone() {
+        val raw = "[{'type': 'text', 'text': \"GeForce is NVIDIA's brand for consumer GPUs.\"}]"
+        val initial = ChatStreamingState(messages = listOf(userMessage()))
+        val deltaResult = ChatStreamingMerger.merge(
+            initial,
+            ChatStreamingEvent.TextDelta(raw),
+            { answerId },
+            now
+        )
+        assertEquals(raw, deltaResult.state.messages.last().content)
+
+        val doneResult = ChatStreamingMerger.merge(
+            deltaResult.state,
+            ChatStreamingEvent.Done,
+            { answerId },
+            now
+        )
+        assertEquals(
+            "GeForce is NVIDIA's brand for consumer GPUs.",
+            doneResult.state.messages.last().content
+        )
+    }
+
+    @Test
+    fun textDelta_keepsSafetyLabelsUntilDone() {
+        val raw = "User Safety: safe\nResponse Safety: safe"
+        val initial = ChatStreamingState(messages = listOf(userMessage()))
+        val deltaResult = ChatStreamingMerger.merge(
+            initial,
+            ChatStreamingEvent.TextDelta(raw),
+            { answerId },
+            now
+        )
+        assertEquals(raw, deltaResult.state.messages.last().content)
+
+        val doneResult = ChatStreamingMerger.merge(
+            deltaResult.state,
+            ChatStreamingEvent.Done,
+            { answerId },
+            now
+        )
+        assertEquals(
+            ChatAssistantContentNormalizer.SAFETY_ONLY_FALLBACK,
+            doneResult.state.messages.last().content
+        )
+    }
+
+    @Test
+    fun textDelta_doesNotTreatPartialSafetyLineAsFallback() {
+        val initial = ChatStreamingState(messages = listOf(userMessage()))
+        val partial = ChatStreamingMerger.merge(
+            initial,
+            ChatStreamingEvent.TextDelta("User Safety: safe\n"),
+            { answerId },
+            now
+        ).state
+        val withAnswer = ChatStreamingMerger.merge(
+            partial,
+            ChatStreamingEvent.TextDelta("A computer is a programmable machine."),
+            { answerId },
+            now
+        )
+        assertEquals(
+            "User Safety: safe\nA computer is a programmable machine.",
+            withAnswer.state.messages.last().content
+        )
+
+        val doneResult = ChatStreamingMerger.merge(
+            withAnswer.state,
+            ChatStreamingEvent.Done,
+            { answerId },
+            now
+        )
+        assertEquals(
+            "User Safety: safe\nA computer is a programmable machine.",
+            doneResult.state.messages.last().content
+        )
     }
 
     @Test
