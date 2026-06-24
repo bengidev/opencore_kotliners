@@ -6,7 +6,7 @@
 | **Package** | `io.github.bengidev.opencore.chat` |
 | **Module** | Internal module inside `:app` |
 
-Owns the active conversation thread: loading persisted messages, sending user messages, and appending assistant replies via a completion client. Does not own the history drawer (SidePanel) or welcome hero layout (Home).
+Owns the active conversation thread: loading persisted messages, sending user messages, and streaming assistant replies. Does not own the history drawer (SidePanel) or welcome hero layout (Home).
 
 ## Visibility
 
@@ -16,8 +16,9 @@ Internal module with `ChatFacade` as the app-shell wiring entry. `ChatComponent`
 
 - **ChatComponent**: Decompose component for thread lifecycle and send
 - **ChatIntent** / **ChatReducer**: Command-style state mutations
-- **ChatCompletionClient**: Strategy seam for provider responses (`ProviderChatCompletionClient` → OpenAI-compatible HTTP)
+- **ChatStreamingClient**: Strategy seam for provider streaming (`ProviderChatStreamingClient` → OpenAI-compatible SSE HTTP)
 - **SidePanelHistoryRepository**: Persistence for conversations and messages (owned by SidePanel infrastructure)
+- **SidePanelMessageKind**: Message kind discriminator on persisted history rows
 
 ## Integration
 
@@ -33,7 +34,10 @@ Internal module with `ChatFacade` as the app-shell wiring entry. `ChatComponent`
 
 | Implemented | Not yet |
 |---|---|
-| Thread message list UI | Provider streaming / SSE |
-| Send creates conversation + user message | Model catalog fetch |
-| OpenAI-compatible provider completions | Credential gating on send (composer) |
-| Resume from history | Room-backed persistence |
+| Thread message list UI | Live GET /models fetch |
+| SSE streaming with thinking + answer merge | Room-backed persistence |
+| Send creates conversation + user message | In-flight stream cancel button |
+| OpenAI-compatible provider streaming | Token-based context usage ring |
+| Resume from history with load guards | |
+| Credential gating on composer send | |
+| Static model catalog per provider | |
