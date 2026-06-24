@@ -35,4 +35,14 @@ class ChatSSEDecoderTest {
             decoder.append("lo\n".toByteArray())
         )
     }
+
+    @Test
+    fun flush_emitsTrailingLineWithoutNewline() {
+        val decoder = ChatSSEDecoder()
+        assertTrue(decoder.append("data: tail".toByteArray()).isEmpty())
+        assertEquals(
+            listOf(ChatSSEDecoder.SseEvent.Data("tail")),
+            decoder.flush()
+        )
+    }
 }

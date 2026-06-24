@@ -7,6 +7,9 @@ import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelReasoningModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flowOn
@@ -43,15 +46,15 @@ internal class OpenAiCompatibleStreamingClient(
             var decoder = ChatSSEDecoder()
             var didEmitDone = false
 
-            fun dispatchSseEvent(event: ChatSSEDecoder.SseEvent) {
+            suspend fun dispatchSseEvent(event: ChatSSEDecoder.SseEvent) {
                 when (event) {
                     is ChatSSEDecoder.SseEvent.Done -> {
-                        trySend(ChatStreamingEvent.Done)
+                        send(ChatStreamingEvent.Done)
                         didEmitDone = true
                     }
                     is ChatSSEDecoder.SseEvent.Data -> {
                         ChatStreamingCodec.mapDataPayload(event.payload)?.forEach { chatEvent ->
-                            trySend(chatEvent)
+                            send(chatEvent)
                             if (chatEvent is ChatStreamingEvent.Error) didEmitDone = true
                         }
                     }
@@ -70,6 +73,10 @@ internal class OpenAiCompatibleStreamingClient(
                     didEmitDone = true
                 }
                 is HttpStreamResult.Success -> Unit
+            }
+
+            for (event in decoder.flush()) {
+                dispatchSseEvent(event)
             }
 
             if (!didEmitDone) {
@@ -115,9 +122,12 @@ private suspend fun defaultHttpStream(
         requestMethod = "POST"
         doOutput = true
         connectTimeout = 30_000
-        readTimeout = 60_000
+        readTimeout = 0
         setRequestProperty("Content-Type", "application/json; charset=utf-8")
         headers.forEach { (name, value) -> setRequestProperty(name, value) }
+    }
+    val cancelHandler = currentCoroutineContext()[Job]?.invokeOnCompletion { _, _ ->
+        runCatching { connection.disconnect() }
     }
     try {
         connection.outputStream.use { stream ->
@@ -134,6 +144,7 @@ private suspend fun defaultHttpStream(
         connection.inputStream.use { stream ->
             val buffer = ByteArray(8_192)
             while (true) {
+                ensureActive()
                 val read = stream.read(buffer)
                 if (read <= 0) break
                 onChunk(if (read == buffer.size) buffer else buffer.copyOf(read))
@@ -141,6 +152,7 @@ private suspend fun defaultHttpStream(
         }
         return HttpStreamResult.Success
     } finally {
+        cancelHandler?.dispose()
         connection.disconnect()
     }
 }
