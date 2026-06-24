@@ -22,7 +22,11 @@ class HomeReducerTest {
     @Test
     fun draftMessageChanged_updatesDraft() {
         val result = HomeReducer.reduce(
-            HomeState(selectedModelId = sampleModel.id, hasApiKey = true),
+            HomeState(
+                selectedModelId = sampleModel.id,
+                hasApiKey = true,
+                availableModels = listOf(sampleModel)
+            ),
             HomeIntent.DraftMessageChanged("Hello")
         )
         assertEquals("Hello", result.draftMessage)
@@ -30,7 +34,7 @@ class HomeReducerTest {
     }
 
     @Test
-    fun canSend_requiresSelectedModel() {
+    fun canSend_requiresSelectedModelInLiveCatalog() {
         assertFalse(HomeState(draftMessage = "Hello").canSend)
         assertFalse(
             HomeState(
@@ -39,11 +43,29 @@ class HomeReducerTest {
                 hasLoadedCredentials = true
             ).canSend
         )
+        assertFalse(
+            HomeState(
+                draftMessage = "Hello",
+                selectedModelId = sampleModel.id,
+                hasApiKey = true,
+                isLoadingModels = true,
+                availableModels = listOf(sampleModel)
+            ).canSend
+        )
+        assertFalse(
+            HomeState(
+                draftMessage = "Hello",
+                selectedModelId = sampleModel.id,
+                hasApiKey = true,
+                availableModels = emptyList()
+            ).canSend
+        )
         assertTrue(
             HomeState(
                 draftMessage = "Hello",
                 selectedModelId = sampleModel.id,
-                hasApiKey = true
+                hasApiKey = true,
+                availableModels = listOf(sampleModel)
             ).canSend
         )
     }
@@ -71,7 +93,8 @@ class HomeReducerTest {
             HomeState(
                 draftMessage = "Hello",
                 selectedModelId = sampleModel.id,
-                hasApiKey = true
+                hasApiKey = true,
+                availableModels = listOf(sampleModel)
             ),
             HomeIntent.SendTapped
         )

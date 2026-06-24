@@ -185,6 +185,57 @@ class ProviderModelsResponseParserTest {
     }
 
     @Test
+    fun parse_openRouterFreeId_enablesSpeedModesWithoutRouterTokenizer() {
+        val body = """
+            {
+              "data": [
+                {
+                  "id": "openrouter/free",
+                  "name": "Free Models Router",
+                  "architecture": { "modality": "text", "tokenizer": "Other" }
+                }
+              ]
+            }
+        """.trimIndent()
+
+        assertTrue(ProviderModelsResponseParser.parse(body).single().supportsSpeedModes)
+    }
+
+    @Test
+    fun parse_detectsReasoningFromThinkingSuffix() {
+        val body = """
+            {
+              "data": [
+                {
+                  "id": "vendor/kimi-k2-thinking",
+                  "name": "Kimi K2 Thinking",
+                  "architecture": { "modality": "text" }
+                }
+              ]
+            }
+        """.trimIndent()
+
+        assertTrue(ProviderModelsResponseParser.parse(body).single().supportsReasoning)
+    }
+
+    @Test
+    fun parse_treatsFreeNameAsFreeWithoutPricing() {
+        val body = """
+            {
+              "data": [
+                {
+                  "id": "vendor/sample-model",
+                  "name": "Sample Free Model",
+                  "architecture": { "modality": "text" }
+                }
+              ]
+            }
+        """.trimIndent()
+
+        assertTrue(ProviderModelsResponseParser.parse(body).single().isFree)
+    }
+
+    @Test
     fun parse_standardTokenizer_hidesSpeedModes() {
         val body = """
             {
@@ -260,5 +311,21 @@ class HomeModelCatalogClientTest {
         assertFalse(result.isLive)
         assertEquals("Plan upgrade required", result.errorHint)
         assertTrue(result.models.isEmpty())
+    }
+
+    @Test
+    fun listModels_withNetworkFailure_returnsGenericHint() = runTest {
+        val client = HomeModelCatalogClient(
+            httpGet = { _, _ -> throw RuntimeException("offline") }
+        )
+
+        val result = client.listModels(SidePanelProviderApi.openRouter, secret = "sk-test")
+
+        assertFalse(result.isLive)
+        assertTrue(result.models.isEmpty())
+        assertEquals(
+            "Couldn't load models. Check your connection and try again.",
+            result.errorHint
+        )
     }
 }

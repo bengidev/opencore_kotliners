@@ -26,7 +26,11 @@ internal data class HomeState(
     val modelFilterFreeOnly: Boolean = false
 ) {
     val canSend: Boolean
-        get() = draftMessage.isNotBlank() && selectedModelId != null && hasApiKey
+        get() = draftMessage.isNotBlank() &&
+            selectedModelId != null &&
+            hasApiKey &&
+            !isLoadingModels &&
+            availableModels.any { it.id == selectedModelId }
 
     val showMissingApiKeyHint: Boolean
         get() = hasLoadedCredentials && !hasApiKey
