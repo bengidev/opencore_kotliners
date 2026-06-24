@@ -26,7 +26,7 @@ import io.github.bengidev.opencore.sidepanel.SidePanelFacade
 import io.github.bengidev.opencore.sidepanel.application.SidePanelComponent
 import io.github.bengidev.opencore.sidepanel.infrastructure.DataStoreSidePanelPreferenceStore
 import io.github.bengidev.opencore.sidepanel.infrastructure.EncryptedSidePanelCredentialStore
-import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelHistoryRepository
+import io.github.bengidev.opencore.sidepanel.infrastructure.DataStoreSidePanelHistoryRepository
 import io.github.bengidev.opencore.ui.decompose.rememberComponentContext
 import io.github.bengidev.opencore.ui.theme.OpenCoreTheme
 
@@ -107,7 +107,7 @@ private fun HomeRoute(
     darkTheme: Boolean
 ) {
     val componentContext = rememberComponentContext()
-    val history = remember { InMemorySidePanelHistoryRepository() }
+    val history = remember(activity) { DataStoreSidePanelHistoryRepository(activity) }
     val preferenceStore = remember(activity) { DataStoreSidePanelPreferenceStore(activity) }
     val credentialStore = remember(activity) { EncryptedSidePanelCredentialStore(activity) }
     val sidePanelComponent: SidePanelComponent = remember(componentContext, history, preferenceStore, credentialStore) {
