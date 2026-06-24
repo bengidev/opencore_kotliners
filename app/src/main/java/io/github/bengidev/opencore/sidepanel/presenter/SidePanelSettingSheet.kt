@@ -97,18 +97,19 @@ internal fun SidePanelSettingSheet(
                 onProviderSelected = component::selectProvider
             )
 
+            val selectedProvider = SidePanelProviderApi.resolve(state.selectedProviderId)
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    text = "Provider API key",
+                    text = selectedProvider.credentialLabel,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = palette.textPrimary
                 )
                 Text(
                     text = if (state.hasStoredKey) {
-                        "A key is stored securely. Enter a new value to replace it."
+                        "A ${selectedProvider.credentialLabel} is stored securely. Enter a new value to replace it."
                     } else {
-                        "Add your ${SidePanelProviderApi.resolve(state.selectedProviderId).displayName} API key to enable sending."
+                        selectedProvider.credentialPrompt
                     },
                     fontSize = 13.sp,
                     color = palette.textSecondary
@@ -143,7 +144,7 @@ internal fun SidePanelSettingSheet(
                         modifier = Modifier
                             .weight(1f)
                             .testTag("settings-api-key-field"),
-                        placeholder = { Text("sk-...") },
+                        placeholder = { Text(selectedProvider.credentialPlaceholder) },
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         singleLine = true,

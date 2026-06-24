@@ -3,7 +3,6 @@ package io.github.bengidev.opencore.chat.infrastructure
 import io.github.bengidev.opencore.chat.domain.ChatStreamError
 import io.github.bengidev.opencore.chat.domain.ChatStreamingEvent
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelModelCatalog
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
 import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelCredentialStore
 import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelPreferenceStore
@@ -20,12 +19,21 @@ internal class ProviderChatStreamingClient(
     override fun stream(messages: List<SidePanelMessage>, providerSortBy: String?): Flow<ChatStreamingEvent> = flow {
         val preference = preferenceStore.preference()
         val provider = SidePanelProviderApi.resolve(preference.providerId)
-        val modelId = preference.modelId ?: SidePanelModelCatalog.defaultModel(provider).id
         val apiKey = credentialStore.secret(provider.id)?.trim().orEmpty()
         if (apiKey.isEmpty()) {
             emit(
                 ChatStreamingEvent.Error(
                     ChatStreamError("Add an API key for ${provider.displayName} in Settings.")
+                )
+            )
+            emit(ChatStreamingEvent.Done)
+            return@flow
+        }
+        val modelId = preference.modelId
+        if (modelId.isNullOrBlank()) {
+            emit(
+                ChatStreamingEvent.Error(
+                    ChatStreamError("Select a model for ${provider.displayName} before sending.")
                 )
             )
             emit(ChatStreamingEvent.Done)

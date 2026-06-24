@@ -6,6 +6,7 @@ import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -21,7 +22,11 @@ class HomeReducerTest {
     @Test
     fun draftMessageChanged_updatesDraft() {
         val result = HomeReducer.reduce(
-            HomeState(selectedModelId = sampleModel.id, hasApiKey = true),
+            HomeState(
+                selectedModelId = sampleModel.id,
+                hasApiKey = true,
+                availableModels = listOf(sampleModel)
+            ),
             HomeIntent.DraftMessageChanged("Hello")
         )
         assertEquals("Hello", result.draftMessage)
@@ -29,7 +34,7 @@ class HomeReducerTest {
     }
 
     @Test
-    fun canSend_requiresSelectedModel() {
+    fun canSend_requiresSelectedModelInLiveCatalog() {
         assertFalse(HomeState(draftMessage = "Hello").canSend)
         assertFalse(
             HomeState(
@@ -38,11 +43,29 @@ class HomeReducerTest {
                 hasLoadedCredentials = true
             ).canSend
         )
+        assertFalse(
+            HomeState(
+                draftMessage = "Hello",
+                selectedModelId = sampleModel.id,
+                hasApiKey = true,
+                isLoadingModels = true,
+                availableModels = listOf(sampleModel)
+            ).canSend
+        )
+        assertFalse(
+            HomeState(
+                draftMessage = "Hello",
+                selectedModelId = sampleModel.id,
+                hasApiKey = true,
+                availableModels = emptyList()
+            ).canSend
+        )
         assertTrue(
             HomeState(
                 draftMessage = "Hello",
                 selectedModelId = sampleModel.id,
-                hasApiKey = true
+                hasApiKey = true,
+                availableModels = listOf(sampleModel)
             ).canSend
         )
     }
@@ -70,7 +93,8 @@ class HomeReducerTest {
             HomeState(
                 draftMessage = "Hello",
                 selectedModelId = sampleModel.id,
-                hasApiKey = true
+                hasApiKey = true,
+                availableModels = listOf(sampleModel)
             ),
             HomeIntent.SendTapped
         )
@@ -133,14 +157,74 @@ class HomeReducerTest {
     }
 
     @Test
-    fun modelSelectorTapped_resetsSearchAndEnablesFreeFilterForOpenRouter() {
+    fun modelPickerTitle_showsNotAvailableWithoutCatalog() {
+        val state = HomeState()
+        assertEquals("Not Available", state.modelPickerTitle)
+    }
+
+    @Test
+    fun modelPickerTitle_usesSelectedTitleWhenCatalogLoaded() {
+        val state = HomeState(
+            selectedModelId = "openrouter/free",
+            selectedModelTitle = "Free Models Router",
+            availableModels = listOf(sampleModel)
+        )
+        assertEquals("Free Models Router", state.modelPickerTitle)
+    }
+
+    @Test
+    fun modelSelectorTapped_enablesFreeFilterWhenCatalogHasFreeModels() {
         val result = HomeReducer.reduce(
-            HomeState(selectedProviderId = SidePanelProviderApi.openRouter.id),
+            HomeState(
+                availableModels = listOf(sampleModel),
+                selectedModelId = sampleModel.id
+            ),
             HomeIntent.ModelSelectorTapped
         )
-        assertTrue(result.isModelPickerVisible)
         assertTrue(result.modelFilterFreeOnly)
-        assertEquals("", result.modelSearchQuery)
+    }
+
+    @Test
+    fun modelSelectorTapped_hidesFreeFilterWhenCatalogHasNoFreeModels() {
+        val paidModel = SidePanelModel(id = "openai/gpt-4o", displayTitle = "GPT-4o", isFree = false)
+        val result = HomeReducer.reduce(
+            HomeState(
+                availableModels = listOf(paidModel),
+                selectedModelId = paidModel.id
+            ),
+            HomeIntent.ModelSelectorTapped
+        )
+        assertFalse(result.modelFilterFreeOnly)
+    }
+
+    @Test
+    fun catalogCleared_resetsCatalogState() {
+        val result = HomeReducer.reduce(
+            HomeState(
+                availableModels = listOf(sampleModel),
+                modelCatalogIsLive = true,
+                modelCatalogErrorHint = "error"
+            ),
+            HomeIntent.CatalogCleared
+        )
+        assertTrue(result.availableModels.isEmpty())
+        assertFalse(result.modelCatalogIsLive)
+        assertNull(result.modelCatalogErrorHint)
+    }
+
+    @Test
+    fun modelSelectionLoaded_clearsSelectionWhenCatalogEmpty() {
+        val result = HomeReducer.reduce(
+            HomeState(selectedModelId = sampleModel.id),
+            HomeIntent.ModelSelectionLoaded(
+                modelId = null,
+                modelTitle = null,
+                providerId = SidePanelProviderApi.openRouter.id,
+                models = emptyList()
+            )
+        )
+        assertNull(result.selectedModelId)
+        assertEquals("Not Available", result.selectedModelTitle)
     }
 
     @Test

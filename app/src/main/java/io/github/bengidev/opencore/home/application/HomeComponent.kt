@@ -10,7 +10,6 @@ import io.github.bengidev.opencore.home.infrastructure.HomeModelCatalogClient
 import io.github.bengidev.opencore.home.speedmode.models.HomeComposerSpeedMode
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelModelCatalog
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
 import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelCredentialStore
 import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelPreferenceStore
@@ -38,10 +37,11 @@ internal class HomeComponent(
     private var catalogReloadJob: Job? = null
     private var catalogLoadGeneration = 0
     private val contextWindowTracker = ContextWindowTracker()
+    private var contextMessages: List<SidePanelMessage> = emptyList()
 
     init {
         lifecycle.doOnDestroy { scope.cancel() }
-        startCatalogReload(resetToDefault = false)
+        startCatalogReload(autoSelectWhenNoneSaved = false)
     }
 
     fun dispatch(intent: HomeIntent) {
@@ -60,19 +60,20 @@ internal class HomeComponent(
         val current = _state.value
         val message = current.draftMessage.trim()
         dispatch(HomeIntent.SendTapped)
-        if (message.isNotEmpty() && current.selectedModelId != null && current.hasApiKey) {
+        if (message.isNotEmpty() && current.canSend) {
             onSendMessage?.invoke(message, current.activeProviderSortBy)
         }
     }
     fun onModelSelectorTapped() {
         dispatch(HomeIntent.ModelSelectorTapped)
-        startCatalogReload(resetToDefault = false, onlyIfNeeded = true)
+        startCatalogReload(autoSelectWhenNoneSaved = false, onlyIfNeeded = true)
     }
     fun onModelPickerDismissed() = dispatch(HomeIntent.ModelPickerDismissed)
     fun onModelSelected(model: SidePanelModel) {
         scope.launch {
             preferenceStore.setModelId(model.id)
             dispatch(HomeIntent.ModelSelected(model))
+            refreshStoredContextUsage()
         }
     }
     fun onModelSearchQueryChanged(query: String) {
@@ -89,38 +90,31 @@ internal class HomeComponent(
     fun onContextUsageTapped() = dispatch(HomeIntent.ContextUsageTapped)
     fun onSpeedModeSelected(mode: HomeComposerSpeedMode) = dispatch(HomeIntent.SpeedModeSelected(mode))
 
-    fun refreshContextUsage(messages: List<SidePanelMessage>, draftMessage: String) {
-        val contextLength = _state.value.availableModels
-            .firstOrNull { it.id == _state.value.selectedModelId }
-            ?.contextLength
-        contextWindowTracker.refresh(
-            messages = messages,
-            draft = draftMessage,
-            contextLength = contextLength
-        )
-        dispatch(HomeIntent.ContextUsageUpdated(contextWindowTracker.usage))
+    fun refreshContextUsage(messages: List<SidePanelMessage>) {
+        contextMessages = messages
+        refreshStoredContextUsage()
     }
 
     fun onProviderChanged() {
         ++catalogLoadGeneration
-        startCatalogReload(resetToDefault = true)
+        startCatalogReload(autoSelectWhenNoneSaved = true)
     }
 
     fun onCredentialsChanged() {
         ++catalogLoadGeneration
         scope.launch {
             reloadApiKeyStatus()
-            startCatalogReload(resetToDefault = false)
+            startCatalogReload(autoSelectWhenNoneSaved = _state.value.selectedModelId == null)
         }
     }
 
-    private fun startCatalogReload(resetToDefault: Boolean, onlyIfNeeded: Boolean = false) {
+    private fun startCatalogReload(autoSelectWhenNoneSaved: Boolean, onlyIfNeeded: Boolean = false) {
         if (onlyIfNeeded && !shouldReloadCatalog()) return
         val generation = ++catalogLoadGeneration
         catalogReloadJob?.cancel()
         catalogReloadJob = scope.launch {
             dispatch(HomeIntent.ModelsLoadingStarted)
-            reloadModelSelection(resetToDefault = resetToDefault, generation = generation)
+            reloadModelSelection(autoSelectWhenNoneSaved = autoSelectWhenNoneSaved, generation = generation)
         }
     }
 
@@ -130,7 +124,7 @@ internal class HomeComponent(
             (current.hasApiKey && !current.modelCatalogIsLive)
     }
 
-    private suspend fun reloadModelSelection(resetToDefault: Boolean, generation: Int) {
+    private suspend fun reloadModelSelection(autoSelectWhenNoneSaved: Boolean, generation: Int) {
         val preference = preferenceStore.preference()
         val provider = SidePanelProviderApi.resolve(preference.providerId)
         val secret = credentialStore.secret(provider.id)
@@ -138,22 +132,18 @@ internal class HomeComponent(
         if (generation != catalogLoadGeneration) return
 
         val models = catalogResult.models
-        val modelId = when {
-            resetToDefault -> SidePanelModelCatalog.defaultModel(provider).id
-            preference.modelId != null && models.any { it.id == preference.modelId } ->
-                preference.modelId
-            else -> SidePanelModelCatalog.defaultModel(provider).id
+        val selection = ModelSelectionPolicy.reconcile(
+            models = models,
+            savedModelId = preference.modelId,
+            autoSelectWhenNoneSaved = autoSelectWhenNoneSaved
+        )
+        if (selection.modelId != preference.modelId) {
+            preferenceStore.setModelId(selection.modelId)
         }
-        if (modelId != preference.modelId) {
-            preferenceStore.setModelId(modelId)
-        }
-        val selectedModel = models.firstOrNull { it.id == modelId }
-        val title = selectedModel?.displayTitle
-            ?: SidePanelModelCatalog.displayTitle(provider.id, modelId)
         dispatch(
             HomeIntent.ModelSelectionLoaded(
-                modelId = modelId,
-                modelTitle = title,
+                modelId = selection.modelId,
+                modelTitle = selection.modelTitle,
                 providerId = provider.id,
                 models = models,
                 catalogIsLive = catalogResult.isLive,
@@ -161,6 +151,20 @@ internal class HomeComponent(
             )
         )
         reloadApiKeyStatus()
+        refreshStoredContextUsage()
+    }
+
+    private fun refreshStoredContextUsage() {
+        val current = _state.value
+        val contextLength = current.availableModels
+            .firstOrNull { it.id == current.selectedModelId }
+            ?.contextLength
+        contextWindowTracker.refresh(
+            messages = contextMessages,
+            draft = current.draftMessage,
+            contextLength = contextLength
+        )
+        dispatch(HomeIntent.ContextUsageUpdated(contextWindowTracker.usage))
     }
 
     private suspend fun reloadApiKeyStatus() {
