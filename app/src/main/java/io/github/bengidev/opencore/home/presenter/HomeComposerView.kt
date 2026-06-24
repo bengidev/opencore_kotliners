@@ -50,6 +50,7 @@ import io.github.bengidev.opencore.home.theme.HomeTheme
 internal fun HomeComposerView(
     state: HomeState,
     isSending: Boolean = false,
+    isLoadingMessages: Boolean = false,
     onDraftMessageChanged: (String) -> Unit,
     onAttachmentTapped: () -> Unit,
     onMicrophoneTapped: () -> Unit,
@@ -66,7 +67,7 @@ internal fun HomeComposerView(
     ) {
         HomeComposerPromptPanel(
             draftMessage = state.draftMessage,
-            canSend = state.canSend && !isSending,
+            canSend = state.canSend && !isSending && !isLoadingMessages,
             showMissingApiKeyHint = state.showMissingApiKeyHint,
             onConfigureApiKeyTapped = onConfigureApiKeyTapped,
             onDraftMessageChanged = onDraftMessageChanged,

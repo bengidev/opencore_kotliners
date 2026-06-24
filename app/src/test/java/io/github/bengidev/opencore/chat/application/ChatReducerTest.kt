@@ -41,28 +41,57 @@ class ChatReducerTest {
     }
 
     @Test
-    fun conversationOpened_setsActiveConversation() {
+    fun conversationOpened_clearsMessagesAndSetsLoading() {
         val target = conversation("Resume me")
         val result = ChatReducer.reduce(
-            ChatState(),
+            ChatState(
+                messages = listOf(message(ChatMessageRole.USER, "Stale"))
+            ),
             ChatIntent.ConversationOpened(target)
         )
         assertEquals(target, result.activeConversation)
-        assertTrue(result.isThreadActive)
-        assertEquals("Resume me", result.headerTitle)
+        assertTrue(result.messages.isEmpty())
+        assertTrue(result.isLoadingMessages)
     }
 
     @Test
-    fun messagesLoaded_replacesMessageList() {
+    fun conversationOpened_withoutLoad_keepsComposerReady() {
+        val target = conversation("New chat")
+        val result = ChatReducer.reduce(
+            ChatState(),
+            ChatIntent.ConversationOpened(target, loadMessages = false)
+        )
+        assertEquals(target, result.activeConversation)
+        assertFalse(result.isLoadingMessages)
+    }
+
+    @Test
+    fun messagesLoaded_replacesMessageListWhenConversationMatches() {
         val loaded = listOf(
             message(ChatMessageRole.USER, "One"),
             message(ChatMessageRole.ASSISTANT, "Two")
         )
         val result = ChatReducer.reduce(
-            ChatState(activeConversation = conversation()),
-            ChatIntent.MessagesLoaded(loaded)
+            ChatState(activeConversation = conversation(), isLoadingMessages = true),
+            ChatIntent.MessagesLoaded(conversationId, loaded)
         )
         assertEquals(loaded, result.messages)
+        assertFalse(result.isLoadingMessages)
+    }
+
+    @Test
+    fun messagesLoaded_ignoredWhenConversationIdMismatch() {
+        val stale = listOf(message(ChatMessageRole.USER, "Wrong thread"))
+        val otherId = UUID.randomUUID()
+        val result = ChatReducer.reduce(
+            ChatState(
+                activeConversation = conversation(),
+                messages = listOf(message(ChatMessageRole.USER, "Current"))
+            ),
+            ChatIntent.MessagesLoaded(otherId, stale)
+        )
+        assertEquals(1, result.messages.size)
+        assertEquals("Current", result.messages.first().content)
     }
 
     @Test
@@ -114,9 +143,18 @@ class ChatReducerTest {
     }
 
     @Test
-    fun streamingErrorDismissed_clearsError() {
-        val failed = ChatState(streamErrorMessage = "Oops")
+    fun streamingErrorDismissed_clearsErrorAndIncompleteAssistantRows() {
+        val partial = message(ChatMessageRole.ASSISTANT, "Partial").copy(isComplete = false)
+        val failed = ChatState(
+            messages = listOf(
+                message(ChatMessageRole.USER, "Hi"),
+                partial
+            ),
+            streamErrorMessage = "Oops"
+        )
         val result = ChatReducer.reduce(failed, ChatIntent.StreamingErrorDismissed)
         assertNull(result.streamErrorMessage)
+        assertEquals(1, result.messages.size)
+        assertEquals(ChatMessageRole.USER, result.messages.first().role)
     }
 }

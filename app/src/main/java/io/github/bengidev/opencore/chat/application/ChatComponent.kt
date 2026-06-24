@@ -34,6 +34,7 @@ internal class ChatComponent(
     val state: Value<ChatState> = _state
     private var streamJob: Job? = null
     private var activeStreamId = 0
+    private var loadGeneration = 0
 
     var onActiveConversationChanged: ((UUID?) -> Unit)? = null
     var onHistoryChanged: (() -> Unit)? = null
@@ -51,17 +52,20 @@ internal class ChatComponent(
 
     fun startNewConversation() {
         cancelStream()
+        ++loadGeneration
         dispatch(ChatIntent.NewConversation)
         onActiveConversationChanged?.invoke(null)
     }
 
     fun openConversation(conversation: SidePanelConversation) {
         cancelStream()
+        val generation = ++loadGeneration
         dispatch(ChatIntent.ConversationOpened(conversation))
         onActiveConversationChanged?.invoke(conversation.id)
         scope.launch {
             val messages = history.loadMessages(conversation.id)
-            dispatch(ChatIntent.MessagesLoaded(messages))
+            if (generation != loadGeneration) return@launch
+            dispatch(ChatIntent.MessagesLoaded(conversation.id, messages))
         }
     }
 
@@ -71,6 +75,9 @@ internal class ChatComponent(
 
     fun onActiveConversationDeleted(id: UUID) {
         val wasActive = _state.value.activeConversation?.id == id
+        if (wasActive) {
+            ++loadGeneration
+        }
         dispatch(ChatIntent.ActiveConversationDeleted(id))
         if (wasActive) {
             onActiveConversationChanged?.invoke(null)
@@ -83,7 +90,8 @@ internal class ChatComponent(
 
     fun sendUserMessage(rawText: String) {
         val text = rawText.trim()
-        if (text.isEmpty() || _state.value.isSending) return
+        val current = _state.value
+        if (text.isEmpty() || current.isSending || current.isLoadingMessages) return
 
         scope.launch {
             val conversation = ensureActiveConversation(text)
@@ -112,9 +120,13 @@ internal class ChatComponent(
         val streamId = ++activeStreamId
         dispatch(ChatIntent.StreamingTurnStarted)
 
+        val messagesForWire = _state.value.messages.filter { message ->
+            message.isComplete || message.role != ChatMessageRole.ASSISTANT
+        }
+
         streamJob = scope.launch {
             try {
-                streamingClient.stream(_state.value.messages).collect { event ->
+                streamingClient.stream(messagesForWire).collect { event ->
                     if (streamId != activeStreamId) return@collect
                     handleStreamingEvent(event, conversationId)
                 }
@@ -131,7 +143,7 @@ internal class ChatComponent(
         onHistoryChanged?.invoke()
     }
 
-    private fun handleStreamingEvent(event: ChatStreamingEvent, conversationId: UUID) {
+    private suspend fun handleStreamingEvent(event: ChatStreamingEvent, conversationId: UUID) {
         val mergeResult = ChatStreamingMerger.merge(
             state = _state.value.toStreamingState(),
             event = event,
@@ -141,9 +153,7 @@ internal class ChatComponent(
         dispatch(ChatIntent.StreamingMerged(mergeResult))
 
         mergeResult.finalizedMessages.forEach { message ->
-            scope.launch {
-                history.appendMessage(conversationId, message)
-            }
+            history.appendMessage(conversationId, message)
         }
     }
 
@@ -161,7 +171,7 @@ internal class ChatComponent(
             updatedAt = Instant.now()
         )
         history.saveConversation(conversation)
-        dispatch(ChatIntent.ConversationOpened(conversation))
+        dispatch(ChatIntent.ConversationOpened(conversation, loadMessages = false))
         onActiveConversationChanged?.invoke(conversation.id)
         onHistoryChanged?.invoke()
         return conversation
