@@ -37,7 +37,9 @@ Internal module with `ChatFacade` as the app-shell wiring entry. `ChatComponent`
 | Thread message list UI | Live GET /models fetch |
 | SSE streaming with thinking + answer merge | Room-backed persistence |
 | Send creates conversation + user message | In-flight stream cancel button |
-| OpenAI-compatible provider streaming | Token-based context usage ring |
+| OpenAI-compatible provider streaming | |
+| Assistant content normalization (blocks + safety-only) | |
+| Polymorphic `delta.content` (string or array) | |
 | Resume from history with load guards | |
 | Credential gating on composer send | |
 | Static model catalog per provider | |
