@@ -1,6 +1,7 @@
 package io.github.bengidev.opencore.home.application
 
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
+import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -8,7 +9,12 @@ import org.junit.Test
 
 class HomeReducerTest {
 
-    private val sampleModel = SidePanelModel(id = "openrouter/free", displayTitle = "Free Models Router")
+    private val sampleModel = SidePanelModel(
+        id = "openrouter/free",
+        displayTitle = "Free Models Router",
+        isFree = true,
+        contextLength = 200_000
+    )
 
     @Test
     fun draftMessageChanged_updatesDraft() {
@@ -110,12 +116,73 @@ class HomeReducerTest {
     }
 
     @Test
+    fun modelSelectorTapped_disablesFreeFilterWhenSelectedModelIsPaid() {
+        val paidModel = SidePanelModel(id = "openai/gpt-4o", displayTitle = "GPT-4o", isFree = false)
+        val result = HomeReducer.reduce(
+            HomeState(
+                selectedProviderId = SidePanelProviderApi.openRouter.id,
+                selectedModelId = paidModel.id,
+                availableModels = listOf(sampleModel, paidModel),
+                modelFilterFreeOnly = true
+            ),
+            HomeIntent.ModelSelectorTapped
+        )
+        assertFalse(result.modelFilterFreeOnly)
+    }
+
+    @Test
+    fun modelSelectorTapped_resetsSearchAndEnablesFreeFilterForOpenRouter() {
+        val result = HomeReducer.reduce(
+            HomeState(selectedProviderId = SidePanelProviderApi.openRouter.id),
+            HomeIntent.ModelSelectorTapped
+        )
+        assertTrue(result.isModelPickerVisible)
+        assertTrue(result.modelFilterFreeOnly)
+        assertEquals("", result.modelSearchQuery)
+    }
+
+    @Test
+    fun modelFilterFreeOnlyChanged_filtersModelsInState() {
+        val models = listOf(
+            sampleModel,
+            SidePanelModel(id = "openai/gpt-4o", displayTitle = "GPT-4o", isFree = false)
+        )
+        val state = HomeState(
+            availableModels = models,
+            modelFilterFreeOnly = true
+        )
+
+        assertEquals(1, state.filteredModels.size)
+        assertTrue(state.filteredModels.first().isFree)
+    }
+
+    @Test
+    fun appliedSearchQuery_filtersByTitleOrId() {
+        val models = listOf(
+            sampleModel,
+            SidePanelModel(
+                id = "deepseek/deepseek-r1:free",
+                displayTitle = "DeepSeek R1 (free)",
+                isFree = true
+            )
+        )
+        val state = HomeState(
+            availableModels = models,
+            appliedSearchQuery = "deepseek"
+        )
+
+        assertEquals(1, state.filteredModels.size)
+        assertEquals("deepseek/deepseek-r1:free", state.filteredModels.first().id)
+    }
+
+    @Test
     fun modelSelectionLoaded_tracksReasoningSupport() {
         val models = listOf(
             sampleModel,
             SidePanelModel(
                 id = "deepseek/deepseek-r1:free",
                 displayTitle = "DeepSeek R1 (free)",
+                isFree = true,
                 supportsReasoning = true
             )
         )
@@ -124,6 +191,7 @@ class HomeReducerTest {
             HomeIntent.ModelSelectionLoaded(
                 modelId = "deepseek/deepseek-r1:free",
                 modelTitle = "DeepSeek R1 (free)",
+                providerId = SidePanelProviderApi.openRouter.id,
                 models = models
             )
         )
