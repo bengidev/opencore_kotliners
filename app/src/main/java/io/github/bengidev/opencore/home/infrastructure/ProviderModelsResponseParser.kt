@@ -26,6 +26,7 @@ internal object ProviderModelsResponseParser {
         val name: String?,
         val contextLength: Int?,
         val modality: String?,
+        val tokenizer: String?,
         val promptPrice: String?,
         val completionPrice: String?
     ) {
@@ -42,19 +43,21 @@ internal object ProviderModelsResponseParser {
             displayTitle = name ?: id,
             isFree = isFree,
             contextLength = contextLength,
-            supportsReasoning = supportsReasoning(id, modality)
+            supportsReasoning = supportsReasoning(id, modality),
+            supportsSpeedModes = tokenizer == "Router" || id == "openrouter/free"
         )
     }
 
     private fun parseEntry(objectJson: String): ParsedEntry? {
         val id = ChatJsonStringField.extract(objectJson, "id") ?: return null
         val pricingObject = extractNestedObject(objectJson, "pricing")
+        val architectureObject = extractNestedObject(objectJson, "architecture")
         return ParsedEntry(
             id = id,
             name = ChatJsonStringField.extract(objectJson, "name"),
             contextLength = extractIntField(objectJson, "context_length"),
-            modality = extractNestedObject(objectJson, "architecture")
-                ?.let { ChatJsonStringField.extract(it, "modality") },
+            modality = architectureObject?.let { ChatJsonStringField.extract(it, "modality") },
+            tokenizer = architectureObject?.let { ChatJsonStringField.extract(it, "tokenizer") },
             promptPrice = pricingObject?.let { ChatJsonStringField.extract(it, "prompt") },
             completionPrice = pricingObject?.let { ChatJsonStringField.extract(it, "completion") }
         )

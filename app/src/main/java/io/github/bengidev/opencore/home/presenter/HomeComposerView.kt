@@ -26,10 +26,16 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.KeyOff
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.Composable
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import io.github.bengidev.opencore.home.speedmode.models.HomeComposerSpeedMode
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,6 +64,7 @@ internal fun HomeComposerView(
     onConfigureApiKeyTapped: () -> Unit,
     onModelSelectorTapped: () -> Unit,
     onSpeedModeTapped: () -> Unit,
+    onSpeedModeSelected: (HomeComposerSpeedMode) -> Unit,
     onContextUsageTapped: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -78,9 +85,12 @@ internal fun HomeComposerView(
 
         HomeComposerContextRail(
             modelTitle = state.selectedModelTitle,
-            contextUsagePercent = state.contextUsagePercent,
+            contextUsage = state.contextUsage,
+            speedMode = state.speedMode,
+            showSpeedModes = state.selectedModelSupportsSpeedModes,
             onModelSelectorTapped = onModelSelectorTapped,
             onSpeedModeTapped = onSpeedModeTapped,
+            onSpeedModeSelected = onSpeedModeSelected,
             onContextUsageTapped = onContextUsageTapped
         )
     }
@@ -209,9 +219,12 @@ private fun MissingApiKeyHint(onClick: () -> Unit) {
 @Composable
 private fun HomeComposerContextRail(
     modelTitle: String,
-    contextUsagePercent: Int,
+    contextUsage: io.github.bengidev.opencore.home.contextwindow.models.ContextWindowUsage,
+    speedMode: HomeComposerSpeedMode,
+    showSpeedModes: Boolean,
     onModelSelectorTapped: () -> Unit,
     onSpeedModeTapped: () -> Unit,
+    onSpeedModeSelected: (HomeComposerSpeedMode) -> Unit,
     onContextUsageTapped: () -> Unit
 ) {
     Row(
@@ -237,9 +250,15 @@ private fun HomeComposerContextRail(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            HomeComposerSpeedChip(onClick = onSpeedModeTapped)
+            if (showSpeedModes) {
+                HomeComposerSpeedChip(
+                    speedMode = speedMode,
+                    onSpeedModeTapped = onSpeedModeTapped,
+                    onSpeedModeSelected = onSpeedModeSelected
+                )
+            }
             HomeComposerContextUsageIndicator(
-                usagePercent = contextUsagePercent,
+                usage = contextUsage,
                 onClick = onContextUsageTapped
             )
         }
@@ -288,66 +307,133 @@ private fun HomeComposerModelChip(
 
 @Composable
 private fun HomeComposerSpeedChip(
-    onClick: () -> Unit
+    speedMode: HomeComposerSpeedMode,
+    onSpeedModeTapped: () -> Unit,
+    onSpeedModeSelected: (HomeComposerSpeedMode) -> Unit
 ) {
     val palette = HomeTheme.palette
+    var menuExpanded by remember { mutableStateOf(false) }
+    val isFast = speedMode == HomeComposerSpeedMode.FAST
 
-    Box(
-        modifier = Modifier
-            .size(38.dp)
-            .homeComposerGlass(cornerRadius = 16.dp, shadowOpacity = 0.06f)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.Bolt,
-            contentDescription = "Speed",
-            tint = palette.textSecondary,
-            modifier = Modifier.size(14.dp)
-        )
+    Box {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .homeComposerGlass(cornerRadius = 16.dp, shadowOpacity = 0.06f)
+                .clickable {
+                    onSpeedModeTapped()
+                    menuExpanded = true
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Bolt,
+                contentDescription = "Speed, ${speedMode.title}",
+                tint = if (isFast) palette.accentPrimary else palette.textSecondary,
+                modifier = Modifier.size(14.dp)
+            )
+        }
+        DropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = { menuExpanded = false }
+        ) {
+            HomeComposerSpeedMode.entries.forEach { mode ->
+                DropdownMenuItem(
+                    text = { Text(mode.title) },
+                    onClick = {
+                        menuExpanded = false
+                        onSpeedModeSelected(mode)
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Bolt,
+                            contentDescription = null,
+                            tint = if (mode == HomeComposerSpeedMode.FAST) {
+                                palette.accentPrimary
+                            } else {
+                                palette.textSecondary
+                            }
+                        )
+                    }
+                )
+            }
+        }
     }
 }
 
 @Composable
 private fun HomeComposerContextUsageIndicator(
-    usagePercent: Int,
+    usage: io.github.bengidev.opencore.home.contextwindow.models.ContextWindowUsage,
     onClick: () -> Unit
 ) {
     val palette = HomeTheme.palette
     val typography = HomeTheme.typography
+    val usagePercent = usage.percentUsed
     val fraction = (usagePercent / 100f).coerceIn(0f, 1f)
+    var popoverExpanded by remember { mutableStateOf(false) }
 
-    Box(
-        modifier = Modifier
-            .size(38.dp)
-            .clip(CircleShape)
-            .background(palette.surfaceRaised.copy(alpha = if (palette.isDark) 0.42f else 0.72f))
-            .border(1.dp, palette.accentPrimary.copy(alpha = if (palette.isDark) 0.18f else 0.12f), CircleShape)
-            .clickable(onClick = onClick)
-            .semantics {
-                contentDescription = "Context usage $usagePercent percent"
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        androidx.compose.foundation.Canvas(modifier = Modifier.size(23.dp)) {
-            drawCircle(
-                color = palette.accentPrimary.copy(alpha = if (palette.isDark) 0.14f else 0.12f),
-                style = Stroke(width = 3.dp.toPx())
-            )
-            drawArc(
-                color = palette.accentPrimary.copy(alpha = if (palette.isDark) 0.92f else 0.82f),
-                startAngle = -90f,
-                sweepAngle = 360f * fraction,
-                useCenter = false,
-                style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+    Box {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(CircleShape)
+                .background(palette.surfaceRaised.copy(alpha = if (palette.isDark) 0.42f else 0.72f))
+                .border(1.dp, palette.accentPrimary.copy(alpha = if (palette.isDark) 0.18f else 0.12f), CircleShape)
+                .clickable {
+                    onClick()
+                    popoverExpanded = true
+                }
+                .semantics {
+                    contentDescription = "Context usage $usagePercent percent"
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            androidx.compose.foundation.Canvas(modifier = Modifier.size(23.dp)) {
+                drawCircle(
+                    color = palette.accentPrimary.copy(alpha = if (palette.isDark) 0.14f else 0.12f),
+                    style = Stroke(width = 3.dp.toPx())
+                )
+                drawArc(
+                    color = palette.accentPrimary.copy(alpha = if (palette.isDark) 0.92f else 0.82f),
+                    startAngle = -90f,
+                    sweepAngle = 360f * fraction,
+                    useCenter = false,
+                    style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+                )
+            }
+
+            Text(
+                text = usagePercent.toString(),
+                style = typography.contextUsage,
+                color = palette.accentPrimary
             )
         }
-
-        Text(
-            text = usagePercent.toString(),
-            style = typography.contextUsage,
-            color = palette.accentPrimary
-        )
+        DropdownMenu(
+            expanded = popoverExpanded,
+            onDismissRequest = { popoverExpanded = false },
+            modifier = Modifier.widthIn(min = 180.dp)
+        ) {
+            DropdownMenuItem(
+                text = {
+                    Column(modifier = Modifier.widthIn(min = 160.dp)) {
+                        Text(
+                            text = "${usage.tokensUsedFormatted} / ${usage.tokenLimitFormatted} tokens",
+                            style = typography.chipLabel,
+                            color = palette.textPrimary,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = "${usage.percentRemaining}% remaining",
+                            style = typography.chipLabel,
+                            color = palette.textSecondary,
+                            maxLines = 1
+                        )
+                    }
+                },
+                onClick = { popoverExpanded = false },
+                enabled = false
+            )
+        }
     }
 }
 

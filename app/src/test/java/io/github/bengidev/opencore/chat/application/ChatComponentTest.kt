@@ -3,6 +3,8 @@ package io.github.bengidev.opencore.chat.application
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
+import io.github.bengidev.opencore.chat.domain.ChatStreamingEvent
+import io.github.bengidev.opencore.chat.infrastructure.ChatStreamingClient
 import io.github.bengidev.opencore.chat.infrastructure.EchoChatStreamingClient
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
@@ -11,6 +13,8 @@ import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelHis
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -191,6 +195,24 @@ class ChatComponentTest {
     }
 
     @Test
+    fun retry_usesCurrentProviderSortByNotPreviousSend() = runTest(testDispatcher) {
+        val recordingClient = RecordingChatStreamingClient()
+        val component = ChatComponent(
+            componentContext = DefaultComponentContext(lifecycle = LifecycleRegistry()),
+            history = history,
+            streamingClient = recordingClient
+        )
+
+        component.sendUserMessage("Hello", providerSortBy = "throughput")
+        advanceUntilIdle()
+        assertEquals("throughput", recordingClient.lastProviderSortBy)
+
+        component.retry(providerSortBy = null)
+        advanceUntilIdle()
+        assertEquals(null, recordingClient.lastProviderSortBy)
+    }
+
+    @Test
     fun onActiveConversationRenamed_updatesHeaderTitle() = runTest(testDispatcher) {
         val component = createComponent()
         component.sendUserMessage("Hi")
@@ -200,6 +222,18 @@ class ChatComponentTest {
         component.onActiveConversationRenamed(id, "Renamed chat")
 
         assertEquals("Renamed chat", component.state.value.headerTitle)
+    }
+}
+
+private class RecordingChatStreamingClient : ChatStreamingClient {
+    var lastProviderSortBy: String? = null
+
+    override fun stream(messages: List<SidePanelMessage>, providerSortBy: String?): Flow<ChatStreamingEvent> {
+        lastProviderSortBy = providerSortBy
+        return flow {
+            emit(ChatStreamingEvent.TextDelta("ok"))
+            emit(ChatStreamingEvent.Done)
+        }
     }
 }
 

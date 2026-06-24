@@ -57,6 +57,15 @@ class ChatStreamingCodecTest {
     }
 
     @Test
+    fun mapDataPayload_arrayContentDelta() {
+        val events = ChatStreamingCodec.mapDataPayload(
+            """{"choices":[{"delta":{"content":[{"type":"text","text":"Hi"}]}}]}"""
+        )
+
+        assertEquals(listOf(ChatStreamingEvent.TextDelta("Hi")), events)
+    }
+
+    @Test
     fun mapDataPayload_emptyDeltaReturnsNull() {
         assertNull(ChatStreamingCodec.mapDataPayload("""{"choices":[{"delta":{}}]}"""))
     }

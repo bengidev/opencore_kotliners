@@ -5,5 +5,6 @@ internal data class SidePanelModel(
     val displayTitle: String,
     val isFree: Boolean = false,
     val contextLength: Int? = null,
-    val supportsReasoning: Boolean = false
+    val supportsReasoning: Boolean = false,
+    val supportsSpeedModes: Boolean = false
 )

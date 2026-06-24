@@ -5,6 +5,7 @@ import io.github.bengidev.opencore.chat.domain.ChatStreamingEvent
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
+import io.github.bengidev.opencore.chat.utilities.ChatAssistantContentNormalizer
 import java.time.Instant
 import java.util.UUID
 
@@ -139,7 +140,12 @@ internal object ChatStreamingMerger {
     private fun mergeDone(state: ChatStreamingState): ChatStreamingMergeResult {
         val messages = state.messages.map { message ->
             when (message.id) {
-                state.streamingThinkingId, state.streamingAnswerId ->
+                state.streamingAnswerId ->
+                    message.copy(
+                        content = ChatAssistantContentNormalizer.displayText(message.content),
+                        isComplete = true
+                    )
+                state.streamingThinkingId ->
                     message.copy(isComplete = true)
                 else -> message
             }

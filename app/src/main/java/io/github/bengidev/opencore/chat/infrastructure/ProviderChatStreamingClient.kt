@@ -17,7 +17,7 @@ internal class ProviderChatStreamingClient(
     private val delegate: OpenAiCompatibleStreamingClient = OpenAiCompatibleStreamingClient()
 ) : ChatStreamingClient {
 
-    override fun stream(messages: List<SidePanelMessage>): Flow<ChatStreamingEvent> = flow {
+    override fun stream(messages: List<SidePanelMessage>, providerSortBy: String?): Flow<ChatStreamingEvent> = flow {
         val preference = preferenceStore.preference()
         val provider = SidePanelProviderApi.resolve(preference.providerId)
         val modelId = preference.modelId ?: SidePanelModelCatalog.defaultModel(provider).id
@@ -37,7 +37,8 @@ internal class ProviderChatStreamingClient(
                 modelId = modelId,
                 apiKey = apiKey,
                 messages = messages,
-                reasoning = preference.reasoningModel
+                reasoning = preference.reasoningModel,
+                providerSortBy = providerSortBy
             )
         )
     }

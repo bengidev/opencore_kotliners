@@ -1,5 +1,7 @@
 package io.github.bengidev.opencore.home.application
 
+import io.github.bengidev.opencore.home.contextwindow.models.ContextWindowUsage
+import io.github.bengidev.opencore.home.speedmode.models.HomeComposerSpeedMode
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
 
@@ -8,10 +10,12 @@ internal data class HomeState(
     val selectedModelId: String? = null,
     val selectedModelTitle: String = "Free Models Router",
     val selectedModelSupportsReasoning: Boolean = false,
+    val selectedModelSupportsSpeedModes: Boolean = false,
     val selectedProviderId: String = SidePanelProviderApi.openRouter.id,
     val hasApiKey: Boolean = false,
     val hasLoadedCredentials: Boolean = false,
-    val contextUsagePercent: Int = 41,
+    val contextUsage: ContextWindowUsage = ContextWindowUsage.zero,
+    val speedMode: HomeComposerSpeedMode = HomeComposerSpeedMode.STANDARD,
     val isModelPickerVisible: Boolean = false,
     val availableModels: List<SidePanelModel> = emptyList(),
     val isLoadingModels: Boolean = false,
@@ -26,6 +30,9 @@ internal data class HomeState(
 
     val showMissingApiKeyHint: Boolean
         get() = hasLoadedCredentials && !hasApiKey
+
+    val activeProviderSortBy: String?
+        get() = if (selectedModelSupportsSpeedModes) speedMode.providerSortBy else null
 
     val filteredModels: List<SidePanelModel>
         get() {

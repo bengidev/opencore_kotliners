@@ -10,7 +10,7 @@ internal class HomeFacade {
         componentContext: ComponentContext,
         preferenceStore: SidePanelPreferenceStore,
         credentialStore: SidePanelCredentialStore,
-        onSendMessage: ((String) -> Unit)? = null,
+        onSendMessage: ((String, String?) -> Unit)? = null,
         onNewConversation: (() -> Unit)? = null
     ): HomeComponent = HomeComponent(
         componentContext = componentContext,

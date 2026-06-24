@@ -89,6 +89,45 @@ class ChatCompletionsCodecTest {
     }
 
     @Test
+    fun encodeRequest_fastMode_includesProviderRouting() {
+        val body = ChatCompletionsCodec.encodeRequest(
+            modelId = "openrouter/free",
+            messages = listOf(
+                SidePanelMessage(
+                    id = UUID.randomUUID(),
+                    role = ChatMessageRole.USER,
+                    content = "Hi",
+                    createdAt = Instant.now()
+                )
+            ),
+            reasoning = SidePanelReasoningModel.Off,
+            stream = true,
+            providerSortBy = "throughput"
+        )
+
+        assertTrue(body.contains(""""provider":{"sort":{"by":"throughput","partition":"none"}}"""))
+    }
+
+    @Test
+    fun encodeRequest_standardMode_omitsProviderRouting() {
+        val body = ChatCompletionsCodec.encodeRequest(
+            modelId = "openrouter/free",
+            messages = listOf(
+                SidePanelMessage(
+                    id = UUID.randomUUID(),
+                    role = ChatMessageRole.USER,
+                    content = "Hi",
+                    createdAt = Instant.now()
+                )
+            ),
+            reasoning = SidePanelReasoningModel.Off,
+            stream = true
+        )
+
+        assertFalse(body.contains(""""provider""""))
+    }
+
+    @Test
     fun parseErrorMessage_readsNestedError() {
         val message = ChatCompletionsCodec.parseErrorMessage(
             """{"error":{"message":"Invalid API key"}}"""
