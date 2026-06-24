@@ -5,6 +5,7 @@ import io.github.bengidev.opencore.chat.domain.ChatStreamingEvent
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
+import io.github.bengidev.opencore.chat.utilities.ChatAssistantContentNormalizer
 import java.time.Instant
 import java.util.UUID
 
@@ -97,7 +98,7 @@ internal object ChatStreamingMerger {
         makeId: () -> UUID,
         now: Instant
     ): ChatStreamingMergeResult {
-        val partialText = state.currentPartialText + delta
+        val partialText = ChatAssistantContentNormalizer.displayText(state.currentPartialText + delta)
         val answerId = state.streamingAnswerId
 
         return if (answerId != null) {

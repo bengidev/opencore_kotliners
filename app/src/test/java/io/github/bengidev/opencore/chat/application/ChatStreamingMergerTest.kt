@@ -6,6 +6,7 @@ import io.github.bengidev.opencore.chat.domain.ChatStreamingEvent
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
+import io.github.bengidev.opencore.chat.utilities.ChatAssistantContentNormalizer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -78,6 +79,38 @@ class ChatStreamingMergerTest {
         val thinkingRows = result.state.messages.filter { it.kind == SidePanelMessageKind.THINKING }
         assertEquals(1, thinkingRows.size)
         assertEquals("A B (note)", thinkingRows.first().content)
+    }
+
+    @Test
+    fun textDelta_normalizesContentBlockDump() {
+        val raw = "[{'type': 'text', 'text': \"GeForce is NVIDIA's brand for consumer GPUs.\"}]"
+        val initial = ChatStreamingState(messages = listOf(userMessage()))
+        val result = ChatStreamingMerger.merge(
+            initial,
+            ChatStreamingEvent.TextDelta(raw),
+            { answerId },
+            now
+        )
+        assertEquals(
+            "GeForce is NVIDIA's brand for consumer GPUs.",
+            result.state.messages.last().content
+        )
+    }
+
+    @Test
+    fun textDelta_replacesSafetyOnlyClassifierOutput() {
+        val raw = "User Safety: safe\nResponse Safety: safe"
+        val initial = ChatStreamingState(messages = listOf(userMessage()))
+        val result = ChatStreamingMerger.merge(
+            initial,
+            ChatStreamingEvent.TextDelta(raw),
+            { answerId },
+            now
+        )
+        assertEquals(
+            ChatAssistantContentNormalizer.SAFETY_ONLY_FALLBACK,
+            result.state.messages.last().content
+        )
     }
 
     @Test
