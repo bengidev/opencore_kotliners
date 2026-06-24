@@ -229,6 +229,37 @@ class HomeComponentTest {
     }
 
     @Test
+    fun onCredentialsChanged_keepsCatalogVisibleWhileReloading() = runTest(testDispatcher) {
+        var requestCount = 0
+        val catalogClient = HomeModelCatalogClient(
+            httpGet = { _, _ ->
+                requestCount++
+                kotlinx.coroutines.delay(500)
+                HomeModelCatalogClient.HttpGetResult(
+                    statusCode = 200,
+                    body = HomeTestCatalog.sampleModelsBody
+                )
+            },
+            ioDispatcher = testDispatcher
+        )
+        val lifecycle = LifecycleRegistry().apply { resume() }
+        val component = homeComponent(
+            lifecycle = lifecycle,
+            modelCatalogClient = catalogClient
+        )
+        advanceUntilIdle()
+        val modelsBeforeReload = component.state.value.availableModels
+        assertTrue(modelsBeforeReload.isNotEmpty())
+
+        component.onCredentialsChanged()
+        assertTrue(component.state.value.availableModels.isNotEmpty())
+        assertFalse(component.state.value.canSend)
+
+        advanceUntilIdle()
+        assertTrue(component.state.value.availableModels.isNotEmpty())
+    }
+
+    @Test
     fun stalePersistedModelId_isReplacedFromLiveCatalog() = runTest(testDispatcher) {
         val lifecycle = LifecycleRegistry().apply { resume() }
         val component = homeComponent(

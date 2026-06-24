@@ -39,7 +39,7 @@ internal class HomeModelCatalogClient(
                     io.github.bengidev.opencore.chat.infrastructure.ChatCompletionsCodec.parseErrorMessage(response.body)
                         ?: "Your plan doesn't include API access. Upgrade to use these endpoints."
                 } else {
-                    null
+                    GENERIC_LOAD_ERROR_HINT
                 }
                 return@withContext CatalogResult(
                     models = emptyList(),
@@ -50,7 +50,11 @@ internal class HomeModelCatalogClient(
             val models = ProviderModelsResponseParser.parse(response.body)
             CatalogResult(models = models, isLive = models.isNotEmpty())
         } catch (_: Exception) {
-            CatalogResult(models = emptyList(), isLive = false)
+            CatalogResult(
+                models = emptyList(),
+                isLive = false,
+                errorHint = GENERIC_LOAD_ERROR_HINT
+            )
         }
     }
 
@@ -60,6 +64,9 @@ internal class HomeModelCatalogClient(
     )
 
     companion object {
+        private const val GENERIC_LOAD_ERROR_HINT =
+            "Couldn't load models. Check your connection and try again."
+
         private suspend fun defaultHttpGet(
             url: String,
             headers: Map<String, String>

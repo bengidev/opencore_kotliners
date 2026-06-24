@@ -112,7 +112,6 @@ internal class SidePanelComponent(
 
     fun dismissSettings() {
         _showSettings.value = false
-        onCredentialsChanged?.invoke()
     }
 
     fun setModelSupportsReasoning(value: Boolean) {

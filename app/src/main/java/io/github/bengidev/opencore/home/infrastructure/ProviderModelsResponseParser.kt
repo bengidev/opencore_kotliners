@@ -36,6 +36,7 @@ internal object ProviderModelsResponseParser {
                 id.endsWith(":free", ignoreCase = true) -> true
                 promptPrice != null && completionPrice != null ->
                     isZeroPrice(promptPrice) && isZeroPrice(completionPrice)
+                name != null -> name.contains("free", ignoreCase = true)
                 else -> false
             }
 
@@ -45,7 +46,7 @@ internal object ProviderModelsResponseParser {
             isFree = isFree,
             contextLength = contextLength,
             supportsReasoning = supportsReasoning(id, modality, supportedParameters),
-            supportsSpeedModes = tokenizer == "Router"
+            supportsSpeedModes = tokenizer == "Router" || id.equals("openrouter/free", ignoreCase = true)
         )
     }
 
@@ -78,6 +79,7 @@ internal object ProviderModelsResponseParser {
         if (modality?.contains("reasoning", ignoreCase = true) == true) return true
         if (supportedParameters.any { it.contains("reasoning", ignoreCase = true) }) return true
         if (id.contains(":thinking", ignoreCase = true)) return true
+        if (id.endsWith("-thinking", ignoreCase = true)) return true
         return false
     }
 

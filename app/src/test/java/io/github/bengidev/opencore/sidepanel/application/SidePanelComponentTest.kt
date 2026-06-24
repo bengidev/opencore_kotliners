@@ -15,6 +15,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -70,6 +71,21 @@ class SidePanelComponentTest {
         component.settingsButtonTapped()
         advanceUntilIdle()
         assertTrue(component.showSettings.value)
+    }
+
+    @Test
+    fun dismissSettings_doesNotNotifyCredentialsChanged() = runTest(testDispatcher) {
+        var credentialsChanged = 0
+        val component = createComponent()
+        component.onCredentialsChanged = { credentialsChanged++ }
+
+        component.settingsButtonTapped()
+        advanceUntilIdle()
+        component.dismissSettings()
+        advanceUntilIdle()
+
+        assertFalse(component.showSettings.value)
+        assertEquals(0, credentialsChanged)
     }
 
     @Test
