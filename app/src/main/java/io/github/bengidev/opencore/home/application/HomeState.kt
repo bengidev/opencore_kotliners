@@ -8,7 +8,7 @@ import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
 internal data class HomeState(
     val draftMessage: String = "",
     val selectedModelId: String? = null,
-    val selectedModelTitle: String = "Free Models Router",
+    val selectedModelTitle: String = "Not Available",
     val selectedModelSupportsReasoning: Boolean = false,
     val selectedModelSupportsSpeedModes: Boolean = false,
     val selectedProviderId: String = SidePanelProviderApi.openRouter.id,
@@ -48,5 +48,21 @@ internal data class HomeState(
                 }
             }
             return result
+        }
+
+    /** True when the provider catalog has been loaded and offers at least one model. */
+    val isModelCatalogAvailable: Boolean
+        get() = availableModels.isNotEmpty()
+
+    /** True when the loaded catalog includes at least one free-tier model. */
+    val catalogHasFreeModels: Boolean
+        get() = availableModels.any { it.isFree }
+
+    /** Composer model chip label; shows "Not Available" when the catalog is empty. */
+    val modelPickerTitle: String
+        get() = if (isModelCatalogAvailable && selectedModelId != null) {
+            selectedModelTitle
+        } else {
+            "Not Available"
         }
 }
