@@ -25,7 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
-import io.github.bengidev.opencore.home.theme.HomeTheme
+import io.github.bengidev.opencore.chat.theme.ChatTheme
 
 /** Turn-level failure banner — mirrors iOS `ChatErrorBannerView`. */
 @Composable
@@ -38,8 +38,8 @@ internal fun ChatErrorBannerView(
 ) {
     if (streamingStatus != ChatStreamingStatus.Failed || errorMessage.isNullOrBlank()) return
 
-    val palette = HomeTheme.palette
-    val typography = HomeTheme.typography
+    val palette = ChatTheme.palette
+    val typography = ChatTheme.typography
     val shape = RoundedCornerShape(14.dp)
 
     Row(
