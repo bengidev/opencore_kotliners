@@ -1,24 +1,32 @@
 package io.github.bengidev.opencore.sidepanel.domain
 
-/** ponytail: static catalog until GET /models fetch lands. */
+/** ponytail: static fallback until cache lands; live catalog fills isFree/contextLength. */
 internal object SidePanelModelCatalog {
     private val openRouterModels = listOf(
         SidePanelModel(
             id = "openrouter/free",
-            displayTitle = "Free Models Router"
+            displayTitle = "Free Models Router",
+            isFree = true,
+            contextLength = 200_000
         ),
         SidePanelModel(
             id = "meta-llama/llama-3.3-70b-instruct:free",
-            displayTitle = "Llama 3.3 70B (free)"
+            displayTitle = "Llama 3.3 70B (free)",
+            isFree = true,
+            contextLength = 131_072
         ),
         SidePanelModel(
             id = "deepseek/deepseek-r1:free",
             displayTitle = "DeepSeek R1 (free)",
+            isFree = true,
+            contextLength = 163_840,
             supportsReasoning = true
         ),
         SidePanelModel(
             id = "google/gemini-2.0-flash-exp:free",
-            displayTitle = "Gemini 2.0 Flash (free)"
+            displayTitle = "Gemini 2.0 Flash (free)",
+            isFree = true,
+            contextLength = 1_048_576
         )
     )
 

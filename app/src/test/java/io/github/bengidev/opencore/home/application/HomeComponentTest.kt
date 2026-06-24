@@ -3,12 +3,14 @@ package io.github.bengidev.opencore.home.application
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.arkivanov.essenty.lifecycle.resume
+import io.github.bengidev.opencore.home.infrastructure.HomeModelCatalogClient
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderPreference
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelCredentialStore
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelPreferenceStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -36,15 +38,35 @@ class HomeComponentTest {
         Dispatchers.resetMain()
     }
 
+    private fun testCatalogClient(
+        httpGet: suspend (String, Map<String, String>) -> HomeModelCatalogClient.HttpGetResult =
+            { _, _ -> HomeModelCatalogClient.HttpGetResult(statusCode = 200, body = """{"data":[]}""") }
+    ) = HomeModelCatalogClient(httpGet = httpGet, ioDispatcher = testDispatcher)
+
+    private fun homeComponent(
+        lifecycle: LifecycleRegistry,
+        preferenceStore: InMemorySidePanelPreferenceStore = InMemorySidePanelPreferenceStore(
+            SidePanelProviderPreference(modelId = "openrouter/free")
+        ),
+        credentialStore: InMemorySidePanelCredentialStore = InMemorySidePanelCredentialStore(),
+        modelCatalogClient: HomeModelCatalogClient = testCatalogClient(),
+        onSendMessage: ((String) -> Unit)? = null,
+        onNewConversation: (() -> Unit)? = null
+    ) = HomeComponent(
+        componentContext = DefaultComponentContext(lifecycle),
+        preferenceStore = preferenceStore,
+        credentialStore = credentialStore,
+        modelCatalogClient = modelCatalogClient,
+        onSendMessage = onSendMessage,
+        onNewConversation = onNewConversation
+    )
+
     @Test
     fun sendTapped_invokesCallbackWithTrimmedDraft() = runTest(testDispatcher) {
         var sent: String? = null
         val lifecycle = LifecycleRegistry().apply { resume() }
-        val component = HomeComponent(
-            componentContext = DefaultComponentContext(lifecycle),
-            preferenceStore = InMemorySidePanelPreferenceStore(
-                SidePanelProviderPreference(modelId = "openrouter/free")
-            ),
+        val component = homeComponent(
+            lifecycle = lifecycle,
             credentialStore = InMemorySidePanelCredentialStore().apply {
                 save("sk-test", SidePanelProviderApi.openRouter.id)
             },
@@ -63,11 +85,8 @@ class HomeComponentTest {
     fun sendTapped_blankDraft_doesNotInvokeCallback() = runTest(testDispatcher) {
         var sent = false
         val lifecycle = LifecycleRegistry().apply { resume() }
-        val component = HomeComponent(
-            componentContext = DefaultComponentContext(lifecycle),
-            preferenceStore = InMemorySidePanelPreferenceStore(
-                SidePanelProviderPreference(modelId = "openrouter/free")
-            ),
+        val component = homeComponent(
+            lifecycle = lifecycle,
             credentialStore = InMemorySidePanelCredentialStore().apply {
                 save("sk-test", SidePanelProviderApi.openRouter.id)
             },
@@ -85,12 +104,8 @@ class HomeComponentTest {
     fun sendTapped_withoutApiKey_doesNotInvokeCallback() = runTest(testDispatcher) {
         var sent = false
         val lifecycle = LifecycleRegistry().apply { resume() }
-        val component = HomeComponent(
-            componentContext = DefaultComponentContext(lifecycle),
-            preferenceStore = InMemorySidePanelPreferenceStore(
-                SidePanelProviderPreference(modelId = "openrouter/free")
-            ),
-            credentialStore = InMemorySidePanelCredentialStore(),
+        val component = homeComponent(
+            lifecycle = lifecycle,
             onSendMessage = { sent = true }
         )
         advanceUntilIdle()
@@ -106,11 +121,8 @@ class HomeComponentTest {
     fun onCredentialsChanged_refreshesApiKeyState() = runTest(testDispatcher) {
         val store = InMemorySidePanelCredentialStore()
         val lifecycle = LifecycleRegistry().apply { resume() }
-        val component = HomeComponent(
-            componentContext = DefaultComponentContext(lifecycle),
-            preferenceStore = InMemorySidePanelPreferenceStore(
-                SidePanelProviderPreference(modelId = "openrouter/free")
-            ),
+        val component = homeComponent(
+            lifecycle = lifecycle,
             credentialStore = store
         )
         advanceUntilIdle()
@@ -127,10 +139,9 @@ class HomeComponentTest {
     fun modelSelected_persistsSelection() = runTest(testDispatcher) {
         val store = InMemorySidePanelPreferenceStore()
         val lifecycle = LifecycleRegistry().apply { resume() }
-        val component = HomeComponent(
-            componentContext = DefaultComponentContext(lifecycle),
-            preferenceStore = store,
-            credentialStore = InMemorySidePanelCredentialStore()
+        val component = homeComponent(
+            lifecycle = lifecycle,
+            preferenceStore = store
         )
         advanceUntilIdle()
 
@@ -140,5 +151,71 @@ class HomeComponentTest {
 
         assertEquals(model.id, store.preference().modelId)
         assertEquals(model.displayTitle, component.state.value.selectedModelTitle)
+    }
+
+    @Test
+    fun catalogReload_staleLoadDoesNotOverwriteNewerProvider() = runTest(testDispatcher) {
+        val openRouterBody = """
+            {
+              "data": [
+                {
+                  "id": "openrouter/free",
+                  "name": "Free Models Router",
+                  "architecture": { "modality": "text" },
+                  "pricing": { "prompt": "0", "completion": "0" }
+                }
+              ]
+            }
+        """.trimIndent()
+        val openCodeBody = """
+            {
+              "data": [
+                {
+                  "id": "gpt-4o-mini",
+                  "name": "GPT-4o Mini",
+                  "architecture": { "modality": "text" },
+                  "pricing": { "prompt": "1", "completion": "1" }
+                }
+              ]
+            }
+        """.trimIndent()
+        var requestCount = 0
+        val catalogClient = HomeModelCatalogClient(
+            httpGet = { url, _ ->
+                requestCount++
+                if (requestCount == 1) {
+                    delay(1_000)
+                    HomeModelCatalogClient.HttpGetResult(statusCode = 200, body = openRouterBody)
+                } else {
+                    HomeModelCatalogClient.HttpGetResult(statusCode = 200, body = openCodeBody)
+                }
+            },
+            ioDispatcher = testDispatcher
+        )
+        val preferenceStore = InMemorySidePanelPreferenceStore(
+            SidePanelProviderPreference(
+                providerId = SidePanelProviderApi.openRouter.id,
+                modelId = "openrouter/free"
+            )
+        )
+        val credentialStore = InMemorySidePanelCredentialStore().apply {
+            save("sk-test", SidePanelProviderApi.openRouter.id)
+            save("sk-test", SidePanelProviderApi.openCode.id)
+        }
+        val lifecycle = LifecycleRegistry().apply { resume() }
+        val component = homeComponent(
+            lifecycle = lifecycle,
+            preferenceStore = preferenceStore,
+            credentialStore = credentialStore,
+            modelCatalogClient = catalogClient
+        )
+        advanceUntilIdle()
+
+        preferenceStore.setProviderId(SidePanelProviderApi.openCode.id)
+        component.onProviderChanged()
+        advanceUntilIdle()
+
+        assertEquals(SidePanelProviderApi.openCode.id, component.state.value.selectedProviderId)
+        assertEquals("gpt-4o-mini", component.state.value.selectedModelId)
     }
 }

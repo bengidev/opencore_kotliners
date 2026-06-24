@@ -15,9 +15,16 @@ internal sealed interface HomeIntent {
     data class ModelSelectionLoaded(
         val modelId: String,
         val modelTitle: String,
-        val models: List<SidePanelModel>
+        val providerId: String,
+        val models: List<SidePanelModel>,
+        val catalogIsLive: Boolean = false,
+        val catalogErrorHint: String? = null
     ) : HomeIntent
+    data object ModelsLoadingStarted : HomeIntent
     data class CredentialsLoaded(val hasApiKey: Boolean) : HomeIntent
+    data class ModelSearchQueryChanged(val query: String) : HomeIntent
+    data class ModelSearchQueryApplied(val query: String) : HomeIntent
+    data class ModelFilterFreeOnlyChanged(val enabled: Boolean) : HomeIntent
     data object SpeedModeTapped : HomeIntent
     data object ContextUsageTapped : HomeIntent
 }
