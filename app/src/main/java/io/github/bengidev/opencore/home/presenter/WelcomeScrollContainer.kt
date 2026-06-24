@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -44,6 +45,11 @@ internal fun WelcomeScrollContainer(
     val density = LocalDensity.current
     val imeBottomPx = WindowInsets.ime.getBottom(density)
     val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    val dismissKeyboard: () -> Unit = {
+        focusManager.clearFocus()
+        keyboardController?.hide()
+    }
     var restingViewportHeight by remember { mutableStateOf(0.dp) }
     var peakImeBottomPx by remember { mutableIntStateOf(0) }
     var readyForImeScroll by remember { mutableStateOf(false) }
@@ -97,7 +103,7 @@ internal fun WelcomeScrollContainer(
                     .imeNestedScroll()
                     .verticalScroll(scrollState)
                     .pointerInput(Unit) {
-                        detectTapGestures { keyboardController?.hide() }
+                        detectTapGestures { dismissKeyboard() }
                     }
             ) {
                 Spacer(Modifier.height(1.dp))

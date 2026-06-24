@@ -27,10 +27,11 @@ Internal module with `SidePanelFacade` and `SidePanelScreen` as app-shell entry 
 
 | Implemented | Not yet |
 |---|---|
-| History drawer UI + animations | Chat thread resume |
-| Search, pin, rename, delete, group | Room-backed history persistence |
-| Settings sheet (provider, API key, reasoning) | Delegate wiring to live chat |
-| Recency grouping + relative labels | Custom provider URLs |
+| History drawer UI + animations | Room-backed history persistence |
+| Search, pin, rename, delete, group | Custom provider URLs |
+| Settings sheet (provider, API key, reasoning) | |
+| Recency grouping + relative labels | |
+| Delegate wiring to live chat | |
 | Unit tests for grouping + reducers | |
 
 ## Integration

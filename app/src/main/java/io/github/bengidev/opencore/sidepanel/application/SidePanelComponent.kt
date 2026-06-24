@@ -86,29 +86,31 @@ internal class SidePanelComponent(
     fun dismissSidebar() = session.dismissSidebar()
 
     fun settingsButtonTapped() {
-        val component = SidePanelSettingComponent(
-            componentContext = childContext("setting"),
-            credentialStore = credentialStore,
-            preferenceStore = preferenceStore,
-            modelSupportsReasoning = modelSupportsReasoning,
-        )
-        component.onCredentialsChanged = {
-            scope.launch { refreshSelectedProvider() }
-            onCredentialsChanged?.invoke()
+        session.dismissSidebar()
+        if (settingComponent == null) {
+            val component = SidePanelSettingComponent(
+                componentContext = childContext("setting"),
+                credentialStore = credentialStore,
+                preferenceStore = preferenceStore,
+                modelSupportsReasoning = modelSupportsReasoning,
+            )
+            component.onCredentialsChanged = {
+                scope.launch { refreshSelectedProvider() }
+                onCredentialsChanged?.invoke()
+            }
+            component.onReasoningModelChanged = {
+                onReasoningModelChanged?.invoke()
+            }
+            component.onProviderChanged = { id ->
+                scope.launch { refreshSelectedProvider() }
+                onProviderChanged?.invoke(id)
+            }
+            settingComponent = component
         }
-        component.onReasoningModelChanged = {
-            onReasoningModelChanged?.invoke()
-        }
-        component.onProviderChanged = { id ->
-            scope.launch { refreshSelectedProvider() }
-            onProviderChanged?.invoke(id)
-        }
-        settingComponent = component
         _showSettings.value = true
     }
 
     fun dismissSettings() {
-        settingComponent = null
         _showSettings.value = false
         onCredentialsChanged?.invoke()
     }
