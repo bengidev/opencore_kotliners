@@ -14,6 +14,13 @@ class SidePanelModelCatalogTest {
     }
 
     @Test
+    fun modelsFor_openRouter_enablesSpeedModesOnFreeRouter() {
+        val router = SidePanelModelCatalog.modelsFor(SidePanelProviderApi.openRouter)
+            .first { it.id == "openrouter/free" }
+        assertTrue(router.supportsSpeedModes)
+    }
+
+    @Test
     fun displayTitle_resolvesKnownModel() {
         val title = SidePanelModelCatalog.displayTitle(
             providerId = SidePanelProviderApi.openRouter.id,

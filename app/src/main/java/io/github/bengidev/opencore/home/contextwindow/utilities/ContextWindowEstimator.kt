@@ -1,5 +1,6 @@
 package io.github.bengidev.opencore.home.contextwindow.utilities
 
+import io.github.bengidev.opencore.chat.utilities.ChatAssistantContentNormalizer
 import io.github.bengidev.opencore.home.contextwindow.models.ContextWindowUsage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 
@@ -20,7 +21,8 @@ internal object ContextWindowEstimator {
         )
     }
 
-    private fun messageText(message: SidePanelMessage): String = message.content
+    private fun messageText(message: SidePanelMessage): String =
+        ChatAssistantContentNormalizer.displayText(message.content)
 
     private fun estimatedTokens(text: String): Int {
         val trimmed = text.trim()

@@ -98,7 +98,7 @@ internal object ChatStreamingMerger {
         makeId: () -> UUID,
         now: Instant
     ): ChatStreamingMergeResult {
-        val partialText = ChatAssistantContentNormalizer.displayText(state.currentPartialText + delta)
+        val partialText = state.currentPartialText + delta
         val answerId = state.streamingAnswerId
 
         return if (answerId != null) {
@@ -140,7 +140,12 @@ internal object ChatStreamingMerger {
     private fun mergeDone(state: ChatStreamingState): ChatStreamingMergeResult {
         val messages = state.messages.map { message ->
             when (message.id) {
-                state.streamingThinkingId, state.streamingAnswerId ->
+                state.streamingAnswerId ->
+                    message.copy(
+                        content = ChatAssistantContentNormalizer.displayText(message.content),
+                        isComplete = true
+                    )
+                state.streamingThinkingId ->
                     message.copy(isComplete = true)
                 else -> message
             }

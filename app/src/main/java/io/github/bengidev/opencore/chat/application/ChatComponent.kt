@@ -35,7 +35,6 @@ internal class ChatComponent(
     private var streamJob: Job? = null
     private var activeStreamId = 0
     private var loadGeneration = 0
-    private var lastProviderSortBy: String? = null
 
     var onActiveConversationChanged: ((UUID?) -> Unit)? = null
     var onHistoryChanged: (() -> Unit)? = null
@@ -112,12 +111,11 @@ internal class ChatComponent(
         val conversation = _state.value.activeConversation ?: return
         if (_state.value.isSending) return
         scope.launch {
-            startStream(conversation.id, providerSortBy ?: lastProviderSortBy)
+            startStream(conversation.id, providerSortBy)
         }
     }
 
     private suspend fun startStream(conversationId: UUID, providerSortBy: String? = null) {
-        lastProviderSortBy = providerSortBy
         cancelStream()
         val streamId = ++activeStreamId
         dispatch(ChatIntent.StreamingTurnStarted)
