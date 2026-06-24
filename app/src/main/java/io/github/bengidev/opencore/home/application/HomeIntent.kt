@@ -16,8 +16,11 @@ internal sealed interface HomeIntent {
         val modelId: String,
         val modelTitle: String,
         val providerId: String,
-        val models: List<SidePanelModel>
+        val models: List<SidePanelModel>,
+        val catalogIsLive: Boolean = false,
+        val catalogErrorHint: String? = null
     ) : HomeIntent
+    data object ModelsLoadingStarted : HomeIntent
     data class CredentialsLoaded(val hasApiKey: Boolean) : HomeIntent
     data class ModelSearchQueryChanged(val query: String) : HomeIntent
     data class ModelSearchQueryApplied(val query: String) : HomeIntent

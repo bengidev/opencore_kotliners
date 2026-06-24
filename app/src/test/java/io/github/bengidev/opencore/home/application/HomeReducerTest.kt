@@ -116,6 +116,21 @@ class HomeReducerTest {
     }
 
     @Test
+    fun modelSelectorTapped_disablesFreeFilterWhenSelectedModelIsPaid() {
+        val paidModel = SidePanelModel(id = "openai/gpt-4o", displayTitle = "GPT-4o", isFree = false)
+        val result = HomeReducer.reduce(
+            HomeState(
+                selectedProviderId = SidePanelProviderApi.openRouter.id,
+                selectedModelId = paidModel.id,
+                availableModels = listOf(sampleModel, paidModel),
+                modelFilterFreeOnly = true
+            ),
+            HomeIntent.ModelSelectorTapped
+        )
+        assertFalse(result.modelFilterFreeOnly)
+    }
+
+    @Test
     fun modelSelectorTapped_resetsSearchAndEnablesFreeFilterForOpenRouter() {
         val result = HomeReducer.reduce(
             HomeState(selectedProviderId = SidePanelProviderApi.openRouter.id),

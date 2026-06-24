@@ -41,6 +41,26 @@ class ProviderModelsResponseParserTest {
     }
 
     @Test
+    fun parse_treatsDecimalZeroPricingAsFree() {
+        val body = """
+            {
+              "data": [
+                {
+                  "id": "vendor/model:free",
+                  "name": "Vendor Model",
+                  "architecture": { "modality": "text" },
+                  "pricing": { "prompt": "0.0", "completion": "0.000000" }
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val models = ProviderModelsResponseParser.parse(body)
+
+        assertTrue(models.single().isFree)
+    }
+
+    @Test
     fun parse_sortsFreeModelsFirst() {
         val body = """
             {
@@ -129,5 +149,21 @@ class HomeModelCatalogClientTest {
         assertTrue(result.models.first().isFree)
         assertTrue(result.models.first().supportsReasoning)
         assertEquals(163_840, result.models.first().contextLength)
+    }
+
+    @Test
+    fun listModels_withForbiddenResponse_returnsFallbackAndHint() = runTest {
+        val client = HomeModelCatalogClient { _, _ ->
+            HomeModelCatalogClient.HttpGetResult(
+                statusCode = 403,
+                body = """{"error":{"message":"Plan upgrade required"}}"""
+            )
+        }
+
+        val result = client.listModels(SidePanelProviderApi.openRouter, secret = "sk-test")
+
+        assertFalse(result.isLive)
+        assertEquals("Plan upgrade required", result.errorHint)
+        assertTrue(result.models.any { it.displayTitle == "Free Models Router" })
     }
 }
