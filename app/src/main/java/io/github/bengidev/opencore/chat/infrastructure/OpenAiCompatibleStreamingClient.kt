@@ -21,7 +21,7 @@ internal class OpenAiCompatibleStreamingClient(
         String,
         Map<String, String>,
         String,
-        (ByteArray) -> Unit
+        suspend (ByteArray) -> Unit
     ) -> HttpStreamResult = ::defaultHttpStream
 ) {
     fun stream(
@@ -116,7 +116,7 @@ private suspend fun defaultHttpStream(
     url: String,
     headers: Map<String, String>,
     body: String,
-    onChunk: (ByteArray) -> Unit
+    onChunk: suspend (ByteArray) -> Unit
 ): HttpStreamResult {
     val connection = (URL(url).openConnection() as HttpURLConnection).apply {
         requestMethod = "POST"
@@ -126,7 +126,7 @@ private suspend fun defaultHttpStream(
         setRequestProperty("Content-Type", "application/json; charset=utf-8")
         headers.forEach { (name, value) -> setRequestProperty(name, value) }
     }
-    val cancelHandler = currentCoroutineContext()[Job]?.invokeOnCompletion { _, _ ->
+    val cancelHandler = currentCoroutineContext()[Job]?.invokeOnCompletion { _ ->
         runCatching { connection.disconnect() }
     }
     try {
@@ -144,7 +144,7 @@ private suspend fun defaultHttpStream(
         connection.inputStream.use { stream ->
             val buffer = ByteArray(8_192)
             while (true) {
-                ensureActive()
+                currentCoroutineContext().ensureActive()
                 val read = stream.read(buffer)
                 if (read <= 0) break
                 onChunk(if (read == buffer.size) buffer else buffer.copyOf(read))

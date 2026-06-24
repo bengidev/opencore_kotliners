@@ -47,8 +47,8 @@ internal fun ChatErrorBannerView(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .clip(shape)
-            .background(palette.surfaceRaised)
-            .border(1.dp, palette.border, shape)
+            .background(palette.assistantBubble)
+            .border(1.dp, palette.reasoningBorder, shape)
             .padding(horizontal = 16.dp, vertical = 12.dp)
             .testTag("chat-error-banner"),
         verticalAlignment = Alignment.Top
@@ -56,20 +56,20 @@ internal fun ChatErrorBannerView(
         Icon(
             imageVector = Icons.Default.Warning,
             contentDescription = null,
-            tint = palette.danger,
+            tint = palette.errorIcon,
             modifier = Modifier.padding(top = 2.dp)
         )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = "Couldn't get a response",
-                style = typography.chipLabel.copy(fontSize = typography.chipLabel.fontSize * 1.05f),
-                color = palette.textPrimary
+                style = typography.systemMessage.copy(fontSize = typography.systemMessage.fontSize * 1.05f),
+                color = palette.assistantBubbleText
             )
             Text(
                 text = errorMessage,
-                style = typography.chipLabel,
-                color = palette.textSecondary
+                style = typography.systemMessage,
+                color = palette.reasoningText
             )
         }
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -77,15 +77,15 @@ internal fun ChatErrorBannerView(
                 onClick = onRetry,
                 shape = CircleShape,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = palette.controlStrong,
-                    contentColor = palette.controlStrongText
+                    containerColor = palette.userBubble,
+                    contentColor = palette.userBubbleText
                 ),
                 contentPadding = ButtonDefaults.ContentPadding
             ) {
-                Text(text = "Retry", style = typography.chipLabel)
+                Text(text = "Retry", style = typography.systemMessage)
             }
             TextButton(onClick = onDismiss) {
-                Text(text = "Dismiss", style = typography.chipLabel, color = palette.textSecondary)
+                Text(text = "Dismiss", style = typography.systemMessage, color = palette.reasoningText)
             }
         }
     }
