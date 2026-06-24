@@ -2,7 +2,9 @@ package io.github.bengidev.opencore.chat.infrastructure
 
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
+import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelReasoningModel
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -33,18 +35,38 @@ class ChatCompletionsCodecTest {
     }
 
     @Test
-    fun decodeAssistantContent_readsFirstChoice() {
-        val content = ChatCompletionsCodec.decodeAssistantContent(
-            """
-            {
-              "choices": [
-                { "message": { "role": "assistant", "content": "Hi there" } }
-              ]
-            }
-            """.trimIndent()
+    fun encodeRequest_omitsIncompleteAssistantRows() {
+        val body = ChatCompletionsCodec.encodeRequest(
+            modelId = "openrouter/free",
+            messages = listOf(
+                SidePanelMessage(
+                    id = UUID.randomUUID(),
+                    role = ChatMessageRole.USER,
+                    content = "hello",
+                    createdAt = Instant.now()
+                ),
+                SidePanelMessage(
+                    id = UUID.randomUUID(),
+                    role = ChatMessageRole.ASSISTANT,
+                    content = "partial",
+                    createdAt = Instant.now(),
+                    isComplete = false
+                ),
+                SidePanelMessage(
+                    id = UUID.randomUUID(),
+                    role = ChatMessageRole.ASSISTANT,
+                    content = "thinking",
+                    createdAt = Instant.now(),
+                    kind = SidePanelMessageKind.THINKING,
+                    isComplete = false
+                )
+            ),
+            reasoning = SidePanelReasoningModel.Off
         )
 
-        assertEquals("Hi there", content)
+        assertTrue(body.contains(""""content":"hello""""))
+        assertFalse(body.contains("partial"))
+        assertFalse(body.contains("thinking"))
     }
 
     @Test
