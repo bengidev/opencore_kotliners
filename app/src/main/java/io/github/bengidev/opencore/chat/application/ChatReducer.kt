@@ -4,24 +4,33 @@ import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 
 internal object ChatReducer {
     fun reduce(state: ChatState, intent: ChatIntent): ChatState = when (intent) {
-        ChatIntent.NewConversation -> state.copy(
+        ChatIntent.NewConversation -> state.clearedStreamingFields().copy(
             activeConversation = null,
             messages = emptyList(),
-            isSending = false,
-            streamingStatus = ChatStreamingStatus.Idle,
-            streamErrorMessage = null,
-            currentPartialText = "",
-            currentPartialThinking = "",
-            streamingThinkingId = null,
-            streamingAnswerId = null
+            isLoadingMessages = false
         )
-        is ChatIntent.ConversationOpened -> state.copy(
-            activeConversation = intent.conversation,
-            isSending = false,
-            streamingStatus = ChatStreamingStatus.Idle,
-            streamErrorMessage = null
-        )
-        is ChatIntent.MessagesLoaded -> state.copy(messages = intent.messages)
+        is ChatIntent.ConversationOpened -> if (intent.loadMessages) {
+            state.clearedStreamingFields().copy(
+                activeConversation = intent.conversation,
+                messages = emptyList(),
+                isLoadingMessages = true
+            )
+        } else {
+            state.clearedStreamingFields().copy(
+                activeConversation = intent.conversation,
+                isLoadingMessages = false
+            )
+        }
+        is ChatIntent.MessagesLoaded -> {
+            if (state.activeConversation?.id != intent.conversationId) {
+                state
+            } else {
+                state.clearedStreamingFields().copy(
+                    messages = intent.messages,
+                    isLoadingMessages = false
+                )
+            }
+        }
         is ChatIntent.UserMessageAppended -> state.copy(
             messages = state.messages + intent.message
         )
@@ -41,12 +50,10 @@ internal object ChatReducer {
             if (state.activeConversation?.id != intent.id) {
                 state
             } else {
-                state.copy(
+                state.clearedStreamingFields().copy(
                     activeConversation = null,
                     messages = emptyList(),
-                    isSending = false,
-                    streamingStatus = ChatStreamingStatus.Idle,
-                    streamErrorMessage = null
+                    isLoadingMessages = false
                 )
             }
         }
@@ -67,9 +74,8 @@ internal object ChatReducer {
             }
             state.applyStreamingMerge(intent.result, isSending = stillSending)
         }
-        ChatIntent.StreamingErrorDismissed -> state.copy(
-            streamingStatus = ChatStreamingStatus.Idle,
-            streamErrorMessage = null
-        )
+        ChatIntent.StreamingErrorDismissed -> state
+            .withoutIncompleteAssistantRows()
+            .clearedStreamingFields()
     }
 }

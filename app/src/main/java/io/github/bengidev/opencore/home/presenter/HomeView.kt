@@ -54,6 +54,7 @@ internal fun HomeView(
         HomeComposerView(
             state = state,
             isSending = chatState.isSending,
+            isLoadingMessages = chatState.isLoadingMessages,
             onDraftMessageChanged = onDraftMessageChanged,
             onAttachmentTapped = {
                 dismissKeyboard()

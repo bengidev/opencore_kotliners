@@ -1,5 +1,6 @@
 package io.github.bengidev.opencore.chat.application
 
+import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
@@ -8,6 +9,7 @@ import java.util.UUID
 internal data class ChatState(
     val activeConversation: SidePanelConversation? = null,
     val messages: List<SidePanelMessage> = emptyList(),
+    val isLoadingMessages: Boolean = false,
     val isSending: Boolean = false,
     val streamingStatus: ChatStreamingStatus = ChatStreamingStatus.Idle,
     val streamErrorMessage: String? = null,
@@ -47,8 +49,11 @@ internal data class ChatState(
 
 internal sealed interface ChatIntent {
     data object NewConversation : ChatIntent
-    data class ConversationOpened(val conversation: SidePanelConversation) : ChatIntent
-    data class MessagesLoaded(val messages: List<SidePanelMessage>) : ChatIntent
+    data class ConversationOpened(
+        val conversation: SidePanelConversation,
+        val loadMessages: Boolean = true
+    ) : ChatIntent
+    data class MessagesLoaded(val conversationId: UUID, val messages: List<SidePanelMessage>) : ChatIntent
     data class UserMessageAppended(val message: SidePanelMessage) : ChatIntent
     data class ActiveConversationRenamed(val id: UUID, val title: String) : ChatIntent
     data class ActiveConversationDeleted(val id: UUID) : ChatIntent
@@ -56,3 +61,16 @@ internal sealed interface ChatIntent {
     data class StreamingMerged(val result: ChatStreamingMergeResult) : ChatIntent
     data object StreamingErrorDismissed : ChatIntent
 }
+
+internal fun ChatState.withoutIncompleteAssistantRows(): ChatState =
+    copy(messages = messages.filter { it.isComplete || it.role != ChatMessageRole.ASSISTANT })
+
+internal fun ChatState.clearedStreamingFields(): ChatState = copy(
+    currentPartialText = "",
+    currentPartialThinking = "",
+    streamingThinkingId = null,
+    streamingAnswerId = null,
+    streamErrorMessage = null,
+    streamingStatus = ChatStreamingStatus.Idle,
+    isSending = false
+)
