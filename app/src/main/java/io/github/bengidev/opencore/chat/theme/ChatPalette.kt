@@ -19,7 +19,8 @@ internal data class ChatPalette(
     val reasoningText: Color,
     val streamingDot: Color,
     val systemMessageText: Color,
-    val messageMetaText: Color
+    val messageMetaText: Color,
+    val errorIcon: Color
 )
 
 internal object ChatPaletteDefaults {
@@ -33,7 +34,8 @@ internal object ChatPaletteDefaults {
         reasoningText = palette.textSecondary,
         streamingDot = palette.accentPrimary,
         systemMessageText = palette.textSecondary,
-        messageMetaText = palette.textTertiary
+        messageMetaText = palette.textTertiary,
+        errorIcon = palette.danger
     )
 }
 

@@ -64,7 +64,7 @@ internal fun ChatThreadView(
                 Text(
                     text = "Start a conversation",
                     style = typography.systemMessage,
-                    color = palette.textSecondary
+                    color = palette.systemMessageText
                 )
             }
             return@OpenCoreChatTheme
