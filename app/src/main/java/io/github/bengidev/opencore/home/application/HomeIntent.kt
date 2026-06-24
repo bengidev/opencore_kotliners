@@ -15,13 +15,14 @@ internal sealed interface HomeIntent {
     data object ModelPickerDismissed : HomeIntent
     data class ModelSelected(val model: SidePanelModel) : HomeIntent
     data class ModelSelectionLoaded(
-        val modelId: String,
-        val modelTitle: String,
+        val modelId: String?,
+        val modelTitle: String?,
         val providerId: String,
         val models: List<SidePanelModel>,
         val catalogIsLive: Boolean = false,
         val catalogErrorHint: String? = null
     ) : HomeIntent
+    data object CatalogCleared : HomeIntent
     data object ModelsLoadingStarted : HomeIntent
     data class CredentialsLoaded(val hasApiKey: Boolean) : HomeIntent
     data class ModelSearchQueryChanged(val query: String) : HomeIntent

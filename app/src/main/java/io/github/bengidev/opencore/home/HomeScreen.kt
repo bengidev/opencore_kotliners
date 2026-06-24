@@ -35,7 +35,7 @@ internal fun HomeScreen(
         state.selectedModelId,
         state.availableModels
     ) {
-        component.refreshContextUsage(chatState.messages, state.draftMessage)
+        component.refreshContextUsage(chatState.messages)
     }
 
     OpenCoreHomeTheme(darkTheme = darkTheme) {

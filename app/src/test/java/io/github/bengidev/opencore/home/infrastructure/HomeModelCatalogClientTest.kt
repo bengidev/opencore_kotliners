@@ -132,6 +132,110 @@ class ProviderModelsResponseParserTest {
     }
 
     @Test
+    fun parse_treatsFreeSuffixAsFreeWithoutPricing() {
+        val body = """
+            {
+              "data": [
+                {
+                  "id": "meta-llama/llama-3.3-70b-instruct:free",
+                  "name": "Llama 3.3 70B",
+                  "architecture": { "modality": "text" }
+                }
+              ]
+            }
+        """.trimIndent()
+
+        assertTrue(ProviderModelsResponseParser.parse(body).single().isFree)
+    }
+
+    @Test
+    fun parse_resolvesContextLengthFromAlternateKeys() {
+        val body = """
+            {
+              "data": [
+                {
+                  "id": "vendor/model",
+                  "name": "Vendor Model",
+                  "context": 65536,
+                  "architecture": { "modality": "text" }
+                }
+              ]
+            }
+        """.trimIndent()
+
+        assertEquals(65_536, ProviderModelsResponseParser.parse(body).single().contextLength)
+    }
+
+    @Test
+    fun parse_detectsReasoningFromSupportedParameters() {
+        val body = """
+            {
+              "data": [
+                {
+                  "id": "vendor/reasoner",
+                  "name": "Reasoner",
+                  "architecture": { "modality": "text" },
+                  "supported_parameters": ["reasoning_effort"]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        assertTrue(ProviderModelsResponseParser.parse(body).single().supportsReasoning)
+    }
+
+    @Test
+    fun parse_openRouterFreeId_enablesSpeedModesWithoutRouterTokenizer() {
+        val body = """
+            {
+              "data": [
+                {
+                  "id": "openrouter/free",
+                  "name": "Free Models Router",
+                  "architecture": { "modality": "text", "tokenizer": "Other" }
+                }
+              ]
+            }
+        """.trimIndent()
+
+        assertTrue(ProviderModelsResponseParser.parse(body).single().supportsSpeedModes)
+    }
+
+    @Test
+    fun parse_detectsReasoningFromThinkingSuffix() {
+        val body = """
+            {
+              "data": [
+                {
+                  "id": "vendor/kimi-k2-thinking",
+                  "name": "Kimi K2 Thinking",
+                  "architecture": { "modality": "text" }
+                }
+              ]
+            }
+        """.trimIndent()
+
+        assertTrue(ProviderModelsResponseParser.parse(body).single().supportsReasoning)
+    }
+
+    @Test
+    fun parse_treatsFreeNameAsFreeWithoutPricing() {
+        val body = """
+            {
+              "data": [
+                {
+                  "id": "vendor/sample-model",
+                  "name": "Sample Free Model",
+                  "architecture": { "modality": "text" }
+                }
+              ]
+            }
+        """.trimIndent()
+
+        assertTrue(ProviderModelsResponseParser.parse(body).single().isFree)
+    }
+
+    @Test
     fun parse_standardTokenizer_hidesSpeedModes() {
         val body = """
             {
@@ -154,12 +258,12 @@ class ProviderModelsResponseParserTest {
 class HomeModelCatalogClientTest {
 
     @Test
-    fun listModels_withoutSecret_returnsFallbackCatalog() = runTest {
+    fun listModels_withoutSecret_returnsEmptyCatalog() = runTest {
         val client = HomeModelCatalogClient()
         val result = client.listModels(SidePanelProviderApi.openRouter, secret = null)
 
-        assertTrue(result.models.any { it.displayTitle == "Free Models Router" })
-        assertTrue(result.models.all { it.isFree })
+        assertTrue(result.models.isEmpty())
+        assertFalse(result.isLive)
     }
 
     @Test
@@ -171,7 +275,7 @@ class HomeModelCatalogClientTest {
                   "id": "deepseek/deepseek-r1:free",
                   "name": "DeepSeek: R1 (free)",
                   "context_length": 163840,
-                  "architecture": { "modality": "text" },
+                  "architecture": { "modality": "text+reasoning" },
                   "pricing": { "prompt": "0", "completion": "0" }
                 }
               ]
@@ -192,7 +296,7 @@ class HomeModelCatalogClientTest {
     }
 
     @Test
-    fun listModels_withForbiddenResponse_returnsFallbackAndHint() = runTest {
+    fun listModels_withForbiddenResponse_returnsEmptyCatalogAndHint() = runTest {
         val client = HomeModelCatalogClient(
             httpGet = { _, _ ->
                 HomeModelCatalogClient.HttpGetResult(
@@ -206,6 +310,22 @@ class HomeModelCatalogClientTest {
 
         assertFalse(result.isLive)
         assertEquals("Plan upgrade required", result.errorHint)
-        assertTrue(result.models.any { it.displayTitle == "Free Models Router" })
+        assertTrue(result.models.isEmpty())
+    }
+
+    @Test
+    fun listModels_withNetworkFailure_returnsGenericHint() = runTest {
+        val client = HomeModelCatalogClient(
+            httpGet = { _, _ -> throw RuntimeException("offline") }
+        )
+
+        val result = client.listModels(SidePanelProviderApi.openRouter, secret = "sk-test")
+
+        assertFalse(result.isLive)
+        assertTrue(result.models.isEmpty())
+        assertEquals(
+            "Couldn't load models. Check your connection and try again.",
+            result.errorHint
+        )
     }
 }

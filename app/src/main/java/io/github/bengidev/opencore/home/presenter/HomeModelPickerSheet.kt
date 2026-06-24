@@ -44,8 +44,6 @@ import androidx.compose.ui.unit.sp
 import io.github.bengidev.opencore.home.application.HomeState
 import io.github.bengidev.opencore.home.theme.HomeTheme
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun HomeModelPickerSheet(
@@ -60,7 +58,7 @@ internal fun HomeModelPickerSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val palette = HomeTheme.palette
     val typography = HomeTheme.typography
-    val showFreeFilter = state.selectedProviderId == SidePanelProviderApi.openRouter.id
+    val showFreeFilter = state.catalogHasFreeModels
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
