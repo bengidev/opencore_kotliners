@@ -42,4 +42,7 @@ internal data class SidePanelProviderApi(
 
     val chatCompletionsUrl: String
         get() = "$baseUrl/chat/completions"
+
+    val modelsUrl: String
+        get() = "$baseUrl/models"
 }

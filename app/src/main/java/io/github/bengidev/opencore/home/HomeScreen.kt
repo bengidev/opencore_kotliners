@@ -51,7 +51,9 @@ internal fun HomeScreen(
             HomeModelPickerSheet(
                 state = state,
                 onDismiss = component::onModelPickerDismissed,
-                onModelSelected = component::onModelSelected
+                onModelSelected = component::onModelSelected,
+                onSearchQueryChanged = component::onModelSearchQueryChanged,
+                onFilterFreeOnlyChanged = component::onModelFilterFreeOnlyChanged
             )
         }
     }

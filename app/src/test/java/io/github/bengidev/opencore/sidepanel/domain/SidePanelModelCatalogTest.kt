@@ -7,9 +7,10 @@ import org.junit.Test
 class SidePanelModelCatalogTest {
 
     @Test
-    fun modelsFor_openRouter_includesFreeModelsRouter() {
+    fun modelsFor_openRouter_marksFallbackModelsAsFree() {
         val models = SidePanelModelCatalog.modelsFor(SidePanelProviderApi.openRouter)
         assertTrue(models.any { it.displayTitle == "Free Models Router" })
+        assertTrue(models.all { it.isFree })
     }
 
     @Test
