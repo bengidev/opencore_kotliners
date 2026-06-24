@@ -15,7 +15,7 @@ internal object ChatStreamingCodec {
         if (!reasoning.isNullOrBlank() && reasoning.trim().isNotEmpty()) {
             events += ChatStreamingEvent.ThinkingDelta(reasoning)
         }
-        ChatJsonStringField.extract(payload, "content")
+        ChatStreamDeltaContentExtractor.extractContentText(payload)
             ?.takeIf { it.isNotEmpty() }
             ?.let { events += ChatStreamingEvent.TextDelta(it) }
         return events.takeIf { it.isNotEmpty() }
