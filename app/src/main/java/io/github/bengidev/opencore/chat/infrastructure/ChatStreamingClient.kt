@@ -6,5 +6,5 @@ import kotlinx.coroutines.flow.Flow
 
 /** Strategy seam for provider chat streaming. */
 internal fun interface ChatStreamingClient {
-    fun stream(messages: List<SidePanelMessage>): Flow<ChatStreamingEvent>
+    fun stream(messages: List<SidePanelMessage>, providerSortBy: String?): Flow<ChatStreamingEvent>
 }

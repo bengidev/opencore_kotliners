@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
 internal class EchoChatStreamingClient : ChatStreamingClient {
-    override fun stream(messages: List<SidePanelMessage>): Flow<ChatStreamingEvent> = flow {
+    override fun stream(messages: List<SidePanelMessage>, providerSortBy: String?): Flow<ChatStreamingEvent> = flow {
         val lastUser = messages.lastOrNull { it.role == ChatMessageRole.USER }
         val content = lastUser?.content.orEmpty()
         emit(ChatStreamingEvent.ThinkingDelta("Thinking about: $content"))
