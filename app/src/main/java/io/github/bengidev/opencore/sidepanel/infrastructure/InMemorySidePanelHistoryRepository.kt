@@ -5,7 +5,7 @@ import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import java.util.UUID
 
 internal class InMemorySidePanelHistoryRepository(
-    seed: List<SidePanelConversation> = SidePanelConversation.previewSamples()
+    seed: List<SidePanelConversation> = emptyList()
 ) : SidePanelHistoryRepository {
     private val conversations = linkedMapOf<UUID, SidePanelConversation>().apply {
         seed.forEach { put(it.id, it) }
