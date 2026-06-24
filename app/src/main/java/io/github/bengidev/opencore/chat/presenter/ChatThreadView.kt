@@ -18,11 +18,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.chat.application.ChatState
-import io.github.bengidev.opencore.chat.domain.ChatMessageKind
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
+import io.github.bengidev.opencore.chat.theme.ChatTheme
 import io.github.bengidev.opencore.chat.theme.OpenCoreChatTheme
-import io.github.bengidev.opencore.home.theme.HomeTheme
+import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 
@@ -39,8 +39,20 @@ internal fun ChatThreadView(
             state.streamingAnswerId == null
 
     OpenCoreChatTheme {
-        val palette = HomeTheme.palette
-        val typography = HomeTheme.typography
+        val palette = ChatTheme.palette
+        val typography = ChatTheme.typography
+
+        if (state.isLoadingMessages) {
+            Box(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .testTag("chat-thread-loading"),
+                contentAlignment = Alignment.Center
+            ) {
+                ChatLoadingIndicatorView()
+            }
+            return@OpenCoreChatTheme
+        }
 
         if (state.messages.isEmpty()) {
             Box(
@@ -51,7 +63,7 @@ internal fun ChatThreadView(
             ) {
                 Text(
                     text = "Start a conversation",
-                    style = typography.welcomeCaption,
+                    style = typography.systemMessage,
                     color = palette.textSecondary
                 )
             }
@@ -60,7 +72,7 @@ internal fun ChatThreadView(
 
         val listState = rememberLazyListState()
         val lastAssistantTextId = state.messages.lastOrNull {
-            it.role == ChatMessageRole.ASSISTANT && it.kind == ChatMessageKind.TEXT
+            it.role == ChatMessageRole.ASSISTANT && it.kind == SidePanelMessageKind.TEXT
         }?.id
 
         LaunchedEffect(state.messages.size, awaitingAssistantReply) {
@@ -95,14 +107,12 @@ internal fun ChatThreadView(
                 val isLastMessage = message.id == state.messages.lastOrNull()?.id
                 val isStreamingAssistant = state.isSending &&
                     isLastMessage &&
-                    message.kind == ChatMessageKind.TEXT &&
+                    message.kind == SidePanelMessageKind.TEXT &&
                     message.role == ChatMessageRole.ASSISTANT
                 ChatMessageRowView(
                     message = message,
                     isLastAssistantMessage = message.id == lastAssistantTextId,
                     isStreamingAssistant = isStreamingAssistant,
-                    streamingStatus = state.streamingStatus,
-                    streamErrorMessage = state.streamErrorMessage,
                     onDismissKeyboard = onDismissKeyboard
                 )
             }
@@ -115,7 +125,7 @@ internal fun ChatThreadView(
     }
 }
 
-/** Bottom-anchor scroll — mirrors iOS `scrollTo(_, anchor: .bottom)`. */
+/** Bottom-anchor scroll for the message list. */
 private suspend fun scrollThreadToBottom(
     listState: LazyListState,
     targetIndex: Int,

@@ -1,6 +1,5 @@
 package io.github.bengidev.opencore.sidepanel.domain
 
-import io.github.bengidev.opencore.chat.domain.ChatMessageKind
 import java.time.Instant
 import java.util.UUID
 
@@ -10,6 +9,6 @@ internal data class SidePanelMessage(
     val role: String,
     val content: String,
     val createdAt: Instant,
-    val kind: ChatMessageKind = ChatMessageKind.TEXT,
+    val kind: SidePanelMessageKind = SidePanelMessageKind.TEXT,
     val isComplete: Boolean = true
 )
