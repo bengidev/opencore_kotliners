@@ -5,6 +5,7 @@ import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import com.arkivanov.essenty.lifecycle.doOnDestroy
+import io.github.bengidev.opencore.home.infrastructure.HomeModelCatalogClient
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModelCatalog
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
@@ -12,14 +13,17 @@ import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelCredentialS
 import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelPreferenceStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 internal class HomeComponent(
     componentContext: ComponentContext,
     private val preferenceStore: SidePanelPreferenceStore,
     private val credentialStore: SidePanelCredentialStore,
+    private val modelCatalogClient: HomeModelCatalogClient = HomeModelCatalogClient(),
     private val onSendMessage: ((String) -> Unit)? = null,
     private val onNewConversation: (() -> Unit)? = null
 ) : ComponentContext by componentContext {
@@ -27,6 +31,7 @@ internal class HomeComponent(
     private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
     private val _state = MutableValue(HomeState())
     val state: Value<HomeState> = _state
+    private var searchDebounceJob: Job? = null
 
     init {
         lifecycle.doOnDestroy { scope.cancel() }
@@ -64,6 +69,16 @@ internal class HomeComponent(
             dispatch(HomeIntent.ModelSelected(model))
         }
     }
+    fun onModelSearchQueryChanged(query: String) {
+        dispatch(HomeIntent.ModelSearchQueryChanged(query))
+        searchDebounceJob?.cancel()
+        searchDebounceJob = scope.launch {
+            delay(300)
+            dispatch(HomeIntent.ModelSearchQueryApplied(query))
+        }
+    }
+    fun onModelFilterFreeOnlyChanged(enabled: Boolean) =
+        dispatch(HomeIntent.ModelFilterFreeOnlyChanged(enabled))
     fun onSpeedModeTapped() = dispatch(HomeIntent.SpeedModeTapped)
     fun onContextUsageTapped() = dispatch(HomeIntent.ContextUsageTapped)
 
@@ -72,13 +87,18 @@ internal class HomeComponent(
     }
 
     fun onCredentialsChanged() {
-        scope.launch { reloadApiKeyStatus() }
+        scope.launch {
+            reloadApiKeyStatus()
+            reloadModelSelection(resetToDefault = false)
+        }
     }
 
     private suspend fun reloadModelSelection(resetToDefault: Boolean) {
         val preference = preferenceStore.preference()
         val provider = SidePanelProviderApi.resolve(preference.providerId)
-        val models = SidePanelModelCatalog.modelsFor(provider)
+        val secret = credentialStore.secret(provider.id)
+        val catalogResult = modelCatalogClient.listModels(provider, secret)
+        val models = catalogResult.models
         val modelId = when {
             resetToDefault -> SidePanelModelCatalog.defaultModel(provider).id
             preference.modelId != null && models.any { it.id == preference.modelId } ->
@@ -88,11 +108,14 @@ internal class HomeComponent(
         if (modelId != preference.modelId) {
             preferenceStore.setModelId(modelId)
         }
-        val title = SidePanelModelCatalog.displayTitle(provider.id, modelId)
+        val selectedModel = models.firstOrNull { it.id == modelId }
+        val title = selectedModel?.displayTitle
+            ?: SidePanelModelCatalog.displayTitle(provider.id, modelId)
         dispatch(
             HomeIntent.ModelSelectionLoaded(
                 modelId = modelId,
                 modelTitle = title,
+                providerId = provider.id,
                 models = models
             )
         )
