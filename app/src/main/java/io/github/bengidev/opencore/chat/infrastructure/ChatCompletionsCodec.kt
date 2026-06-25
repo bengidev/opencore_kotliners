@@ -3,13 +3,11 @@ package io.github.bengidev.opencore.chat.infrastructure
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelReasoningModel
-
 internal object ChatCompletionsCodec {
     fun encodeRequest(
         modelId: String,
         messages: List<SidePanelMessage>,
-        reasoning: SidePanelReasoningModel,
+        reasoningEffort: String? = null,
         stream: Boolean = false,
         providerSortBy: String? = null
     ): String = buildString {
@@ -29,7 +27,7 @@ internal object ChatCompletionsCodec {
             append('}')
         }
         append(']')
-        reasoning.effort?.let { effort ->
+        reasoningEffort?.let { effort ->
             append(""","reasoning":{"effort":""")
             appendQuoted(effort)
             append('}')

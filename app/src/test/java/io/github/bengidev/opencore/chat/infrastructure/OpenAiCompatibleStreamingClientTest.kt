@@ -1,8 +1,7 @@
 package io.github.bengidev.opencore.chat.infrastructure
 
 import io.github.bengidev.opencore.chat.domain.ChatStreamingEvent
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelReasoningModel
+import io.github.bengidev.opencore.shared.providers.ProviderDescriptor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
@@ -29,11 +28,10 @@ class OpenAiCompatibleStreamingClientTest {
 
         val events = client
             .stream(
-                provider = SidePanelProviderApi.openRouter,
+                providerId = ProviderDescriptor.openRouter.id,
                 modelId = "test-model",
                 apiKey = "test-key",
-                messages = emptyList(),
-                reasoning = SidePanelReasoningModel.Off
+                messages = emptyList()
             )
             .toList()
 
@@ -49,11 +47,10 @@ class OpenAiCompatibleStreamingClientTest {
 
         val events = client
             .stream(
-                provider = SidePanelProviderApi.openRouter,
+                providerId = ProviderDescriptor.openRouter.id,
                 modelId = "test-model",
                 apiKey = "bad-key",
-                messages = emptyList(),
-                reasoning = SidePanelReasoningModel.Off
+                messages = emptyList()
             )
             .toList()
 
@@ -72,11 +69,10 @@ class OpenAiCompatibleStreamingClientTest {
 
         val events = client
             .stream(
-                provider = SidePanelProviderApi.openRouter,
+                providerId = ProviderDescriptor.openRouter.id,
                 modelId = "test-model",
                 apiKey = "test-key",
-                messages = emptyList(),
-                reasoning = SidePanelReasoningModel.Off
+                messages = emptyList()
             )
             .toList()
 
