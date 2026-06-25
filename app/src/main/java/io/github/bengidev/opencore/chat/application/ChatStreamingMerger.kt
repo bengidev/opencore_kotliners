@@ -27,6 +27,40 @@ internal data class ChatStreamingMergeResult(
 
 /** Pure merge logic for SSE stream events. */
 internal object ChatStreamingMerger {
+    fun applyPendingPartial(
+        state: ChatStreamingState,
+        partialThinking: String,
+        partialText: String,
+        makeId: () -> UUID,
+        now: Instant
+    ): ChatStreamingMergeResult {
+        var current = state
+        var didChange = false
+
+        val trimmedThinking = partialThinking.trim()
+        if (trimmedThinking.isNotEmpty()) {
+            current = upsertThinkingRow(current, partialThinking, makeId, now).state
+            didChange = true
+        }
+
+        if (partialText.isNotEmpty()) {
+            current = upsertAnswerRow(current, partialText, makeId, now).state
+            didChange = true
+        }
+
+        if (!didChange) {
+            return ChatStreamingMergeResult(state = current)
+        }
+
+        return ChatStreamingMergeResult(
+            state = current.copy(
+                currentPartialText = partialText,
+                currentPartialThinking = partialThinking,
+                streamingStatus = ChatStreamingStatus.Running
+            )
+        )
+    }
+
     fun merge(
         state: ChatStreamingState,
         event: ChatStreamingEvent,
@@ -54,7 +88,25 @@ internal object ChatStreamingMerger {
                 )
             )
         }
+        return upsertThinkingRow(state, partialThinking, makeId, now)
+    }
 
+    private fun mergeTextDelta(
+        state: ChatStreamingState,
+        delta: String,
+        makeId: () -> UUID,
+        now: Instant
+    ): ChatStreamingMergeResult {
+        val partialText = state.currentPartialText + delta
+        return upsertAnswerRow(state, partialText, makeId, now)
+    }
+
+    private fun upsertThinkingRow(
+        state: ChatStreamingState,
+        partialThinking: String,
+        makeId: () -> UUID,
+        now: Instant
+    ): ChatStreamingMergeResult {
         val thinkingId = state.streamingThinkingId
         return if (thinkingId != null) {
             val messages = state.messages.map { message ->
@@ -92,15 +144,13 @@ internal object ChatStreamingMerger {
         }
     }
 
-    private fun mergeTextDelta(
+    private fun upsertAnswerRow(
         state: ChatStreamingState,
-        delta: String,
+        partialText: String,
         makeId: () -> UUID,
         now: Instant
     ): ChatStreamingMergeResult {
-        val partialText = state.currentPartialText + delta
         val answerId = state.streamingAnswerId
-
         return if (answerId != null) {
             val messages = state.messages.map { message ->
                 if (message.id == answerId && message.kind == SidePanelMessageKind.TEXT) {

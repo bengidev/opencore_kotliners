@@ -64,7 +64,8 @@ internal object ChatReducer {
             currentPartialThinking = "",
             streamErrorMessage = null,
             streamingThinkingId = null,
-            streamingAnswerId = null
+            streamingAnswerId = null,
+            streamingRevision = 0
         )
         is ChatIntent.StreamingMerged -> {
             val stillSending = when (intent.result.state.streamingStatus) {
@@ -72,7 +73,11 @@ internal object ChatReducer {
                 ChatStreamingStatus.Done, ChatStreamingStatus.Failed -> false
                 ChatStreamingStatus.Idle -> state.isSending
             }
-            state.applyStreamingMerge(intent.result, isSending = stillSending)
+            state.applyStreamingMerge(
+                intent.result,
+                isSending = stillSending,
+                bumpStreamingRevision = intent.bumpStreamingRevision
+            )
         }
         ChatIntent.StreamingErrorDismissed -> state
             .withoutIncompleteAssistantRows()

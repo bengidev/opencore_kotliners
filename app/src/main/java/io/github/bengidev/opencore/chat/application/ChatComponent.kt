@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -33,6 +34,8 @@ internal class ChatComponent(
     private val _state = MutableValue(ChatState())
     val state: Value<ChatState> = _state
     private var streamJob: Job? = null
+    private var streamingFlushJob: Job? = null
+    private val streamingCoalescer = ChatStreamingCoalescer()
     private var activeStreamId = 0
     private var loadGeneration = 0
 
@@ -41,6 +44,7 @@ internal class ChatComponent(
 
     init {
         lifecycle.doOnDestroy {
+            cancelStreamingFlush()
             streamJob?.cancel()
             scope.cancel()
         }
@@ -117,6 +121,7 @@ internal class ChatComponent(
 
     private suspend fun startStream(conversationId: UUID, providerSortBy: String? = null) {
         cancelStream()
+        resetStreamingBuffers()
         val streamId = ++activeStreamId
         dispatch(ChatIntent.StreamingTurnStarted)
 
@@ -144,20 +149,80 @@ internal class ChatComponent(
     }
 
     private suspend fun handleStreamingEvent(event: ChatStreamingEvent, conversationId: UUID) {
-        val mergeResult = ChatStreamingMerger.merge(
-            state = _state.value.toStreamingState(),
-            event = event,
-            makeId = { UUID.randomUUID() },
-            now = Instant.now()
-        )
-        dispatch(ChatIntent.StreamingMerged(mergeResult))
-
-        mergeResult.finalizedMessages.forEach { message ->
-            history.appendMessage(conversationId, message)
+        when (event) {
+            is ChatStreamingEvent.ThinkingDelta,
+            is ChatStreamingEvent.TextDelta -> {
+                if (streamingCoalescer.accumulate(event)) {
+                    scheduleStreamingFlush(conversationId)
+                }
+            }
+            ChatStreamingEvent.Done -> {
+                flushStreamingNow()
+                val mergeResult = ChatStreamingMerger.merge(
+                    state = _state.value.toStreamingState(),
+                    event = event,
+                    makeId = { UUID.randomUUID() },
+                    now = Instant.now()
+                )
+                dispatch(ChatIntent.StreamingMerged(mergeResult, bumpStreamingRevision = true))
+                mergeResult.finalizedMessages.forEach { message ->
+                    history.appendMessage(conversationId, message)
+                }
+                resetStreamingBuffers()
+            }
+            is ChatStreamingEvent.Error -> {
+                flushStreamingNow()
+                val mergeResult = ChatStreamingMerger.merge(
+                    state = _state.value.toStreamingState(),
+                    event = event,
+                    makeId = { UUID.randomUUID() },
+                    now = Instant.now()
+                )
+                dispatch(ChatIntent.StreamingMerged(mergeResult, bumpStreamingRevision = true))
+                resetStreamingBuffers()
+            }
         }
     }
 
+    private fun scheduleStreamingFlush(conversationId: UUID) {
+        if (streamingFlushJob != null) return
+        val delayMs = ChatStreamingCoalescingPolicy.flushDelayMs(streamingCoalescer.pendingByteCount)
+        streamingFlushJob = scope.launch {
+            delay(delayMs)
+            streamingFlushJob = null
+            applyPendingStreamingUI()
+        }
+    }
+
+    private fun flushStreamingNow(conversationId: UUID) {
+        cancelStreamingFlush()
+        applyPendingStreamingUI()
+    }
+
+    private fun applyPendingStreamingUI() {
+        val mergeResult = ChatStreamingMerger.applyPendingPartial(
+            state = _state.value.toStreamingState(),
+            partialThinking = streamingCoalescer.accumulatedThinking,
+            partialText = streamingCoalescer.accumulatedText,
+            makeId = { UUID.randomUUID() },
+            now = Instant.now()
+        )
+        if (mergeResult.state == _state.value.toStreamingState()) return
+        dispatch(ChatIntent.StreamingMerged(mergeResult, bumpStreamingRevision = true))
+    }
+
+    private fun resetStreamingBuffers() {
+        cancelStreamingFlush()
+        streamingCoalescer.reset()
+    }
+
+    private fun cancelStreamingFlush() {
+        streamingFlushJob?.cancel()
+        streamingFlushJob = null
+    }
+
     private fun cancelStream() {
+        cancelStreamingFlush()
         streamJob?.cancel()
         streamJob = null
     }

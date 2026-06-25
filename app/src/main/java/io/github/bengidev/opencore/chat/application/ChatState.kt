@@ -16,7 +16,9 @@ internal data class ChatState(
     val currentPartialText: String = "",
     val currentPartialThinking: String = "",
     val streamingThinkingId: UUID? = null,
-    val streamingAnswerId: UUID? = null
+    val streamingAnswerId: UUID? = null,
+    /** Bumped when batched streaming content is applied to `messages` (scroll anchor). */
+    val streamingRevision: Int = 0
 ) {
     val isThreadActive: Boolean
         get() = activeConversation != null
@@ -34,7 +36,11 @@ internal data class ChatState(
         streamErrorMessage = streamErrorMessage
     )
 
-    fun applyStreamingMerge(result: ChatStreamingMergeResult, isSending: Boolean): ChatState =
+    fun applyStreamingMerge(
+        result: ChatStreamingMergeResult,
+        isSending: Boolean,
+        bumpStreamingRevision: Boolean = false
+    ): ChatState =
         copy(
             messages = result.state.messages,
             currentPartialText = result.state.currentPartialText,
@@ -43,7 +49,8 @@ internal data class ChatState(
             streamingAnswerId = result.state.streamingAnswerId,
             streamingStatus = result.state.streamingStatus,
             streamErrorMessage = result.state.streamErrorMessage,
-            isSending = isSending
+            isSending = isSending,
+            streamingRevision = if (bumpStreamingRevision) streamingRevision + 1 else streamingRevision
         )
 }
 
@@ -58,7 +65,10 @@ internal sealed interface ChatIntent {
     data class ActiveConversationRenamed(val id: UUID, val title: String) : ChatIntent
     data class ActiveConversationDeleted(val id: UUID) : ChatIntent
     data object StreamingTurnStarted : ChatIntent
-    data class StreamingMerged(val result: ChatStreamingMergeResult) : ChatIntent
+    data class StreamingMerged(
+        val result: ChatStreamingMergeResult,
+        val bumpStreamingRevision: Boolean = false
+    ) : ChatIntent
     data object StreamingErrorDismissed : ChatIntent
 }
 
@@ -72,5 +82,6 @@ internal fun ChatState.clearedStreamingFields(): ChatState = copy(
     streamingAnswerId = null,
     streamErrorMessage = null,
     streamingStatus = ChatStreamingStatus.Idle,
-    isSending = false
+    isSending = false,
+    streamingRevision = 0
 )
