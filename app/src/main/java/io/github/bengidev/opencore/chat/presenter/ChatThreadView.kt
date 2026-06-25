@@ -18,11 +18,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.chat.application.ChatState
+import io.github.bengidev.opencore.chat.application.ChatStreamingCoalescingPolicy
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.chat.theme.ChatTheme
 import io.github.bengidev.opencore.chat.theme.OpenCoreChatTheme
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 
@@ -74,18 +76,21 @@ internal fun ChatThreadView(
         val lastAssistantTextId = state.messages.lastOrNull {
             it.role == ChatMessageRole.ASSISTANT && it.kind == SidePanelMessageKind.TEXT
         }?.id
+        val pendingByteCount = maxOf(
+            state.currentPartialText.encodeToByteArray().size,
+            state.currentPartialThinking.encodeToByteArray().size
+        )
 
         LaunchedEffect(state.messages.size, awaitingAssistantReply) {
             val targetIndex = state.messages.lastIndex + if (awaitingAssistantReply) 1 else 0
             scrollThreadToBottom(listState, targetIndex, animate = true)
         }
 
-        LaunchedEffect(
-            state.currentPartialText.length,
-            state.currentPartialThinking.length
-        ) {
-            if (state.currentPartialText.isEmpty() && state.currentPartialThinking.isEmpty()) return@LaunchedEffect
+        LaunchedEffect(state.streamingRevision, pendingByteCount) {
+            if (state.streamingRevision == 0) return@LaunchedEffect
             val targetIndex = state.messages.lastIndex + if (awaitingAssistantReply) 1 else 0
+            val delayMs = ChatStreamingCoalescingPolicy.scrollDelayMs(pendingByteCount)
+            if (delayMs > 0L) delay(delayMs)
             scrollThreadToBottom(listState, targetIndex, animate = false)
         }
 
