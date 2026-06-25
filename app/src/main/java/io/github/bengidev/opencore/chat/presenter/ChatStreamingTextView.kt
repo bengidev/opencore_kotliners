@@ -164,7 +164,7 @@ internal class ChatStreamingSizingTextView @JvmOverloads constructor(
 private fun TextView.applyStreamingStyle(style: TextStyle, color: Color) {
     setTextColor(color.toArgb())
     setTextSize(TypedValue.COMPLEX_UNIT_SP, style.fontSize.value)
-    typeface = style.fontFamily.resolveTypeface(style.fontWeight)
+    typeface = style.fontFamily.resolveTypeface(style.fontWeight ?: FontWeight.Normal)
     val lineHeight = style.lineHeight
     if (lineHeight != null && lineHeight.isSpecified) {
         val fontSizePx = style.fontSize.value * resources.displayMetrics.scaledDensity
