@@ -159,22 +159,15 @@ private fun StreamingReasoningText(
     }
 
     if (isStreaming) {
-        Row(
+        ChatStreamingTextView(
+            text = displayedContent,
+            textStyle = typography.reasoningBody,
+            color = textColor,
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Top,
-        ) {
-            ChatStreamingTextView(
-                text = displayedContent,
-                textStyle = typography.reasoningBody,
-                color = textColor,
-                modifier = Modifier.weight(1f, fill = false),
-            )
-            Text(
-                text = "▍",
-                style = typography.reasoningBody,
-                color = cursorColor.copy(alpha = cursorAlpha),
-            )
-        }
+            showsCursor = true,
+            cursorColor = cursorColor,
+            cursorOpacity = cursorAlpha,
+        )
     } else {
         Text(
             text = displayedContent,
