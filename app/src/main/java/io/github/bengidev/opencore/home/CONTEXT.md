@@ -53,5 +53,5 @@ The welcome content scrolls inside `WelcomeScrollContainer` (`WelcomeScrollConta
 | Top bar chrome (menu opens side panel) | |
 | Draft text input + send clears field | |
 | Side panel overlay (via `SidePanelScreen`) | |
-| Active thread via `ChatView` (composer owned here) | |
+| Active thread via `ChatView` (composer + error banner chrome split: banner in Chat, composer here) | |
 | API key gating on composer send | |

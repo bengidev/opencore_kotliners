@@ -11,7 +11,7 @@ Onboarding flow state is owned by `OnboardingComponent` and mutated through expl
 ├── ui/               # App-wide theme + shared Compose primitives
 ├── onboarding/       # First-run product tour
 ├── sidepanel/        # Conversation browser + settings (self-contained internal module)
-├── chat/             # Live message stream, send/receive, active conversation (ChatView — thread only)
+├── chat/             # Live message stream, send/receive, active conversation (ChatView — thread + error banner)
 └── home/             # Welcome hero + composer chatbox (wires Chat + SidePanel)
 ```
 
