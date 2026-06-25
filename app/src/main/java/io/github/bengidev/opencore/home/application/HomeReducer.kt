@@ -1,7 +1,7 @@
 package io.github.bengidev.opencore.home.application
 
 import io.github.bengidev.opencore.home.models.HomeComposerSpeedMode
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
+import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
 
 internal object HomeReducer {
     fun reduce(state: HomeState, intent: HomeIntent): HomeState = when (intent) {
@@ -24,18 +24,17 @@ internal object HomeReducer {
         }
         HomeIntent.ModelPickerDismissed -> state.copy(isModelPickerVisible = false)
         is HomeIntent.ModelSelected -> {
-            val speedMode = if (intent.model.supportsSpeedModes &&
-                state.speedMode in supportedSpeedModes(intent.model)
-            ) {
+            val option = state.modelOptionFor(intent.model)
+            val speedMode = if (option.availableSpeedModes.contains(state.speedMode)) {
                 state.speedMode
             } else {
                 HomeComposerSpeedMode.STANDARD
             }
+            val reasoningWire = option.resolvedReasoningEffort(state.reasoningEffortWireValue).wireValue
             state.copy(
                 selectedModelId = intent.model.id,
                 selectedModelTitle = intent.model.displayTitle,
-                selectedModelSupportsReasoning = intent.model.supportsReasoning,
-                selectedModelSupportsSpeedModes = intent.model.supportsSpeedModes,
+                reasoningEffortWireValue = reasoningWire,
                 speedMode = speedMode,
                 isModelPickerVisible = false
             )
@@ -45,18 +44,18 @@ internal object HomeReducer {
             val selectedModel = intent.modelId?.let { id ->
                 intent.models.firstOrNull { it.id == id }
             }
-            val speedMode = if (selectedModel?.supportsSpeedModes == true &&
-                state.speedMode in supportedSpeedModes(selectedModel)
-            ) {
+            val option = selectedModel?.let { state.copy(selectedProviderId = intent.providerId).modelOptionFor(it) }
+            val speedMode = if (option != null && option.availableSpeedModes.contains(state.speedMode)) {
                 state.speedMode
             } else {
                 HomeComposerSpeedMode.STANDARD
             }
+            val reasoningWire = option?.resolvedReasoningEffort(state.reasoningEffortWireValue)?.wireValue
+                ?: state.reasoningEffortWireValue
             state.copy(
                 selectedModelId = intent.modelId,
                 selectedModelTitle = intent.modelTitle ?: "Not Available",
-                selectedModelSupportsReasoning = selectedModel?.supportsReasoning == true,
-                selectedModelSupportsSpeedModes = selectedModel?.supportsSpeedModes == true,
+                reasoningEffortWireValue = reasoningWire,
                 selectedProviderId = intent.providerId,
                 availableModels = intent.models,
                 isLoadingModels = false,
@@ -78,14 +77,10 @@ internal object HomeReducer {
         is HomeIntent.ModelSearchQueryApplied -> state.copy(appliedSearchQuery = intent.query)
         is HomeIntent.ModelFilterFreeOnlyChanged -> state.copy(modelFilterFreeOnly = intent.enabled)
         is HomeIntent.SpeedModeSelected -> {
-            if (!state.selectedModelSupportsSpeedModes ||
-                intent.mode !in supportedSpeedModes(state)
-            ) {
-                state
-            } else {
-                state.copy(speedMode = intent.mode)
-            }
+            val modes = state.selectedModelOption?.availableSpeedModes.orEmpty()
+            if (intent.mode !in modes) state else state.copy(speedMode = intent.mode)
         }
+        is HomeIntent.ReasoningEffortWireValueUpdated -> state.copy(reasoningEffortWireValue = intent.wireValue)
         is HomeIntent.ContextUsageUpdated -> state.copy(contextUsage = intent.usage)
         HomeIntent.AttachmentTapped,
         HomeIntent.ContextUsageTapped,
@@ -94,18 +89,4 @@ internal object HomeReducer {
         HomeIntent.NewConversationTapped,
         HomeIntent.SidebarTapped -> state
     }
-
-    private fun supportedSpeedModes(state: HomeState): Set<HomeComposerSpeedMode> =
-        if (state.selectedModelSupportsSpeedModes) {
-            setOf(HomeComposerSpeedMode.STANDARD, HomeComposerSpeedMode.FAST)
-        } else {
-            emptySet()
-        }
-
-    private fun supportedSpeedModes(model: io.github.bengidev.opencore.sidepanel.domain.SidePanelModel): Set<HomeComposerSpeedMode> =
-        if (model.supportsSpeedModes) {
-            setOf(HomeComposerSpeedMode.STANDARD, HomeComposerSpeedMode.FAST)
-        } else {
-            emptySet()
-        }
 }

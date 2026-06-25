@@ -1,7 +1,9 @@
 package io.github.bengidev.opencore.home.infrastructure
 
+import io.github.bengidev.opencore.shared.providers.ProviderAdapting
+import io.github.bengidev.opencore.shared.providers.ProviderCatalogParser
+import io.github.bengidev.opencore.shared.providers.ProviderWireTypes
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -19,24 +21,20 @@ internal class HomeModelCatalogClient(
     )
 
     suspend fun listModels(
-        provider: SidePanelProviderApi,
+        adapter: ProviderAdapting,
         secret: String?
     ): CatalogResult = withContext(ioDispatcher) {
         if (secret.isNullOrBlank()) {
             return@withContext CatalogResult(models = emptyList(), isLive = false)
         }
 
-        val headers = buildMap {
-            put("Authorization", "Bearer $secret")
-            put("Accept", "application/json")
-            putAll(provider.defaultHeaders)
-        }
+        val request = adapter.encodeModelsListRequest(secret)
 
         try {
-            val response = httpGet(provider.modelsUrl, headers)
+            val response = httpGet(request.url, request.headers)
             if (response.statusCode !in 200..299) {
                 val hint = if (response.statusCode == 403) {
-                    io.github.bengidev.opencore.chat.infrastructure.ChatCompletionsCodec.parseErrorMessage(response.body)
+                    ProviderWireTypes.parseErrorMessage(response.body)
                         ?: "Your plan doesn't include API access. Upgrade to use these endpoints."
                 } else {
                     GENERIC_LOAD_ERROR_HINT
@@ -47,7 +45,7 @@ internal class HomeModelCatalogClient(
                     isLive = false
                 )
             }
-            val models = ProviderModelsResponseParser.parse(response.body)
+            val models = ProviderCatalogParser.parse(response.body)
             CatalogResult(models = models, isLive = models.isNotEmpty())
         } catch (_: Exception) {
             CatalogResult(

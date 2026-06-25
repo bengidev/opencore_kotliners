@@ -3,7 +3,7 @@ package io.github.bengidev.opencore.home.application
 import io.github.bengidev.opencore.home.models.ContextWindowUsage
 import io.github.bengidev.opencore.home.models.HomeComposerSpeedMode
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
+import io.github.bengidev.opencore.shared.providers.ProviderDescriptor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -135,7 +135,7 @@ class HomeReducerTest {
             supportedReasoningEfforts = listOf("high", "medium", "low")
         )
         val result = HomeReducer.reduce(
-            HomeState(),
+            HomeState(availableModels = listOf(reasoningModel)),
             HomeIntent.ModelSelected(reasoningModel)
         )
         assertTrue(result.selectedModelSupportsReasoning)
@@ -146,7 +146,7 @@ class HomeReducerTest {
         val paidModel = SidePanelModel(id = "openai/gpt-4o", displayTitle = "GPT-4o", isFree = false)
         val result = HomeReducer.reduce(
             HomeState(
-                selectedProviderId = SidePanelProviderApi.openRouter.id,
+                selectedProviderId = ProviderDescriptor.openRouter.id,
                 selectedModelId = paidModel.id,
                 availableModels = listOf(sampleModel, paidModel),
                 modelFilterFreeOnly = true
@@ -219,7 +219,7 @@ class HomeReducerTest {
             HomeIntent.ModelSelectionLoaded(
                 modelId = null,
                 modelTitle = null,
-                providerId = SidePanelProviderApi.openRouter.id,
+                providerId = ProviderDescriptor.openRouter.id,
                 models = emptyList()
             )
         )
@@ -277,7 +277,7 @@ class HomeReducerTest {
             HomeIntent.ModelSelectionLoaded(
                 modelId = "deepseek/deepseek-r1:free",
                 modelTitle = "DeepSeek R1 (free)",
-                providerId = SidePanelProviderApi.openRouter.id,
+                providerId = ProviderDescriptor.openRouter.id,
                 models = models
             )
         )
@@ -306,7 +306,7 @@ class HomeReducerTest {
         val router = sampleModel.copy(id = "openrouter/free", supportsSpeedModes = true)
         val state = HomeState(
             selectedModelId = router.id,
-            selectedModelSupportsSpeedModes = true
+            availableModels = listOf(router)
         )
         val result = HomeReducer.reduce(state, HomeIntent.SpeedModeSelected(HomeComposerSpeedMode.FAST))
         assertEquals(HomeComposerSpeedMode.FAST, result.speedMode)
@@ -317,7 +317,7 @@ class HomeReducerTest {
     fun speedModeSelected_ignoredForUnsupportedModel() {
         val state = HomeState(
             selectedModelId = sampleModel.id,
-            selectedModelSupportsSpeedModes = false,
+            availableModels = listOf(sampleModel),
             speedMode = HomeComposerSpeedMode.STANDARD
         )
         val result = HomeReducer.reduce(state, HomeIntent.SpeedModeSelected(HomeComposerSpeedMode.FAST))

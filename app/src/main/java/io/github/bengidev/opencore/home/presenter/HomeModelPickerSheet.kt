@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.bengidev.opencore.home.application.HomeState
+import io.github.bengidev.opencore.home.models.HomeModelOption
 import io.github.bengidev.opencore.home.theme.HomeTheme
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
 @OptIn(ExperimentalMaterial3Api::class)
@@ -134,7 +135,7 @@ internal fun HomeModelPickerSheet(
                             HomeModelPickerRow(
                                 model = model,
                                 selected = model.id == state.selectedModelId,
-                                onClick = { onModelSelected(model) }
+                                onClick = { onModelSelected(model.model) }
                             )
                         }
                     }
@@ -259,7 +260,7 @@ private fun ModelFilterBar(
 
 @Composable
 private fun HomeModelPickerRow(
-    model: SidePanelModel,
+    model: HomeModelOption,
     selected: Boolean,
     onClick: () -> Unit
 ) {
@@ -276,7 +277,7 @@ private fun HomeModelPickerRow(
             .semantics {
                 val freeLabel = if (model.isFree) ", free" else ""
                 val selectedLabel = if (selected) ", selected" else ""
-                contentDescription = "${model.displayTitle}$freeLabel$selectedLabel"
+                contentDescription = "${model.title}$freeLabel$selectedLabel"
             }
             .padding(horizontal = 20.dp, vertical = 12.dp)
             .testTag("home-model-row-${model.id}"),
@@ -310,7 +311,7 @@ private fun HomeModelPickerRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = model.displayTitle,
+                    text = model.title,
                     style = typography.composerBody.copy(fontWeight = FontWeight.Medium),
                     color = palette.textPrimary,
                     maxLines = 1,
