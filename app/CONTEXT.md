@@ -27,6 +27,9 @@ io.github.bengidev.opencore/
 │   └── theme/
 ├── home/                # Home internal module
 │   ├── application/
+│   ├── models/
+│   ├── utilities/
+│   ├── infrastructure/
 │   ├── presenter/
 │   └── theme/
 ├── chat/                # Chat internal module
