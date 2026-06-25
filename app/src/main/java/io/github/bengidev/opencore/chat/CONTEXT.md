@@ -20,7 +20,7 @@ Internal module with `ChatFacade` as the app-shell wiring entry. `ChatComponent`
 | Reducer | `ChatReducer` |
 | Facade | `ChatFacade` |
 | Strategy | `ChatStreamingClient`, `ChatStreamingTextAppendStrategy` |
-| Policy | `ChatStreamingCoalescingPolicy`, `ChatStreamingTextAppendPolicy`, `ChatViewTitlePolicy` |
+| Policy | `ChatStreamingCoalescingPolicy`, `ChatStreamingTextAppendPolicy`, `ChatStreamingTextCursorPolicy`, `ChatViewTitlePolicy` |
 | State | `ChatStreamingCoalescer` |
 | Pure merge | `ChatStreamingMerger` |
 
