@@ -1,6 +1,5 @@
-package io.github.bengidev.opencore.home.speedmode
+package io.github.bengidev.opencore.home.models
 
-import io.github.bengidev.opencore.home.speedmode.models.HomeComposerSpeedMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test

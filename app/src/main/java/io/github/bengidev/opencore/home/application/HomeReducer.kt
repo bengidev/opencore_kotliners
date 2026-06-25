@@ -1,6 +1,6 @@
 package io.github.bengidev.opencore.home.application
 
-import io.github.bengidev.opencore.home.speedmode.models.HomeComposerSpeedMode
+import io.github.bengidev.opencore.home.models.HomeComposerSpeedMode
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
 
 internal object HomeReducer {

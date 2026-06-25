@@ -1,6 +1,5 @@
-package io.github.bengidev.opencore.home.contextwindow
+package io.github.bengidev.opencore.home.models
 
-import io.github.bengidev.opencore.home.contextwindow.models.ContextWindowUsage
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

@@ -1,4 +1,4 @@
-package io.github.bengidev.opencore.home.speedmode.models
+package io.github.bengidev.opencore.home.models
 
 /** Response speed preset for supported models. */
 internal enum class HomeComposerSpeedMode {

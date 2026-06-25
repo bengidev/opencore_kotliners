@@ -1,7 +1,6 @@
-package io.github.bengidev.opencore.home.contextwindow.core
+package io.github.bengidev.opencore.home.utilities
 
-import io.github.bengidev.opencore.home.contextwindow.models.ContextWindowUsage
-import io.github.bengidev.opencore.home.contextwindow.utilities.ContextWindowEstimator
+import io.github.bengidev.opencore.home.models.ContextWindowUsage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 
 /** Facade that keeps the latest context window snapshot for a conversation. */

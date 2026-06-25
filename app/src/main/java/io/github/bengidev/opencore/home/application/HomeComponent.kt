@@ -5,9 +5,9 @@ import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import com.arkivanov.essenty.lifecycle.doOnDestroy
-import io.github.bengidev.opencore.home.contextwindow.core.ContextWindowTracker
+import io.github.bengidev.opencore.home.utilities.ContextWindowTracker
 import io.github.bengidev.opencore.home.infrastructure.HomeModelCatalogClient
-import io.github.bengidev.opencore.home.speedmode.models.HomeComposerSpeedMode
+import io.github.bengidev.opencore.home.models.HomeComposerSpeedMode
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi

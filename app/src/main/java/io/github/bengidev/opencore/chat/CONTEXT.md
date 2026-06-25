@@ -10,7 +10,7 @@ Owns the active conversation thread: loading persisted messages, sending user me
 
 ## Visibility
 
-Internal module with `ChatFacade` as the app-shell wiring entry. `ChatComponent` holds Decompose state; `ChatThreadView` is composed from Home when a thread is active.
+Internal module with `ChatFacade` as the app-shell wiring entry. `ChatComponent` holds Decompose state; `ChatView` is composed from Home when a thread is active.
 
 ## Design patterns
 
@@ -20,7 +20,7 @@ Internal module with `ChatFacade` as the app-shell wiring entry. `ChatComponent`
 | Reducer | `ChatReducer` |
 | Facade | `ChatFacade` |
 | Strategy | `ChatStreamingClient`, `ChatStreamingTextAppendStrategy` |
-| Policy | `ChatStreamingCoalescingPolicy`, `ChatStreamingTextAppendPolicy` |
+| Policy | `ChatStreamingCoalescingPolicy`, `ChatStreamingTextAppendPolicy`, `ChatViewTitlePolicy` |
 | State | `ChatStreamingCoalescer` |
 | Pure merge | `ChatStreamingMerger` |
 
@@ -28,6 +28,9 @@ Internal module with `ChatFacade` as the app-shell wiring entry. `ChatComponent`
 
 - **ChatComponent**: Decompose component for thread lifecycle and send
 - **ChatIntent** / **ChatReducer**: Command-style state mutations
+- **ChatView**: Entry view for the active thread (title, thread, error banner; composer stays in Home)
+- **ChatThreadView**: Scrollable message list used inside `ChatView`
+- **ChatErrorBannerView**: Turn-level failure banner colocated in `ChatView`
 - **ChatStreamingClient**: Strategy seam for provider streaming (`ProviderChatStreamingClient` → OpenAI-compatible SSE HTTP)
 - **SidePanelHistoryRepository**: Persistence for conversations and messages (owned by SidePanel infrastructure)
 - **SidePanelMessageKind**: Message kind discriminator on persisted history rows

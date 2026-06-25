@@ -1,6 +1,5 @@
-package io.github.bengidev.opencore.home.contextwindow
+package io.github.bengidev.opencore.home.utilities
 
-import io.github.bengidev.opencore.home.contextwindow.core.ContextWindowTracker
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import org.junit.Assert.assertEquals
 import org.junit.Test

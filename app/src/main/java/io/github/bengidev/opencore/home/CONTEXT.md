@@ -6,18 +6,29 @@
 | **Package** | `io.github.bengidev.opencore.home` |
 | **Module** | Internal module inside `:app` |
 
-Welcome-state home screen with particle orb hero, message composer, and context rail. Sidebar opens the side panel overlay. When a chat thread is active, Home composes `ChatThreadView` and the shared composer.
+Welcome-state home screen with particle orb hero, message composer, and context rail. Sidebar opens the side panel overlay. When a chat thread is active, Home composes `ChatView` and keeps the shared composer chatbox.
 
 ## Visibility
 
 Internal module with `HomeFacade` and `HomeScreen` as the app-shell entry points. `HomeScreen` composes `SidePanelScreen` as an overlay.
 
+## Design patterns
+
+| Pattern | Location |
+|---|---|
+| Command | `HomeIntent` |
+| Reducer | `HomeReducer` |
+| Facade | `HomeFacade`, `ContextWindowTracker` |
+| Policy | `ModelSelectionPolicy` |
+| Strategy | `ContextWindowEstimator` (character-based token estimate) |
+
 ## Language
 
 - **HomeComponent**: Decompose component for local UI state
 - **HomeIntent** / **HomeReducer**: Draft message, speed mode, context usage
-- **ContextWindowTracker** (`home/contextwindow/`): Token estimate facade for composer ring
-- **HomeComposerSpeedMode** (`home/speedmode/`): Standard / fast presets with OpenRouter `provider.sort.by`
+- **ContextWindowUsage** (`home/models/`): Token budget display model for composer ring
+- **ContextWindowEstimator** / **ContextWindowTracker** (`home/utilities/`): Token estimate strategy and facade
+- **HomeComposerSpeedMode** (`home/models/`): Standard / fast presets with OpenRouter `provider.sort.by`
 - **HomeView**: Root layout (`WelcomeScrollContainer`, floating top bar overlay, composer)
 - **WelcomeScrollContainer**: IME-aware scroll viewport with composer below the scroll area
 - **HomeTopBarOverlay**: Menu and new-chat icons floated above the hero
@@ -36,11 +47,11 @@ The welcome content scrolls inside `WelcomeScrollContainer` (`WelcomeScrollConta
 | Welcome hero + particle orb | Live GET /models fetch |
 | Composer prompt panel | Attachment / voice capture |
 | Model picker sheet (static catalog per provider) | |
-| Context window ring + usage popover (`home/contextwindow/`) | |
-| Speed mode menu for router models (`home/speedmode/`) | |
+| Context window ring + usage popover | |
+| Speed mode menu for router models | |
 | Model / speed / context rail | |
 | Top bar chrome (menu opens side panel) | |
 | Draft text input + send clears field | |
 | Side panel overlay (via `SidePanelScreen`) | |
-| Thread view when chat active (via `ChatThreadView`) | |
+| Active thread via `ChatView` (composer + error banner chrome split: banner in Chat, composer here) | |
 | API key gating on composer send | |
