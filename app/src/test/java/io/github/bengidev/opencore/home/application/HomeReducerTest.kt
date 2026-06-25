@@ -132,7 +132,7 @@ class HomeReducerTest {
         val reasoningModel = SidePanelModel(
             id = "deepseek/deepseek-r1:free",
             displayTitle = "DeepSeek R1 (free)",
-            supportsReasoning = true
+            supportedReasoningEfforts = listOf("high", "medium", "low")
         )
         val result = HomeReducer.reduce(
             HomeState(),
@@ -269,7 +269,7 @@ class HomeReducerTest {
                 id = "deepseek/deepseek-r1:free",
                 displayTitle = "DeepSeek R1 (free)",
                 isFree = true,
-                supportsReasoning = true
+                supportedReasoningEfforts = listOf("high", "medium", "low")
             )
         )
         val result = HomeReducer.reduce(

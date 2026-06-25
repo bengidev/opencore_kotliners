@@ -18,7 +18,7 @@ internal object HomeTestCatalog {
             displayTitle = "DeepSeek R1",
             isFree = true,
             contextLength = 163_840,
-            supportsReasoning = true
+            supportedReasoningEfforts = listOf("high", "medium", "low")
         )
     )
 
