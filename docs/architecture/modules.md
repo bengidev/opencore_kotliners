@@ -11,7 +11,7 @@ Onboarding flow state is owned by `OnboardingComponent` and mutated through expl
 ├── ui/               # App-wide theme + shared Compose primitives
 ├── onboarding/       # First-run product tour
 ├── sidepanel/        # Conversation browser + settings (self-contained internal module)
-├── chat/             # Live message stream, send/receive, active conversation (ChatThreadView — thread only)
+├── chat/             # Live message stream, send/receive, active conversation (ChatView — thread only)
 └── home/             # Welcome hero + composer chatbox (wires Chat + SidePanel)
 ```
 
@@ -56,7 +56,7 @@ SidePanel is a self-contained internal module combining two scopes (session + se
 
 Home uses flat role folders only (`application/`, `models/`, `utilities/`, `infrastructure/`, `presenter/`, `theme/`). Context window and speed mode types live alongside other Home models and utilities.
 
-`ChatThreadView` is the Chat module entry view for the active message thread. The composer chatbox (`HomeComposerView`) stays owned and positioned by Home in both welcome and chat states.
+`ChatView` is the Chat module entry view for the active message thread. The composer chatbox (`HomeComposerView`) stays owned and positioned by Home in both welcome and chat states.
 
 ## Role-based folders
 

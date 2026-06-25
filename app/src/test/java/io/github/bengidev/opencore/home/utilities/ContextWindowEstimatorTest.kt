@@ -1,6 +1,5 @@
-package io.github.bengidev.opencore.home.contextwindow
+package io.github.bengidev.opencore.home.utilities
 
-import io.github.bengidev.opencore.home.contextwindow.utilities.ContextWindowEstimator
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
 import org.junit.Assert.assertEquals
