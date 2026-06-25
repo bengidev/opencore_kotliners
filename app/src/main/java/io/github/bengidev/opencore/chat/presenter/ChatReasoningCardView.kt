@@ -35,9 +35,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.chat.theme.ChatTheme
 
@@ -161,20 +158,29 @@ private fun StreamingReasoningText(
         remember { mutableStateOf(0f) }
     }
 
-    // Inline caret so it trails the last character (and wraps with it), not the row edge.
-    val text = buildAnnotatedString {
-        append(displayedContent)
-        if (isStreaming) {
-            withStyle(SpanStyle(color = cursorColor.copy(alpha = cursorAlpha))) {
-                append("▍")
-            }
+    if (isStreaming) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top,
+        ) {
+            ChatStreamingTextView(
+                text = displayedContent,
+                textStyle = typography.reasoningBody,
+                color = textColor,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            Text(
+                text = "▍",
+                style = typography.reasoningBody,
+                color = cursorColor.copy(alpha = cursorAlpha),
+            )
         }
+    } else {
+        Text(
+            text = displayedContent,
+            style = typography.reasoningBody,
+            color = textColor,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
-
-    Text(
-        text = text,
-        style = typography.reasoningBody,
-        color = textColor,
-        modifier = Modifier.fillMaxWidth()
-    )
 }

@@ -140,6 +140,31 @@ class ChatReducerTest {
     fun streamingTurnStarted_setsSendingFlag() {
         val sending = ChatReducer.reduce(ChatState(), ChatIntent.StreamingTurnStarted)
         assertTrue(sending.isSending)
+        assertEquals(0, sending.streamingRevision)
+    }
+
+    @Test
+    fun streamingMerged_bumpsRevisionWhenRequested() {
+        val mergeResult = ChatStreamingMergeResult(
+            state = ChatStreamingState(
+                messages = emptyList(),
+                streamingStatus = io.github.bengidev.opencore.chat.domain.ChatStreamingStatus.Running
+            )
+        )
+        val result = ChatReducer.reduce(
+            ChatState(streamingRevision = 2),
+            ChatIntent.StreamingMerged(mergeResult, bumpStreamingRevision = true)
+        )
+        assertEquals(3, result.streamingRevision)
+    }
+
+    @Test
+    fun newConversation_resetsStreamingRevision() {
+        val result = ChatReducer.reduce(
+            ChatState(streamingRevision = 5, activeConversation = conversation()),
+            ChatIntent.NewConversation
+        )
+        assertEquals(0, result.streamingRevision)
     }
 
     @Test

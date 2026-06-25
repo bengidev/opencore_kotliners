@@ -12,6 +12,18 @@ Owns the active conversation thread: loading persisted messages, sending user me
 
 Internal module with `ChatFacade` as the app-shell wiring entry. `ChatComponent` holds Decompose state; `ChatThreadView` is composed from Home when a thread is active.
 
+## Design patterns
+
+| Pattern | Location |
+|---|---|
+| Command | `ChatIntent` |
+| Reducer | `ChatReducer` |
+| Facade | `ChatFacade` |
+| Strategy | `ChatStreamingClient`, `ChatStreamingTextAppendStrategy` |
+| Policy | `ChatStreamingCoalescingPolicy`, `ChatStreamingTextAppendPolicy` |
+| State | `ChatStreamingCoalescer` |
+| Pure merge | `ChatStreamingMerger` |
+
 ## Language
 
 - **ChatComponent**: Decompose component for thread lifecycle and send

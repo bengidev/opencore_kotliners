@@ -8,6 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import io.github.bengidev.opencore.chat.application.ChatComponent
+import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.home.application.HomeComponent
 import io.github.bengidev.opencore.home.presenter.HomeModelPickerSheet
 import io.github.bengidev.opencore.home.presenter.HomeView
@@ -30,11 +31,13 @@ internal fun HomeScreen(
     }
 
     LaunchedEffect(
-        chatState.messages,
+        chatState.messages.size,
+        chatState.streamingStatus,
         state.draftMessage,
         state.selectedModelId,
         state.availableModels
     ) {
+        if (chatState.streamingStatus == ChatStreamingStatus.Running) return@LaunchedEffect
         component.refreshContextUsage(chatState.messages)
     }
 

@@ -194,6 +194,37 @@ class ChatStreamingMergerTest {
     }
 
     @Test
+    fun applyPendingPartial_updatesThinkingAndAnswerRowsFromAccumulatedContent() {
+        val initial = ChatStreamingState(messages = listOf(userMessage()))
+        val result = ChatStreamingMerger.applyPendingPartial(
+            state = initial,
+            partialThinking = "Weighing options",
+            partialText = "Hello",
+            makeId = ::makeId,
+            now = now
+        )
+        assertEquals(3, result.state.messages.size)
+        assertEquals("Weighing options", result.state.messages[1].content)
+        assertEquals("Hello", result.state.messages[2].content)
+        assertEquals("Weighing options", result.state.currentPartialThinking)
+        assertEquals("Hello", result.state.currentPartialText)
+        assertEquals(ChatStreamingStatus.Running, result.state.streamingStatus)
+    }
+
+    @Test
+    fun applyPendingPartial_isNoOpWhenBuffersAreEmpty() {
+        val initial = ChatStreamingState(messages = listOf(userMessage()))
+        val result = ChatStreamingMerger.applyPendingPartial(
+            state = initial,
+            partialThinking = "",
+            partialText = "",
+            makeId = ::makeId,
+            now = now
+        )
+        assertEquals(initial, result.state)
+    }
+
+    @Test
     fun error_setsFailedStatusAndRemovesIncompleteRows() {
         var state = ChatStreamingState(messages = listOf(userMessage()))
         state = ChatStreamingMerger.merge(state, ChatStreamingEvent.TextDelta("Partial"), ::makeId, now).state
