@@ -35,7 +35,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import io.github.bengidev.opencore.home.speedmode.models.HomeComposerSpeedMode
+import io.github.bengidev.opencore.home.models.ContextWindowUsage
+import io.github.bengidev.opencore.home.models.HomeComposerSpeedMode
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -391,7 +392,7 @@ private fun HomeComposerSpeedChip(
 
 @Composable
 private fun HomeComposerContextUsageIndicator(
-    usage: io.github.bengidev.opencore.home.contextwindow.models.ContextWindowUsage,
+    usage: ContextWindowUsage,
     onClick: () -> Unit
 ) {
     val palette = HomeTheme.palette

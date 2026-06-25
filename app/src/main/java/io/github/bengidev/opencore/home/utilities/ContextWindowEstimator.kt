@@ -1,7 +1,7 @@
-package io.github.bengidev.opencore.home.contextwindow.utilities
+package io.github.bengidev.opencore.home.utilities
 
 import io.github.bengidev.opencore.chat.utilities.ChatAssistantContentNormalizer
-import io.github.bengidev.opencore.home.contextwindow.models.ContextWindowUsage
+import io.github.bengidev.opencore.home.models.ContextWindowUsage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 
 /** Character-based token estimation strategy until provider usage events land. */

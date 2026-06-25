@@ -1,4 +1,4 @@
-package io.github.bengidev.opencore.home.contextwindow.models
+package io.github.bengidev.opencore.home.models
 
 import kotlin.math.abs
 import kotlin.math.roundToInt
