@@ -146,7 +146,10 @@ class ChatReducerTest {
     @Test
     fun streamingMerged_bumpsRevisionWhenRequested() {
         val mergeResult = ChatStreamingMergeResult(
-            state = ChatStreamingState(streamingStatus = io.github.bengidev.opencore.chat.domain.ChatStreamingStatus.Running)
+            state = ChatStreamingState(
+                messages = emptyList(),
+                streamingStatus = io.github.bengidev.opencore.chat.domain.ChatStreamingStatus.Running
+            )
         )
         val result = ChatReducer.reduce(
             ChatState(streamingRevision = 2),
