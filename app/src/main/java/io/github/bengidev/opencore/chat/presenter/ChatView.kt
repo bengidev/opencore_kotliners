@@ -9,6 +9,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -18,11 +20,13 @@ import io.github.bengidev.opencore.chat.application.ChatState
 import io.github.bengidev.opencore.chat.theme.ChatTheme
 import io.github.bengidev.opencore.chat.theme.OpenCoreChatTheme
 
-/** Active conversation screen — title and message thread only. */
+/** Active conversation screen — title, error banner, and message thread. */
 @Composable
 internal fun ChatView(
     state: ChatState,
     onDismissKeyboard: () -> Unit,
+    onRetry: () -> Unit = {},
+    onDismiss: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     OpenCoreChatTheme {
@@ -37,7 +41,7 @@ internal fun ChatView(
             if (title != null) {
                 Text(
                     text = title,
-                    color = palette.textPrimary,
+                    color = palette.assistantBubbleText,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -47,7 +51,14 @@ internal fun ChatView(
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp)
                         .padding(bottom = 8.dp)
-                        .testTag("chat-view-title"),
+                        .testTag("chat-view-title")
+                        .then(
+                            if (ChatViewTitlePolicy.requiresHeadingSemantics(state.headerTitle)) {
+                                Modifier.semantics { heading() }
+                            } else {
+                                Modifier
+                            }
+                        ),
                 )
             }
 
@@ -58,6 +69,14 @@ internal fun ChatView(
                     .weight(1f)
                     .fillMaxWidth()
                     .fillMaxHeight(),
+            )
+
+            ChatErrorBannerView(
+                streamingStatus = state.streamingStatus,
+                errorMessage = state.streamErrorMessage,
+                onRetry = onRetry,
+                onDismiss = onDismiss,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }

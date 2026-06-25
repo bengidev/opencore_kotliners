@@ -18,7 +18,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.chat.application.ChatState
-import io.github.bengidev.opencore.chat.presenter.ChatErrorBannerView
 import io.github.bengidev.opencore.chat.presenter.ChatView
 import io.github.bengidev.opencore.home.application.HomeState
 import io.github.bengidev.opencore.home.models.HomeComposerSpeedMode
@@ -112,19 +111,14 @@ internal fun HomeView(
                 ChatView(
                     state = chatState,
                     onDismissKeyboard = dismissKeyboard,
+                    onRetry = onChatRetryTapped,
+                    onDismiss = onChatErrorDismissed,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
                         .fillMaxHeight()
                         .widthIn(max = 620.dp)
                         .padding(horizontal = 8.dp)
-                )
-                ChatErrorBannerView(
-                    streamingStatus = chatState.streamingStatus,
-                    errorMessage = chatState.streamErrorMessage,
-                    onRetry = onChatRetryTapped,
-                    onDismiss = onChatErrorDismissed,
-                    modifier = Modifier.fillMaxWidth()
                 )
                 composer()
             }
