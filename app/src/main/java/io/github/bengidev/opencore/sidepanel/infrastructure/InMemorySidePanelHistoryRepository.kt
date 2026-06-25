@@ -1,12 +1,13 @@
 package io.github.bengidev.opencore.sidepanel.infrastructure
 
+import io.github.bengidev.opencore.shared.persistence.PersistenceConversationHistoryStoring
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import java.util.UUID
 
 internal class InMemorySidePanelHistoryRepository(
     seed: List<SidePanelConversation> = emptyList()
-) : SidePanelHistoryRepository {
+) : PersistenceConversationHistoryStoring {
     private val conversations = linkedMapOf<UUID, SidePanelConversation>().apply {
         seed.forEach { put(it.id, it) }
     }

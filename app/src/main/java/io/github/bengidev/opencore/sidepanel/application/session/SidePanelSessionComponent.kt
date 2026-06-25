@@ -6,7 +6,7 @@ import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import com.arkivanov.essenty.lifecycle.doOnDestroy
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
-import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelHistoryRepository
+import io.github.bengidev.opencore.shared.persistence.PersistenceConversationHistoryStoring
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -16,7 +16,7 @@ import java.util.UUID
 
 internal class SidePanelSessionComponent(
     componentContext: ComponentContext,
-    private val history: SidePanelHistoryRepository,
+    private val history: PersistenceConversationHistoryStoring,
     initialState: SidePanelSessionState = SidePanelSessionState()
 ) : ComponentContext by componentContext {
 

@@ -11,7 +11,7 @@ import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.chat.infrastructure.ChatStreamingClient
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
-import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelHistoryRepository
+import io.github.bengidev.opencore.shared.persistence.PersistenceConversationHistoryStoring
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,7 +26,7 @@ import java.util.UUID
 
 internal class ChatComponent(
     componentContext: ComponentContext,
-    private val history: SidePanelHistoryRepository,
+    private val history: PersistenceConversationHistoryStoring,
     private val streamingClient: ChatStreamingClient
 ) : ComponentContext by componentContext {
 
@@ -92,7 +92,7 @@ internal class ChatComponent(
         dispatch(ChatIntent.StreamingErrorDismissed)
     }
 
-    fun sendUserMessage(rawText: String, providerSortBy: String? = null) {
+    fun sendUserMessage(rawText: String, providerSortBy: String? = null, reasoningEffort: String? = null) {
         val text = rawText.trim()
         val current = _state.value
         if (text.isEmpty() || current.isSending || current.isLoadingMessages) return
@@ -107,19 +107,23 @@ internal class ChatComponent(
             )
             history.appendMessage(conversation.id, userMessage)
             dispatch(ChatIntent.UserMessageAppended(userMessage))
-            startStream(conversation.id, providerSortBy)
+            startStream(conversation.id, providerSortBy, reasoningEffort)
         }
     }
 
-    fun retry(providerSortBy: String? = null) {
+    fun retry(providerSortBy: String? = null, reasoningEffort: String? = null) {
         val conversation = _state.value.activeConversation ?: return
         if (_state.value.isSending) return
         scope.launch {
-            startStream(conversation.id, providerSortBy)
+            startStream(conversation.id, providerSortBy, reasoningEffort)
         }
     }
 
-    private suspend fun startStream(conversationId: UUID, providerSortBy: String? = null) {
+    private suspend fun startStream(
+        conversationId: UUID,
+        providerSortBy: String? = null,
+        reasoningEffort: String? = null
+    ) {
         cancelStream()
         resetStreamingBuffers()
         val streamId = ++activeStreamId
@@ -131,7 +135,7 @@ internal class ChatComponent(
 
         streamJob = scope.launch {
             try {
-                streamingClient.stream(messagesForWire, providerSortBy).collect { event ->
+                streamingClient.stream(messagesForWire, providerSortBy, reasoningEffort).collect { event ->
                     if (streamId != activeStreamId) return@collect
                     handleStreamingEvent(event, conversationId)
                 }
