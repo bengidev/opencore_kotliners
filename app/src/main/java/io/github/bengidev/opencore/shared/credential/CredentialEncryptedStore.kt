@@ -1,12 +1,13 @@
-package io.github.bengidev.opencore.sidepanel.infrastructure
+package io.github.bengidev.opencore.shared.credential
 
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
-internal class EncryptedSidePanelCredentialStore(
+/** Production [CredentialStoring] backed by EncryptedSharedPreferences. */
+internal class CredentialEncryptedStore(
     context: Context
-) : SidePanelCredentialStore {
+) : CredentialStoring {
 
     private val preferences = EncryptedSharedPreferences.create(
         context,

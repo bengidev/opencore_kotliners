@@ -2,8 +2,9 @@ package io.github.bengidev.opencore.home.application
 
 import io.github.bengidev.opencore.home.infrastructure.HomeModelCatalogClient
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
-import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelCredentialStore
+import io.github.bengidev.opencore.shared.providers.ProviderDescriptor
+import io.github.bengidev.opencore.shared.providers.ProviderRegistry
+import io.github.bengidev.opencore.shared.credential.CredentialInMemoryStore
 
 internal object HomeTestCatalog {
     val sampleModels: List<SidePanelModel> = listOf(
@@ -23,8 +24,8 @@ internal object HomeTestCatalog {
     )
 
     fun credentialStoreWithKey(
-        providerId: String = SidePanelProviderApi.default.id
-    ): InMemorySidePanelCredentialStore = InMemorySidePanelCredentialStore().apply {
+        providerId: String = ProviderDescriptor.openRouter.id
+    ): CredentialInMemoryStore = CredentialInMemoryStore().apply {
         save("test-key", providerId)
     }
 

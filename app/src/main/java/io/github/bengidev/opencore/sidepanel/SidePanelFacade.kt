@@ -4,18 +4,18 @@ import android.content.Context
 import com.arkivanov.decompose.ComponentContext
 import io.github.bengidev.opencore.sidepanel.application.SidePanelComponent
 import io.github.bengidev.opencore.sidepanel.infrastructure.DataStoreSidePanelPreferenceStore
-import io.github.bengidev.opencore.sidepanel.infrastructure.EncryptedSidePanelCredentialStore
+import io.github.bengidev.opencore.shared.credential.CredentialEncryptedStore
+import io.github.bengidev.opencore.shared.credential.CredentialStoring
+import io.github.bengidev.opencore.shared.persistence.PersistenceConversationHistoryStoring
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelHistoryRepository
-import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelCredentialStore
-import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelHistoryRepository
 import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelPreferenceStore
 
 internal class SidePanelFacade {
     fun createComponent(
         context: Context,
         componentContext: ComponentContext,
-        history: SidePanelHistoryRepository = InMemorySidePanelHistoryRepository(),
-        credentialStore: SidePanelCredentialStore = EncryptedSidePanelCredentialStore(context),
+        history: PersistenceConversationHistoryStoring = InMemorySidePanelHistoryRepository(),
+        credentialStore: CredentialStoring = CredentialEncryptedStore(context),
         preferenceStore: SidePanelPreferenceStore = DataStoreSidePanelPreferenceStore(context)
     ): SidePanelComponent = SidePanelComponent(
         componentContext = componentContext,

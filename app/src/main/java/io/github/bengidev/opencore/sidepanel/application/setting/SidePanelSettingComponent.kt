@@ -5,9 +5,9 @@ import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import com.arkivanov.essenty.lifecycle.doOnDestroy
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelReasoningModel
-import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelCredentialStore
+import io.github.bengidev.opencore.shared.credential.CredentialStoring
+import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
+import io.github.bengidev.opencore.shared.providers.ProviderRegistry
 import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelPreferenceStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -17,11 +17,13 @@ import kotlinx.coroutines.launch
 
 internal class SidePanelSettingComponent(
     componentContext: ComponentContext,
-    private val credentialStore: SidePanelCredentialStore,
+    private val credentialStore: CredentialStoring,
     private val preferenceStore: SidePanelPreferenceStore,
     modelSupportsReasoning: Boolean = false,
+    availableReasoningEfforts: List<ModelReasoningEffort> = emptyList(),
     initialState: SidePanelSettingState = SidePanelSettingState(
-        modelSupportsReasoning = modelSupportsReasoning
+        modelSupportsReasoning = modelSupportsReasoning,
+        availableReasoningEfforts = availableReasoningEfforts
     )
 ) : ComponentContext by componentContext {
 
@@ -30,7 +32,7 @@ internal class SidePanelSettingComponent(
     val state: Value<SidePanelSettingState> = _state
 
     var onCredentialsChanged: (() -> Unit)? = null
-    var onReasoningModelChanged: (() -> Unit)? = null
+    var onReasoningEffortChanged: (() -> Unit)? = null
     var onProviderChanged: ((String) -> Unit)? = null
 
     init {
@@ -44,12 +46,18 @@ internal class SidePanelSettingComponent(
     fun onAppear() {
         scope.launch {
             val preference = preferenceStore.preference()
-            val providerId = preference.providerId ?: SidePanelProviderApi.default.id
+            val providerId = preference.providerId ?: ProviderRegistry.defaultAdapter.descriptor.id
+            val available = _state.value.availableReasoningEfforts
+            val resolved = ModelReasoningEffort.resolvedSelection(
+                storedWireValue = preference.reasoningEffortWireValue,
+                available = available
+            )
             dispatch(
                 SidePanelSettingIntent.Appeared(
                     selectedProviderId = providerId,
                     hasStoredKey = credentialStore.secret(providerId) != null,
-                    reasoningModel = preference.reasoningModel
+                    reasoningEffort = resolved,
+                    availableReasoningEfforts = available
                 )
             )
         }
@@ -83,11 +91,11 @@ internal class SidePanelSettingComponent(
         }
     }
 
-    fun selectReasoningModel(model: SidePanelReasoningModel) {
+    fun selectReasoningEffort(effort: ModelReasoningEffort) {
         scope.launch {
-            preferenceStore.setReasoningModel(model)
-            dispatch(SidePanelSettingIntent.ReasoningModelSelected(model))
-            onReasoningModelChanged?.invoke()
+            preferenceStore.setReasoningEffort(effort)
+            dispatch(SidePanelSettingIntent.ReasoningEffortSelected(effort))
+            onReasoningEffortChanged?.invoke()
         }
     }
 
@@ -102,5 +110,17 @@ internal class SidePanelSettingComponent(
             )
             onProviderChanged?.invoke(id)
         }
+    }
+
+    fun updateReasoningOptions(
+        availableReasoningEfforts: List<ModelReasoningEffort>,
+        modelSupportsReasoning: Boolean
+    ) {
+        dispatch(
+            SidePanelSettingIntent.ReasoningOptionsUpdated(
+                availableReasoningEfforts = availableReasoningEfforts,
+                modelSupportsReasoning = modelSupportsReasoning
+            )
+        )
     }
 }
