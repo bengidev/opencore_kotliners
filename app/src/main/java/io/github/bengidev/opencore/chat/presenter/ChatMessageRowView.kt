@@ -139,15 +139,27 @@ private fun AssistantRow(
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         if (message.content.isNotEmpty()) {
-            Text(
-                text = message.content,
-                style = typography.assistantMessageBody,
-                color = palette.assistantBubbleText,
-                modifier = Modifier
-                    .widthIn(max = 540.dp)
-                    .align(Alignment.Start)
-                    .testTag("chat-message-text")
-            )
+            if (isStreamingAssistant) {
+                ChatStreamingTextView(
+                    text = message.content,
+                    textStyle = typography.assistantMessageBody,
+                    color = palette.assistantBubbleText,
+                    modifier = Modifier
+                        .widthIn(max = 540.dp)
+                        .align(Alignment.Start)
+                        .testTag("chat-message-text")
+                )
+            } else {
+                Text(
+                    text = message.content,
+                    style = typography.assistantMessageBody,
+                    color = palette.assistantBubbleText,
+                    modifier = Modifier
+                        .widthIn(max = 540.dp)
+                        .align(Alignment.Start)
+                        .testTag("chat-message-text")
+                )
+            }
         }
         if (isLastAssistantMessage) {
             when {

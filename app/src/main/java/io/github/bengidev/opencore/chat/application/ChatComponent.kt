@@ -153,7 +153,7 @@ internal class ChatComponent(
             is ChatStreamingEvent.ThinkingDelta,
             is ChatStreamingEvent.TextDelta -> {
                 if (streamingCoalescer.accumulate(event)) {
-                    scheduleStreamingFlush(conversationId)
+                    scheduleStreamingFlush()
                 }
             }
             ChatStreamingEvent.Done -> {
@@ -184,7 +184,7 @@ internal class ChatComponent(
         }
     }
 
-    private fun scheduleStreamingFlush(conversationId: UUID) {
+    private fun scheduleStreamingFlush() {
         if (streamingFlushJob != null) return
         val delayMs = ChatStreamingCoalescingPolicy.flushDelayMs(streamingCoalescer.pendingByteCount)
         streamingFlushJob = scope.launch {
@@ -194,7 +194,7 @@ internal class ChatComponent(
         }
     }
 
-    private fun flushStreamingNow(conversationId: UUID) {
+    private fun flushStreamingNow() {
         cancelStreamingFlush()
         applyPendingStreamingUI()
     }
