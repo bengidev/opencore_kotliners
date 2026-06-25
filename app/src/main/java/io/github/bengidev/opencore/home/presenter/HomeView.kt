@@ -19,9 +19,9 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.chat.application.ChatState
 import io.github.bengidev.opencore.chat.presenter.ChatErrorBannerView
-import io.github.bengidev.opencore.chat.presenter.ChatThreadView
+import io.github.bengidev.opencore.chat.presenter.ChatView
 import io.github.bengidev.opencore.home.application.HomeState
-import io.github.bengidev.opencore.home.speedmode.models.HomeComposerSpeedMode
+import io.github.bengidev.opencore.home.models.HomeComposerSpeedMode
 import io.github.bengidev.opencore.home.theme.HomeTheme
 
 private val ComposerBottomPadding = 10.dp
@@ -109,7 +109,7 @@ internal fun HomeView(
                     .padding(top = HomeTopBarClearance)
                     .imePadding()
             ) {
-                ChatThreadView(
+                ChatView(
                     state = chatState,
                     onDismissKeyboard = dismissKeyboard,
                     modifier = Modifier
@@ -157,7 +157,7 @@ internal fun HomeView(
                 onNewConversationTapped()
             },
             onDismissKeyboard = dismissKeyboard,
-            threadTitle = chatState.headerTitle.takeIf { chatState.isThreadActive },
+            threadTitle = null,
             modifier = Modifier.align(Alignment.TopCenter)
         )
     }
