@@ -37,5 +37,9 @@ io.github.bengidev.opencore/
 │   ├── application/
 │   ├── infrastructure/
 │   └── presenter/
+├── shared/              # Shared internal modules (credential, persistence, providers)
+│   ├── credential/
+│   ├── persistence/
+│   └── providers/
 └── ui/theme/            # App-wide theme
 ```

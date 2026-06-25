@@ -5,6 +5,7 @@ Feature packages live inside `:app` as internal modules (package boundaries + `i
 | Package / context | Context doc |
 |---|---|
 | `app/` shell | [app/CONTEXT.md](app/CONTEXT.md) |
+| `app/.../shared/` | Shared internal modules (credential, persistence, providers) |
 | `app/.../onboarding/` | [app/src/main/java/io/github/bengidev/opencore/onboarding/CONTEXT.md](app/src/main/java/io/github/bengidev/opencore/onboarding/CONTEXT.md) |
 | `app/.../home/` | [app/src/main/java/io/github/bengidev/opencore/home/CONTEXT.md](app/src/main/java/io/github/bengidev/opencore/home/CONTEXT.md) |
 | `app/.../sidepanel/` | [app/src/main/java/io/github/bengidev/opencore/sidepanel/CONTEXT.md](app/src/main/java/io/github/bengidev/opencore/sidepanel/CONTEXT.md) |

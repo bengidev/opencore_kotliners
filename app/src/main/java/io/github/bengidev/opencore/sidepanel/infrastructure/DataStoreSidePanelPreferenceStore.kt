@@ -6,8 +6,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderPreference
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelReasoningModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
@@ -21,10 +21,13 @@ internal class DataStoreSidePanelPreferenceStore(
 
     override suspend fun preference(): SidePanelProviderPreference =
         context.sidePanelPreferencesDataStore.data.map { preferences ->
+            val legacyReasoning = preferences[KEY_LEGACY_REASONING_MODEL]
+            val wireValue = preferences[KEY_REASONING_EFFORT]
+                ?: legacyReasoning?.let(::migrateLegacyReasoningWireValue)
             SidePanelProviderPreference(
                 providerId = preferences[KEY_PROVIDER_ID],
                 modelId = preferences[KEY_MODEL_ID],
-                reasoningModel = SidePanelReasoningModel.fromWire(preferences[KEY_REASONING_MODEL])
+                reasoningEffortWireValue = wireValue
             )
         }.first()
 
@@ -44,15 +47,28 @@ internal class DataStoreSidePanelPreferenceStore(
         }
     }
 
-    override suspend fun setReasoningModel(model: SidePanelReasoningModel) {
+    override suspend fun setReasoningEffort(effort: ModelReasoningEffort) {
         context.sidePanelPreferencesDataStore.edit { preferences ->
-            preferences[KEY_REASONING_MODEL] = model.name.lowercase()
+            val wireValue = effort.wireValue
+            if (wireValue.isNullOrBlank()) {
+                preferences.remove(KEY_REASONING_EFFORT)
+            } else {
+                preferences[KEY_REASONING_EFFORT] = wireValue
+            }
+            preferences.remove(KEY_LEGACY_REASONING_MODEL)
         }
     }
 
     companion object {
         private val KEY_PROVIDER_ID = stringPreferencesKey("opencore.provider.selectedProviderID")
         private val KEY_MODEL_ID = stringPreferencesKey("opencore.provider.selectedModelID")
-        private val KEY_REASONING_MODEL = stringPreferencesKey("opencore.provider.reasoningModel")
+        private val KEY_REASONING_EFFORT = stringPreferencesKey("opencore.provider.reasoningEffortWireValue")
+        private val KEY_LEGACY_REASONING_MODEL = stringPreferencesKey("opencore.provider.reasoningModel")
+
+        private fun migrateLegacyReasoningWireValue(legacy: String): String? = when (legacy.lowercase()) {
+            "off" -> null
+            "low", "medium", "high" -> legacy.lowercase()
+            else -> "high"
+        }
     }
 }
