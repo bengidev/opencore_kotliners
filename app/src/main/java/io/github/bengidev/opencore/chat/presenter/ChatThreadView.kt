@@ -86,7 +86,7 @@ internal fun ChatThreadView(
             scrollThreadToBottom(listState, targetIndex, animate = true)
         }
 
-        LaunchedEffect(state.streamingRevision, pendingByteCount) {
+        LaunchedEffect(state.streamingRevision) {
             if (state.streamingRevision == 0) return@LaunchedEffect
             val targetIndex = state.messages.lastIndex + if (awaitingAssistantReply) 1 else 0
             val delayMs = ChatStreamingCoalescingPolicy.scrollDelayMs(pendingByteCount)
