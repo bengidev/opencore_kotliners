@@ -1,6 +1,5 @@
 package io.github.bengidev.opencore.sidepanel.application.setting
 
-import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -27,16 +26,6 @@ class SidePanelSettingReducerTest {
         )
         assertEquals("", result.draftApiKey)
         assertTrue(result.hasStoredKey)
-    }
-
-    @Test
-    fun reasoningEffortSelected_updatesEffort() {
-        val low = ModelReasoningEffort("low")
-        val result = SidePanelSettingReducer.reduce(
-            SidePanelSettingState(),
-            SidePanelSettingIntent.ReasoningEffortSelected(low)
-        )
-        assertEquals(low, result.reasoningEffort)
     }
 
     @Test

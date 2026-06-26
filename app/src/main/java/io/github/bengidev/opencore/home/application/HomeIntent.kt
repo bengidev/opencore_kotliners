@@ -3,6 +3,7 @@ package io.github.bengidev.opencore.home.application
 import io.github.bengidev.opencore.home.models.ContextWindowUsage
 import io.github.bengidev.opencore.home.models.HomeComposerSpeedMode
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
+import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
 
 internal sealed interface HomeIntent {
     data class DraftMessageChanged(val value: String) : HomeIntent
@@ -28,9 +29,8 @@ internal sealed interface HomeIntent {
     data class ModelSearchQueryChanged(val query: String) : HomeIntent
     data class ModelSearchQueryApplied(val query: String) : HomeIntent
     data class ModelFilterFreeOnlyChanged(val enabled: Boolean) : HomeIntent
-    data object SpeedModeTapped : HomeIntent
     data class SpeedModeSelected(val mode: HomeComposerSpeedMode) : HomeIntent
     data class ReasoningEffortWireValueUpdated(val wireValue: String?) : HomeIntent
-    data object ContextUsageTapped : HomeIntent
+    data class ReasoningEffortSelected(val effort: ModelReasoningEffort) : HomeIntent
     data class ContextUsageUpdated(val usage: ContextWindowUsage) : HomeIntent
 }

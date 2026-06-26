@@ -8,6 +8,7 @@ import com.arkivanov.essenty.lifecycle.doOnDestroy
 import io.github.bengidev.opencore.home.utilities.ContextWindowTracker
 import io.github.bengidev.opencore.home.infrastructure.HomeModelCatalogClient
 import io.github.bengidev.opencore.home.models.HomeComposerSpeedMode
+import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
 import io.github.bengidev.opencore.shared.providers.ProviderRegistry
@@ -90,9 +91,13 @@ internal class HomeComponent(
     }
     fun onModelFilterFreeOnlyChanged(enabled: Boolean) =
         dispatch(HomeIntent.ModelFilterFreeOnlyChanged(enabled))
-    fun onSpeedModeTapped() = dispatch(HomeIntent.SpeedModeTapped)
-    fun onContextUsageTapped() = dispatch(HomeIntent.ContextUsageTapped)
     fun onSpeedModeSelected(mode: HomeComposerSpeedMode) = dispatch(HomeIntent.SpeedModeSelected(mode))
+    fun onReasoningEffortSelected(effort: ModelReasoningEffort) {
+        scope.launch {
+            preferenceStore.setReasoningEffort(effort)
+            dispatch(HomeIntent.ReasoningEffortSelected(effort))
+        }
+    }
 
     fun refreshContextUsage(messages: List<SidePanelMessage>) {
         contextMessages = messages

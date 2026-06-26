@@ -10,6 +10,7 @@ import io.github.bengidev.opencore.shared.persistence.PersistenceConversationHis
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
+import io.github.bengidev.opencore.sidepanel.domain.dedupeByMessageId
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
@@ -238,7 +239,7 @@ internal class DataStoreSidePanelHistoryRepository(
                             isComplete = item.optBoolean("isComplete", true)
                         )
                     }
-                    messages[UUID.fromString(conversationId)] = bucket
+                    messages[UUID.fromString(conversationId)] = bucket.dedupeByMessageId().toMutableList()
                 }
             }
             return DecodedHistory(conversations, messages)

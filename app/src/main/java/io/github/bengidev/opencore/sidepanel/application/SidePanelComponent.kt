@@ -9,7 +9,6 @@ import io.github.bengidev.opencore.sidepanel.application.session.SidePanelSessio
 import io.github.bengidev.opencore.sidepanel.application.session.SidePanelSessionState
 import io.github.bengidev.opencore.sidepanel.application.setting.SidePanelSettingComponent
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
-import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
 import io.github.bengidev.opencore.shared.providers.ProviderRegistry
 import io.github.bengidev.opencore.shared.credential.CredentialStoring
 import io.github.bengidev.opencore.shared.persistence.PersistenceConversationHistoryStoring
@@ -38,12 +37,6 @@ internal class SidePanelComponent(
     private var settingComponent: SidePanelSettingComponent? = null
     private val _showSettings = MutableValue(false)
     val showSettings: Value<Boolean> = _showSettings
-
-    var modelSupportsReasoning: Boolean = false
-        private set
-
-    var availableReasoningEfforts: List<ModelReasoningEffort> = emptyList()
-        private set
 
     var selectedProviderId: String = ProviderRegistry.defaultAdapter.descriptor.id
         private set
@@ -76,7 +69,6 @@ internal class SidePanelComponent(
         }
 
     var onCredentialsChanged: (() -> Unit)? = null
-    var onReasoningEffortChanged: (() -> Unit)? = null
     var onProviderChanged: ((String) -> Unit)? = null
 
     init {
@@ -96,15 +88,10 @@ internal class SidePanelComponent(
                 componentContext = childContext("setting"),
                 credentialStore = credentialStore,
                 preferenceStore = preferenceStore,
-                modelSupportsReasoning = modelSupportsReasoning,
-                availableReasoningEfforts = availableReasoningEfforts
             )
             component.onCredentialsChanged = {
                 scope.launch { refreshSelectedProvider() }
                 onCredentialsChanged?.invoke()
-            }
-            component.onReasoningEffortChanged = {
-                onReasoningEffortChanged?.invoke()
             }
             component.onProviderChanged = { id ->
                 scope.launch { refreshSelectedProvider() }
@@ -117,15 +104,6 @@ internal class SidePanelComponent(
 
     fun dismissSettings() {
         _showSettings.value = false
-    }
-
-    fun setModelReasoningOptions(
-        modelSupportsReasoning: Boolean,
-        availableReasoningEfforts: List<ModelReasoningEffort>
-    ) {
-        this.modelSupportsReasoning = modelSupportsReasoning
-        this.availableReasoningEfforts = availableReasoningEfforts
-        settingComponent?.updateReasoningOptions(availableReasoningEfforts, modelSupportsReasoning)
     }
 
     private suspend fun refreshSelectedProvider() {

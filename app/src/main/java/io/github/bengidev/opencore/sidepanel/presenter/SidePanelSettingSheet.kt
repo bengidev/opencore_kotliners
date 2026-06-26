@@ -25,9 +25,6 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -49,7 +46,6 @@ import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import io.github.bengidev.opencore.home.theme.HomeTheme
 import io.github.bengidev.opencore.sidepanel.application.setting.SidePanelSettingComponent
-import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
 import io.github.bengidev.opencore.shared.providers.ProviderRegistry
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -198,40 +194,6 @@ internal fun SidePanelSettingSheet(
                             .testTag("settings-clear-button")
                     ) {
                         Text("Remove stored key", color = palette.accentPrimary)
-                    }
-                }
-            }
-
-            if (state.modelSupportsReasoning) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Reasoning",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = palette.textPrimary
-                    )
-                    Text(
-                        text = "Choose how much effort the model spends reasoning before it answers.",
-                        fontSize = 13.sp,
-                        color = palette.textSecondary
-                    )
-                    SingleChoiceSegmentedButtonRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("settings-reasoning-picker")
-                    ) {
-                        state.availableReasoningEfforts.forEachIndexed { index, effort ->
-                            SegmentedButton(
-                                selected = state.reasoningEffort == effort,
-                                onClick = { component.selectReasoningEffort(effort) },
-                                shape = SegmentedButtonDefaults.itemShape(
-                                    index = index,
-                                    count = state.availableReasoningEfforts.size
-                                )
-                            ) {
-                                Text(effort.title)
-                            }
-                        }
                     }
                 }
             }

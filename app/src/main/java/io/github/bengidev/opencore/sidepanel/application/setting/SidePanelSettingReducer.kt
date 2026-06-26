@@ -1,7 +1,5 @@
 package io.github.bengidev.opencore.sidepanel.application.setting
 
-import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
-
 internal object SidePanelSettingReducer {
     fun reduce(state: SidePanelSettingState, intent: SidePanelSettingIntent): SidePanelSettingState =
         when (intent) {
@@ -11,9 +9,6 @@ internal object SidePanelSettingReducer {
                 state.copy(
                     selectedProviderId = intent.selectedProviderId,
                     hasStoredKey = intent.hasStoredKey,
-                    reasoningEffort = intent.reasoningEffort,
-                    availableReasoningEfforts = intent.availableReasoningEfforts,
-                    modelSupportsReasoning = intent.availableReasoningEfforts.isNotEmpty(),
                     errorMessage = null
                 )
             SidePanelSettingIntent.SaveSucceeded ->
@@ -29,17 +24,6 @@ internal object SidePanelSettingReducer {
                     selectedProviderId = intent.id,
                     hasStoredKey = intent.hasStoredKey,
                     errorMessage = null
-                )
-            is SidePanelSettingIntent.ReasoningEffortSelected ->
-                state.copy(reasoningEffort = intent.effort)
-            is SidePanelSettingIntent.ReasoningOptionsUpdated ->
-                state.copy(
-                    availableReasoningEfforts = intent.availableReasoningEfforts,
-                    modelSupportsReasoning = intent.modelSupportsReasoning,
-                    reasoningEffort = ModelReasoningEffort.resolvedSelection(
-                        storedWireValue = state.reasoningEffort.wireValue,
-                        available = intent.availableReasoningEfforts
-                    )
                 )
         }
 }

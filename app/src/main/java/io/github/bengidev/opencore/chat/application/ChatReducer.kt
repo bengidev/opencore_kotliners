@@ -57,16 +57,18 @@ internal object ChatReducer {
                 )
             }
         }
-        ChatIntent.StreamingTurnStarted -> state.copy(
-            isSending = true,
-            streamingStatus = ChatStreamingStatus.Running,
-            currentPartialText = "",
-            currentPartialThinking = "",
-            streamErrorMessage = null,
-            streamingThinkingId = null,
-            streamingAnswerId = null,
-            streamingRevision = 0
-        )
+        ChatIntent.StreamingTurnStarted -> state
+            .withoutIncompleteAssistantRows()
+            .copy(
+                isSending = true,
+                streamingStatus = ChatStreamingStatus.Running,
+                currentPartialText = "",
+                currentPartialThinking = "",
+                streamErrorMessage = null,
+                streamingThinkingId = null,
+                streamingAnswerId = null,
+                streamingRevision = 0
+            )
         is ChatIntent.StreamingMerged -> {
             val stillSending = when (intent.result.state.streamingStatus) {
                 ChatStreamingStatus.Running -> true

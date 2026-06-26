@@ -26,17 +26,17 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.KeyOff
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import io.github.bengidev.opencore.home.models.ContextWindowUsage
 import io.github.bengidev.opencore.home.models.HomeComposerSpeedMode
+import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -64,9 +64,8 @@ internal fun HomeComposerView(
     onSendTapped: () -> Unit,
     onConfigureApiKeyTapped: () -> Unit,
     onModelSelectorTapped: () -> Unit,
-    onSpeedModeTapped: () -> Unit,
     onSpeedModeSelected: (HomeComposerSpeedMode) -> Unit,
-    onContextUsageTapped: () -> Unit,
+    onReasoningEffortSelected: (ModelReasoningEffort) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -87,9 +86,8 @@ internal fun HomeComposerView(
         HomeComposerContextRail(
             state = state,
             onModelSelectorTapped = onModelSelectorTapped,
-            onSpeedModeTapped = onSpeedModeTapped,
             onSpeedModeSelected = onSpeedModeSelected,
-            onContextUsageTapped = onContextUsageTapped
+            onReasoningEffortSelected = onReasoningEffortSelected,
         )
     }
 }
@@ -218,9 +216,8 @@ private fun MissingApiKeyHint(onClick: () -> Unit) {
 private fun HomeComposerContextRail(
     state: HomeState,
     onModelSelectorTapped: () -> Unit,
-    onSpeedModeTapped: () -> Unit,
     onSpeedModeSelected: (HomeComposerSpeedMode) -> Unit,
-    onContextUsageTapped: () -> Unit
+    onReasoningEffortSelected: (ModelReasoningEffort) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -250,6 +247,13 @@ private fun HomeComposerContextRail(
                     enabled = state.isModelCatalogAvailable,
                     onClick = onModelSelectorTapped
                 )
+                if (state.selectedModelSupportsReasoning) {
+                    HomeComposerReasoningChip(
+                        selectedEffort = state.selectedReasoningEffort,
+                        availableEfforts = state.availableReasoningEfforts,
+                        onReasoningEffortSelected = onReasoningEffortSelected,
+                    )
+                }
             }
 
             Row(
@@ -259,14 +263,10 @@ private fun HomeComposerContextRail(
                 if (state.selectedModelSupportsSpeedModes) {
                     HomeComposerSpeedChip(
                         speedMode = state.speedMode,
-                        onSpeedModeTapped = onSpeedModeTapped,
                         onSpeedModeSelected = onSpeedModeSelected
                     )
                 }
-                HomeComposerContextUsageIndicator(
-                    usage = state.contextUsage,
-                    onClick = onContextUsageTapped
-                )
+                HomeComposerContextUsageIndicator(usage = state.contextUsage)
             }
         }
     }
@@ -335,65 +335,109 @@ private fun HomeComposerModelChip(
 }
 
 @Composable
+private fun HomeComposerReasoningChip(
+    selectedEffort: ModelReasoningEffort,
+    availableEfforts: List<ModelReasoningEffort>,
+    onReasoningEffortSelected: (ModelReasoningEffort) -> Unit,
+) {
+    val palette = HomeTheme.palette
+    val typography = HomeTheme.typography
+    var popoverExpanded by remember { mutableStateOf(false) }
+
+    ComposerControlPopoverHost(
+        expanded = popoverExpanded,
+        onExpandedChange = { popoverExpanded = it },
+        anchor = {
+            Row(
+                modifier = Modifier
+                    .widthIn(min = 92.dp)
+                    .height(30.dp)
+                    .homeComposerGlass(cornerRadius = 16.dp, shadowOpacity = 0.06f)
+                    .clickable { popoverExpanded = true }
+                    .padding(horizontal = 10.dp)
+                    .semantics {
+                        contentDescription = "Reasoning, ${selectedEffort.title}"
+                    },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Psychology,
+                    contentDescription = null,
+                    tint = palette.textSecondary,
+                    modifier = Modifier.size(14.dp),
+                )
+                Text(
+                    text = selectedEffort.title,
+                    style = typography.chipLabel,
+                    color = palette.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = palette.textSecondary,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        },
+        content = {
+            ReasoningControlPopover(
+                selectedEffort = selectedEffort,
+                availableEfforts = availableEfforts,
+                onEffortSelected = { effort ->
+                    popoverExpanded = false
+                    onReasoningEffortSelected(effort)
+                },
+            )
+        },
+    )
+}
+
+@Composable
 private fun HomeComposerSpeedChip(
     speedMode: HomeComposerSpeedMode,
-    onSpeedModeTapped: () -> Unit,
     onSpeedModeSelected: (HomeComposerSpeedMode) -> Unit
 ) {
     val palette = HomeTheme.palette
-    var menuExpanded by remember { mutableStateOf(false) }
+    var popoverExpanded by remember { mutableStateOf(false) }
     val isFast = speedMode == HomeComposerSpeedMode.FAST
 
-    Box {
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .homeComposerGlass(cornerRadius = 16.dp, shadowOpacity = 0.06f)
-                .clickable {
-                    onSpeedModeTapped()
-                    menuExpanded = true
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Bolt,
-                contentDescription = "Speed, ${speedMode.title}",
-                tint = if (isFast) palette.accentPrimary else palette.textSecondary,
-                modifier = Modifier.size(14.dp)
-            )
-        }
-        DropdownMenu(
-            expanded = menuExpanded,
-            onDismissRequest = { menuExpanded = false }
-        ) {
-            HomeComposerSpeedMode.entries.forEach { mode ->
-                DropdownMenuItem(
-                    text = { Text(mode.title) },
-                    onClick = {
-                        menuExpanded = false
-                        onSpeedModeSelected(mode)
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Bolt,
-                            contentDescription = null,
-                            tint = if (mode == HomeComposerSpeedMode.FAST) {
-                                palette.accentPrimary
-                            } else {
-                                palette.textSecondary
-                            }
-                        )
-                    }
+    ComposerControlPopoverHost(
+        expanded = popoverExpanded,
+        onExpandedChange = { popoverExpanded = it },
+        anchor = {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .homeComposerGlass(cornerRadius = 16.dp, shadowOpacity = 0.06f)
+                    .clickable { popoverExpanded = true },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Bolt,
+                    contentDescription = "Speed, ${speedMode.title}",
+                    tint = if (isFast) palette.accentPrimary else palette.textSecondary,
+                    modifier = Modifier.size(14.dp)
                 )
             }
-        }
-    }
+        },
+        content = {
+            SpeedControlPopover(
+                speedMode = speedMode,
+                onSpeedModeSelected = { mode ->
+                    popoverExpanded = false
+                    onSpeedModeSelected(mode)
+                },
+            )
+        },
+    )
 }
 
 @Composable
 private fun HomeComposerContextUsageIndicator(
     usage: ContextWindowUsage,
-    onClick: () -> Unit
 ) {
     val palette = HomeTheme.palette
     val typography = HomeTheme.typography
@@ -401,94 +445,47 @@ private fun HomeComposerContextUsageIndicator(
     val fraction = (usagePercent / 100f).coerceIn(0f, 1f)
     var popoverExpanded by remember { mutableStateOf(false) }
 
-    Box {
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .clip(CircleShape)
-                .background(palette.surfaceRaised.copy(alpha = if (palette.isDark) 0.42f else 0.72f))
-                .border(1.dp, palette.accentPrimary.copy(alpha = if (palette.isDark) 0.18f else 0.12f), CircleShape)
-                .clickable {
-                    onClick()
-                    popoverExpanded = true
+    ComposerControlPopoverHost(
+        expanded = popoverExpanded,
+        onExpandedChange = { popoverExpanded = it },
+        anchor = {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(palette.surfaceRaised.copy(alpha = if (palette.isDark) 0.42f else 0.72f))
+                    .border(1.dp, palette.accentPrimary.copy(alpha = if (palette.isDark) 0.18f else 0.12f), CircleShape)
+                    .clickable { popoverExpanded = true }
+                    .semantics {
+                        contentDescription = "Context usage $usagePercent percent"
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                androidx.compose.foundation.Canvas(modifier = Modifier.size(23.dp)) {
+                    drawCircle(
+                        color = palette.accentPrimary.copy(alpha = if (palette.isDark) 0.14f else 0.12f),
+                        style = Stroke(width = 3.dp.toPx())
+                    )
+                    drawArc(
+                        color = palette.accentPrimary.copy(alpha = if (palette.isDark) 0.92f else 0.82f),
+                        startAngle = -90f,
+                        sweepAngle = 360f * fraction,
+                        useCenter = false,
+                        style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+                    )
                 }
-                .semantics {
-                    contentDescription = "Context usage $usagePercent percent"
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            androidx.compose.foundation.Canvas(modifier = Modifier.size(23.dp)) {
-                drawCircle(
-                    color = palette.accentPrimary.copy(alpha = if (palette.isDark) 0.14f else 0.12f),
-                    style = Stroke(width = 3.dp.toPx())
-                )
-                drawArc(
-                    color = palette.accentPrimary.copy(alpha = if (palette.isDark) 0.92f else 0.82f),
-                    startAngle = -90f,
-                    sweepAngle = 360f * fraction,
-                    useCenter = false,
-                    style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+
+                Text(
+                    text = usagePercent.toString(),
+                    style = typography.contextUsage,
+                    color = palette.accentPrimary
                 )
             }
-
-            Text(
-                text = usagePercent.toString(),
-                style = typography.contextUsage,
-                color = palette.accentPrimary
-            )
-        }
-        DropdownMenu(
-            expanded = popoverExpanded,
-            onDismissRequest = { popoverExpanded = false },
-            modifier = Modifier.widthIn(min = 180.dp)
-        ) {
-            DropdownMenuItem(
-                text = {
-                    Column(
-                        modifier = Modifier.widthIn(min = 160.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        ContextMetricRow(label = "Free", value = if (usage.hasKnownLimit) usage.tokensRemainingFormatted else "—")
-                        ContextMetricRow(label = "Used", value = usage.tokensUsedFormatted)
-                        ContextMetricRow(label = "Total", value = if (usage.hasKnownLimit) usage.tokenLimitFormatted else "—")
-                        if (usage.hasKnownLimit) {
-                            Text(
-                                text = "${usage.percentUsed}% used",
-                                style = typography.chipLabel,
-                                color = palette.textSecondary,
-                                maxLines = 1
-                            )
-                        }
-                    }
-                },
-                onClick = { popoverExpanded = false },
-                enabled = false
-            )
-        }
-    }
-}
-
-@Composable
-private fun ContextMetricRow(label: String, value: String) {
-    val palette = HomeTheme.palette
-    val typography = HomeTheme.typography
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            style = typography.chipLabel,
-            color = palette.textSecondary
-        )
-        Text(
-            text = value,
-            style = typography.chipLabel,
-            color = palette.textPrimary,
-            maxLines = 1
-        )
-    }
+        },
+        content = {
+            ContextWindowPopover(usage = usage)
+        },
+    )
 }
 
 @Composable

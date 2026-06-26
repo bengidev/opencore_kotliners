@@ -107,8 +107,12 @@ internal object ChatStreamingMerger {
         makeId: () -> UUID,
         now: Instant
     ): ChatStreamingMergeResult {
-        val thinkingId = state.streamingThinkingId
-        return if (thinkingId != null) {
+        val thinkingId = resolveStreamingRowId(
+            trackedId = state.streamingThinkingId,
+            messages = state.messages,
+            kind = SidePanelMessageKind.THINKING,
+        )
+        if (thinkingId != null) {
             val messages = state.messages.map { message ->
                 if (message.id == thinkingId && message.kind == SidePanelMessageKind.THINKING) {
                     message.copy(content = partialThinking, isComplete = false)
@@ -116,32 +120,34 @@ internal object ChatStreamingMerger {
                     message
                 }
             }
-            ChatStreamingMergeResult(
-                state.copy(
-                    messages = messages,
-                    currentPartialThinking = partialThinking,
-                    streamingStatus = ChatStreamingStatus.Running
+            if (messages.any { it.id == thinkingId && it.kind == SidePanelMessageKind.THINKING }) {
+                return ChatStreamingMergeResult(
+                    state.copy(
+                        messages = messages,
+                        currentPartialThinking = partialThinking,
+                        streamingThinkingId = thinkingId,
+                        streamingStatus = ChatStreamingStatus.Running
+                    )
                 )
-            )
-        } else {
-            val newId = makeId()
-            val thinkingMessage = SidePanelMessage(
-                id = newId,
-                role = ChatMessageRole.ASSISTANT,
-                content = partialThinking,
-                createdAt = now,
-                kind = SidePanelMessageKind.THINKING,
-                isComplete = false
-            )
-            ChatStreamingMergeResult(
-                state.copy(
-                    messages = state.messages + thinkingMessage,
-                    currentPartialThinking = partialThinking,
-                    streamingThinkingId = newId,
-                    streamingStatus = ChatStreamingStatus.Running
-                )
-            )
+            }
         }
+        val newId = makeId()
+        val thinkingMessage = SidePanelMessage(
+            id = newId,
+            role = ChatMessageRole.ASSISTANT,
+            content = partialThinking,
+            createdAt = now,
+            kind = SidePanelMessageKind.THINKING,
+            isComplete = false
+        )
+        return ChatStreamingMergeResult(
+            state.copy(
+                messages = state.messages + thinkingMessage,
+                currentPartialThinking = partialThinking,
+                streamingThinkingId = newId,
+                streamingStatus = ChatStreamingStatus.Running
+            )
+        )
     }
 
     private fun upsertAnswerRow(
@@ -150,8 +156,12 @@ internal object ChatStreamingMerger {
         makeId: () -> UUID,
         now: Instant
     ): ChatStreamingMergeResult {
-        val answerId = state.streamingAnswerId
-        return if (answerId != null) {
+        val answerId = resolveStreamingRowId(
+            trackedId = state.streamingAnswerId,
+            messages = state.messages,
+            kind = SidePanelMessageKind.TEXT,
+        )
+        if (answerId != null) {
             val messages = state.messages.map { message ->
                 if (message.id == answerId && message.kind == SidePanelMessageKind.TEXT) {
                     message.copy(content = partialText, isComplete = false)
@@ -159,51 +169,61 @@ internal object ChatStreamingMerger {
                     message
                 }
             }
-            ChatStreamingMergeResult(
-                state.copy(
-                    messages = messages,
-                    currentPartialText = partialText,
-                    streamingStatus = ChatStreamingStatus.Running
+            if (messages.any { it.id == answerId && it.kind == SidePanelMessageKind.TEXT }) {
+                return ChatStreamingMergeResult(
+                    state.copy(
+                        messages = messages,
+                        currentPartialText = partialText,
+                        streamingAnswerId = answerId,
+                        streamingStatus = ChatStreamingStatus.Running
+                    )
                 )
-            )
-        } else {
-            val newId = makeId()
-            val answerMessage = SidePanelMessage(
-                id = newId,
-                role = ChatMessageRole.ASSISTANT,
-                content = partialText,
-                createdAt = now,
-                kind = SidePanelMessageKind.TEXT,
-                isComplete = false
-            )
-            ChatStreamingMergeResult(
-                state.copy(
-                    messages = state.messages + answerMessage,
-                    currentPartialText = partialText,
-                    streamingAnswerId = newId,
-                    streamingStatus = ChatStreamingStatus.Running
-                )
-            )
+            }
         }
+        val newId = makeId()
+        val answerMessage = SidePanelMessage(
+            id = newId,
+            role = ChatMessageRole.ASSISTANT,
+            content = partialText,
+            createdAt = now,
+            kind = SidePanelMessageKind.TEXT,
+            isComplete = false
+        )
+        return ChatStreamingMergeResult(
+            state.copy(
+                messages = state.messages + answerMessage,
+                currentPartialText = partialText,
+                streamingAnswerId = newId,
+                streamingStatus = ChatStreamingStatus.Running
+            )
+        )
     }
 
     private fun mergeDone(state: ChatStreamingState): ChatStreamingMergeResult {
+        val thinkingId = resolveStreamingRowId(
+            trackedId = state.streamingThinkingId,
+            messages = state.messages,
+            kind = SidePanelMessageKind.THINKING,
+        )
+        val answerId = resolveStreamingRowId(
+            trackedId = state.streamingAnswerId,
+            messages = state.messages,
+            kind = SidePanelMessageKind.TEXT,
+        )
         val messages = state.messages.map { message ->
             when (message.id) {
-                state.streamingAnswerId ->
+                answerId ->
                     message.copy(
                         content = ChatAssistantContentNormalizer.displayText(message.content),
                         isComplete = true
                     )
-                state.streamingThinkingId ->
+                thinkingId ->
                     message.copy(isComplete = true)
                 else -> message
             }
         }
-        val finalized = listOfNotNull(
-            state.streamingThinkingId,
-            state.streamingAnswerId
-        ).mapNotNull { id -> messages.firstOrNull { it.id == id } }
+        val finalized = listOfNotNull(thinkingId, answerId)
+            .mapNotNull { id -> messages.firstOrNull { it.id == id } }
 
         return ChatStreamingMergeResult(
             state = state.copy(
@@ -220,7 +240,7 @@ internal object ChatStreamingMerger {
 
     private fun mergeError(state: ChatStreamingState, message: String): ChatStreamingMergeResult {
         val cleanedMessages = state.messages.filter { row ->
-            row.isComplete || (row.id != state.streamingThinkingId && row.id != state.streamingAnswerId)
+            row.isComplete || row.role != ChatMessageRole.ASSISTANT
         }
         return ChatStreamingMergeResult(
             state.copy(
@@ -233,5 +253,31 @@ internal object ChatStreamingMerger {
                 streamingAnswerId = null
             )
         )
+    }
+
+    private fun resolveStreamingRowId(
+        trackedId: UUID?,
+        messages: List<SidePanelMessage>,
+        kind: SidePanelMessageKind,
+    ): UUID? {
+        if (trackedId != null &&
+            messages.any { it.id == trackedId && it.kind == kind }
+        ) {
+            return trackedId
+        }
+        return currentTurnMessages(messages).lastOrNull { message ->
+            message.kind == kind &&
+                message.role == ChatMessageRole.ASSISTANT &&
+                !message.isComplete
+        }?.id
+    }
+
+    private fun currentTurnMessages(messages: List<SidePanelMessage>): List<SidePanelMessage> {
+        val lastUserIndex = messages.indexOfLast { it.role == ChatMessageRole.USER }
+        return if (lastUserIndex < 0) {
+            messages
+        } else {
+            messages.subList(lastUserIndex + 1, messages.size)
+        }
     }
 }

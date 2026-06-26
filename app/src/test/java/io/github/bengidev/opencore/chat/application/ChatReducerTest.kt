@@ -144,6 +144,31 @@ class ChatReducerTest {
     }
 
     @Test
+    fun streamingTurnStarted_stripsIncompleteAssistantRows() {
+        val orphanId = UUID.randomUUID()
+        val state = ChatState(
+            messages = listOf(
+                SidePanelMessage(
+                    id = UUID.randomUUID(),
+                    role = ChatMessageRole.USER,
+                    content = "Hi",
+                    createdAt = java.time.Instant.parse("2024-01-01T00:00:00Z"),
+                ),
+                SidePanelMessage(
+                    id = orphanId,
+                    role = ChatMessageRole.ASSISTANT,
+                    content = "Partial",
+                    createdAt = java.time.Instant.parse("2024-01-01T00:00:00Z"),
+                    isComplete = false,
+                )
+            )
+        )
+        val result = ChatReducer.reduce(state, ChatIntent.StreamingTurnStarted)
+        assertEquals(1, result.messages.size)
+        assertEquals(ChatMessageRole.USER, result.messages.first().role)
+    }
+
+    @Test
     fun streamingMerged_bumpsRevisionWhenRequested() {
         val mergeResult = ChatStreamingMergeResult(
             state = ChatStreamingState(

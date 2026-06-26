@@ -12,3 +12,7 @@ internal data class SidePanelMessage(
     val kind: SidePanelMessageKind = SidePanelMessageKind.TEXT,
     val isComplete: Boolean = true
 )
+
+/** Keeps the latest row when persisted history contains duplicate ids. */
+internal fun List<SidePanelMessage>.dedupeByMessageId(): List<SidePanelMessage> =
+    reversed().distinctBy { it.id }.reversed()

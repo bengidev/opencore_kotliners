@@ -6,7 +6,6 @@ import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import com.arkivanov.essenty.lifecycle.doOnDestroy
 import io.github.bengidev.opencore.shared.credential.CredentialStoring
-import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
 import io.github.bengidev.opencore.shared.providers.ProviderRegistry
 import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelPreferenceStore
 import kotlinx.coroutines.CoroutineScope
@@ -19,12 +18,7 @@ internal class SidePanelSettingComponent(
     componentContext: ComponentContext,
     private val credentialStore: CredentialStoring,
     private val preferenceStore: SidePanelPreferenceStore,
-    modelSupportsReasoning: Boolean = false,
-    availableReasoningEfforts: List<ModelReasoningEffort> = emptyList(),
-    initialState: SidePanelSettingState = SidePanelSettingState(
-        modelSupportsReasoning = modelSupportsReasoning,
-        availableReasoningEfforts = availableReasoningEfforts
-    )
+    initialState: SidePanelSettingState = SidePanelSettingState()
 ) : ComponentContext by componentContext {
 
     private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
@@ -32,7 +26,6 @@ internal class SidePanelSettingComponent(
     val state: Value<SidePanelSettingState> = _state
 
     var onCredentialsChanged: (() -> Unit)? = null
-    var onReasoningEffortChanged: (() -> Unit)? = null
     var onProviderChanged: ((String) -> Unit)? = null
 
     init {
@@ -47,17 +40,10 @@ internal class SidePanelSettingComponent(
         scope.launch {
             val preference = preferenceStore.preference()
             val providerId = preference.providerId ?: ProviderRegistry.defaultAdapter.descriptor.id
-            val available = _state.value.availableReasoningEfforts
-            val resolved = ModelReasoningEffort.resolvedSelection(
-                storedWireValue = preference.reasoningEffortWireValue,
-                available = available
-            )
             dispatch(
                 SidePanelSettingIntent.Appeared(
                     selectedProviderId = providerId,
                     hasStoredKey = credentialStore.secret(providerId) != null,
-                    reasoningEffort = resolved,
-                    availableReasoningEfforts = available
                 )
             )
         }
@@ -91,14 +77,6 @@ internal class SidePanelSettingComponent(
         }
     }
 
-    fun selectReasoningEffort(effort: ModelReasoningEffort) {
-        scope.launch {
-            preferenceStore.setReasoningEffort(effort)
-            dispatch(SidePanelSettingIntent.ReasoningEffortSelected(effort))
-            onReasoningEffortChanged?.invoke()
-        }
-    }
-
     fun selectProvider(id: String) {
         scope.launch {
             preferenceStore.setProviderId(id)
@@ -110,17 +88,5 @@ internal class SidePanelSettingComponent(
             )
             onProviderChanged?.invoke(id)
         }
-    }
-
-    fun updateReasoningOptions(
-        availableReasoningEfforts: List<ModelReasoningEffort>,
-        modelSupportsReasoning: Boolean
-    ) {
-        dispatch(
-            SidePanelSettingIntent.ReasoningOptionsUpdated(
-                availableReasoningEfforts = availableReasoningEfforts,
-                modelSupportsReasoning = modelSupportsReasoning
-            )
-        )
     }
 }
