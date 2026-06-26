@@ -25,7 +25,7 @@ class EchoChatStreamingClientTest {
             )
         )
 
-        val events = client.stream(messages, providerSortBy = null).toList()
+        val events = client.stream(messages, providerSortBy = null, reasoningEffort = null).toList()
 
         assertTrue(events[0] is ChatStreamingEvent.ThinkingDelta)
         assertEquals(

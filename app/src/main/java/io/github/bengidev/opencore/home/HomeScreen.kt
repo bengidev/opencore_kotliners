@@ -26,8 +26,12 @@ internal fun HomeScreen(
     val state by component.state.subscribeAsState()
     val chatState by chatComponent.state.subscribeAsState()
 
-    LaunchedEffect(state.selectedModelSupportsReasoning) {
-        sidePanelComponent.setModelSupportsReasoning(state.selectedModelSupportsReasoning)
+    LaunchedEffect(state.selectedModelOption) {
+        val option = state.selectedModelOption
+        sidePanelComponent.setModelReasoningOptions(
+            modelSupportsReasoning = option?.supportsReasoning == true,
+            availableReasoningEfforts = option?.availableReasoningEfforts.orEmpty()
+        )
     }
 
     LaunchedEffect(
@@ -57,7 +61,9 @@ internal fun HomeScreen(
                 onSpeedModeTapped = component::onSpeedModeTapped,
                 onSpeedModeSelected = component::onSpeedModeSelected,
                 onContextUsageTapped = component::onContextUsageTapped,
-                onChatRetryTapped = { chatComponent.retry(state.activeProviderSortBy) },
+                onChatRetryTapped = {
+                    chatComponent.retry(state.activeProviderSortBy, state.activeReasoningEffort)
+                },
                 onChatErrorDismissed = chatComponent::dismissError
             )
             SidePanelScreen(component = sidePanelComponent)

@@ -1,10 +1,11 @@
-package io.github.bengidev.opencore.home.infrastructure
+package io.github.bengidev.opencore.shared.providers
 
 import io.github.bengidev.opencore.chat.infrastructure.ChatJsonStringField
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
 import java.math.BigDecimal
 
-internal object ProviderModelsResponseParser {
+/** Parses OpenAI-compatible model catalog entries into domain [SidePanelModel] values. */
+internal object ProviderCatalogParser {
     fun parse(responseBody: String): List<SidePanelModel> {
         val dataStart = responseBody.indexOf("\"data\"")
         if (dataStart < 0) return emptyList()
@@ -12,7 +13,7 @@ internal object ProviderModelsResponseParser {
         if (arrayStart < 0) return emptyList()
 
         return extractObjects(responseBody, arrayStart + 1)
-            .mapNotNull(::parseEntry)
+            .mapNotNull(::parseEntryInternal)
             .filter { entry ->
                 val modality = entry.modality
                 modality.isNullOrEmpty() || modality.contains("text", ignoreCase = true)
@@ -20,6 +21,9 @@ internal object ProviderModelsResponseParser {
             .map { it.toSidePanelModel() }
             .sortedWith(compareByDescending<SidePanelModel> { it.isFree }.thenBy { it.displayTitle })
     }
+
+    fun parseEntry(objectJson: String): SidePanelModel =
+        requireNotNull(parseEntryInternal(objectJson)).toSidePanelModel()
 
     private data class ParsedEntry(
         val id: String,
@@ -29,7 +33,9 @@ internal object ProviderModelsResponseParser {
         val tokenizer: String?,
         val promptPrice: String?,
         val completionPrice: String?,
-        val supportedParameters: List<String>
+        val supportedParameters: List<String>,
+        val supportedReasoningEfforts: List<String>,
+        val reasoningMandatory: Boolean
     ) {
         val isFree: Boolean
             get() = when {
@@ -40,48 +46,68 @@ internal object ProviderModelsResponseParser {
                 else -> false
             }
 
+        val supportsSpeedModes: Boolean
+            get() = tokenizer == "Router" ||
+                supportedParameters.any { it.equals("provider", ignoreCase = true) } ||
+                id.equals("openrouter/free", ignoreCase = true)
+
         fun toSidePanelModel(): SidePanelModel = SidePanelModel(
             id = id,
             displayTitle = name ?: id,
             isFree = isFree,
             contextLength = contextLength,
-            supportsReasoning = supportsReasoning(id, modality, supportedParameters),
-            supportsSpeedModes = tokenizer == "Router" || id.equals("openrouter/free", ignoreCase = true)
+            supportedReasoningEfforts = supportedReasoningEfforts,
+            reasoningMandatory = reasoningMandatory,
+            supportsSpeedModes = supportsSpeedModes
         )
     }
 
-    private fun parseEntry(objectJson: String): ParsedEntry? {
+    private fun parseEntryInternal(objectJson: String): ParsedEntry? {
         val id = ChatJsonStringField.extract(objectJson, "id") ?: return null
         val pricingObject = extractNestedObject(objectJson, "pricing")
         val architectureObject = extractNestedObject(objectJson, "architecture")
+        val reasoningObject = extractNestedObject(objectJson, "reasoning")
+        val supportedParameters = extractStringArray(objectJson, "supported_parameters")
+        val modality = architectureObject?.let { ChatJsonStringField.extract(it, "modality") }
+        val supportedEfforts = reasoningObject
+            ?.let { extractStringArray(it, "supported_efforts") }
+            .orEmpty()
+        val reasoningMandatory = reasoningObject?.let { parseBooleanField(it, "mandatory") } == true
+        val resolvedEfforts = when {
+            supportedEfforts.isNotEmpty() -> supportedEfforts
+            supportsReasoningParameter(id, modality, supportedParameters) -> DEFAULT_GATEWAY_REASONING_EFFORTS
+            else -> emptyList()
+        }
         return ParsedEntry(
             id = id,
             name = ChatJsonStringField.extract(objectJson, "name"),
             contextLength = resolveContextLength(objectJson),
-            modality = architectureObject?.let { ChatJsonStringField.extract(it, "modality") },
+            modality = modality,
             tokenizer = architectureObject?.let { ChatJsonStringField.extract(it, "tokenizer") },
             promptPrice = pricingObject?.let { ChatJsonStringField.extract(it, "prompt") },
             completionPrice = pricingObject?.let { ChatJsonStringField.extract(it, "completion") },
-            supportedParameters = extractStringArray(objectJson, "supported_parameters")
+            supportedParameters = supportedParameters,
+            supportedReasoningEfforts = resolvedEfforts,
+            reasoningMandatory = reasoningMandatory
         )
+    }
+
+    private fun supportsReasoningParameter(
+        id: String,
+        modality: String?,
+        supportedParameters: List<String>
+    ): Boolean {
+        if (modality?.contains("reasoning", ignoreCase = true) == true) return true
+        if (supportedParameters.any { it == "reasoning" || it == "reasoning_effort" }) return true
+        if (id.contains(":thinking", ignoreCase = true)) return true
+        if (id.endsWith("-thinking", ignoreCase = true)) return true
+        return false
     }
 
     private fun resolveContextLength(objectJson: String): Int? =
         extractIntField(objectJson, "context_length")
             ?: extractIntField(objectJson, "context")
             ?: extractIntField(objectJson, "max_model_len")
-
-    private fun supportsReasoning(
-        id: String,
-        modality: String?,
-        supportedParameters: List<String>
-    ): Boolean {
-        if (modality?.contains("reasoning", ignoreCase = true) == true) return true
-        if (supportedParameters.any { it.contains("reasoning", ignoreCase = true) }) return true
-        if (id.contains(":thinking", ignoreCase = true)) return true
-        if (id.endsWith("-thinking", ignoreCase = true)) return true
-        return false
-    }
 
     private fun extractObjects(json: String, startIndex: Int): List<String> {
         val objects = mutableListOf<String>()
@@ -103,6 +129,16 @@ internal object ProviderModelsResponseParser {
     }
 
     private fun extractNestedObject(json: String, key: String): String? {
+        val keyPattern = "\"$key\"\\s*:".toRegex()
+        val match = keyPattern.find(json) ?: return null
+        var index = match.range.last + 1
+        while (index < json.length && json[index].isWhitespace()) index++
+        if (index >= json.length || json[index] != '{') return null
+        val end = findMatchingBrace(json, index) ?: return null
+        return json.substring(index, end + 1)
+    }
+
+    private fun parseBooleanField(json: String, key: String): Boolean? {
         val keyToken = "\"$key\""
         val keyIndex = json.indexOf(keyToken)
         if (keyIndex < 0) return null
@@ -111,9 +147,11 @@ internal object ProviderModelsResponseParser {
         if (index >= json.length || json[index] != ':') return null
         index++
         while (index < json.length && json[index].isWhitespace()) index++
-        if (index >= json.length || json[index] != '{') return null
-        val end = findMatchingBrace(json, index) ?: return null
-        return json.substring(index, end + 1)
+        return when {
+            json.startsWith("true", index) -> true
+            json.startsWith("false", index) -> false
+            else -> null
+        }
     }
 
     private fun extractIntField(json: String, key: String): Int? {
@@ -193,4 +231,8 @@ internal object ProviderModelsResponseParser {
         }
         return null
     }
+
+    private val DEFAULT_GATEWAY_REASONING_EFFORTS = listOf(
+        "max", "xhigh", "high", "medium", "low", "minimal", "none"
+    )
 }

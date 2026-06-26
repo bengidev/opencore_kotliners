@@ -3,8 +3,8 @@ package io.github.bengidev.opencore.sidepanel.application
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.arkivanov.essenty.lifecycle.resume
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
-import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelCredentialStore
+import io.github.bengidev.opencore.shared.providers.ProviderDescriptor
+import io.github.bengidev.opencore.shared.credential.CredentialInMemoryStore
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelHistoryRepository
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelPreferenceStore
 import kotlinx.coroutines.Dispatchers
@@ -39,8 +39,8 @@ class SidePanelComponentTest {
 
     @Test
     fun settingsButtonTapped_presentsSettingWithStoredKeyStatus() = runTest(testDispatcher) {
-        val credentialStore = InMemorySidePanelCredentialStore().apply {
-            save("sk-live", SidePanelProviderApi.default.id)
+        val credentialStore = CredentialInMemoryStore().apply {
+            save("sk-live", ProviderDescriptor.openRouter.id)
         }
         val component = createComponent(credentialStore = credentialStore)
 
@@ -90,7 +90,7 @@ class SidePanelComponentTest {
 
     @Test
     fun settingSaveAndClear_updatesStoredKeyIndicator() = runTest(testDispatcher) {
-        val credentialStore = InMemorySidePanelCredentialStore()
+        val credentialStore = CredentialInMemoryStore()
         val component = createComponent(credentialStore = credentialStore)
         component.settingsButtonTapped()
         advanceUntilIdle()
@@ -111,7 +111,7 @@ class SidePanelComponentTest {
     }
 
     private fun createComponent(
-        credentialStore: InMemorySidePanelCredentialStore = InMemorySidePanelCredentialStore()
+        credentialStore: CredentialInMemoryStore = CredentialInMemoryStore()
     ): SidePanelComponent {
         val lifecycle = LifecycleRegistry().apply { resume() }
         return SidePanelComponent(

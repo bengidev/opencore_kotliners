@@ -2,7 +2,7 @@ package io.github.bengidev.opencore.chat.infrastructure
 
 import io.github.bengidev.opencore.chat.domain.ChatStreamingEvent
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderPreference
-import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelCredentialStore
+import io.github.bengidev.opencore.shared.credential.CredentialInMemoryStore
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelPreferenceStore
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
@@ -16,10 +16,10 @@ class ProviderChatStreamingClientTest {
     fun stream_withoutApiKey_emitsError() = runTest {
         val client = ProviderChatStreamingClient(
             preferenceStore = InMemorySidePanelPreferenceStore(),
-            credentialStore = InMemorySidePanelCredentialStore()
+            credentialStore = CredentialInMemoryStore()
         )
 
-        val events = client.stream(emptyList(), providerSortBy = null).toList()
+        val events = client.stream(emptyList(), providerSortBy = null, reasoningEffort = null).toList()
 
         assertTrue(events[0] is ChatStreamingEvent.Error)
         assertEquals(ChatStreamingEvent.Done, events[1])
@@ -31,12 +31,12 @@ class ProviderChatStreamingClientTest {
             preferenceStore = InMemorySidePanelPreferenceStore(
                 SidePanelProviderPreference(modelId = null)
             ),
-            credentialStore = InMemorySidePanelCredentialStore().apply {
+            credentialStore = CredentialInMemoryStore().apply {
                 save("sk-test", "openrouter")
             }
         )
 
-        val events = client.stream(emptyList(), providerSortBy = null).toList()
+        val events = client.stream(emptyList(), providerSortBy = null, reasoningEffort = null).toList()
 
         assertTrue(events[0] is ChatStreamingEvent.Error)
         assertEquals(

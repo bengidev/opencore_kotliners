@@ -1,266 +1,21 @@
 package io.github.bengidev.opencore.home.infrastructure
 
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
+import io.github.bengidev.opencore.shared.providers.ProviderDescriptor
+import io.github.bengidev.opencore.shared.providers.ProviderRegistry
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class ProviderModelsResponseParserTest {
-
-    @Test
-    fun parse_extractsFreeFlagFromPricing() {
-        val body = """
-            {
-              "data": [
-                {
-                  "id": "meta-llama/llama-3.3-70b-instruct:free",
-                  "name": "Meta: Llama 3.3 70B Instruct (free)",
-                  "context_length": 131072,
-                  "architecture": { "modality": "text" },
-                  "pricing": { "prompt": "0", "completion": "0" }
-                },
-                {
-                  "id": "openai/gpt-4o",
-                  "name": "OpenAI: GPT-4o",
-                  "context_length": 128000,
-                  "architecture": { "modality": "text" },
-                  "pricing": { "prompt": "0.000005", "completion": "0.000015" }
-                }
-              ]
-            }
-        """.trimIndent()
-
-        val models = ProviderModelsResponseParser.parse(body)
-
-        assertEquals(2, models.size)
-        assertTrue(models.first { it.id.endsWith(":free") }.isFree)
-        assertFalse(models.first { it.id == "openai/gpt-4o" }.isFree)
-        assertEquals(131_072, models.first { it.id.endsWith(":free") }.contextLength)
-    }
-
-    @Test
-    fun parse_treatsDecimalZeroPricingAsFree() {
-        val body = """
-            {
-              "data": [
-                {
-                  "id": "vendor/model:free",
-                  "name": "Vendor Model",
-                  "architecture": { "modality": "text" },
-                  "pricing": { "prompt": "0.0", "completion": "0.000000" }
-                }
-              ]
-            }
-        """.trimIndent()
-
-        val models = ProviderModelsResponseParser.parse(body)
-
-        assertTrue(models.single().isFree)
-    }
-
-    @Test
-    fun parse_sortsFreeModelsFirst() {
-        val body = """
-            {
-              "data": [
-                {
-                  "id": "openai/gpt-4o",
-                  "name": "OpenAI: GPT-4o",
-                  "architecture": { "modality": "text" },
-                  "pricing": { "prompt": "1", "completion": "1" }
-                },
-                {
-                  "id": "meta-llama/llama-3.3-70b-instruct:free",
-                  "name": "Meta: Llama 3.3 70B Instruct (free)",
-                  "architecture": { "modality": "text" },
-                  "pricing": { "prompt": "0", "completion": "0" }
-                }
-              ]
-            }
-        """.trimIndent()
-
-        val models = ProviderModelsResponseParser.parse(body)
-
-        assertTrue(models.first().isFree)
-    }
-
-    @Test
-    fun parse_filtersNonTextModalities() {
-        val body = """
-            {
-              "data": [
-                {
-                  "id": "google/lyria-3",
-                  "name": "Google: Lyria 3",
-                  "architecture": { "modality": "audio" }
-                },
-                {
-                  "id": "meta-llama/llama-3.3-70b-instruct:free",
-                  "name": "Meta: Llama 3.3 70B Instruct (free)",
-                  "architecture": { "modality": "text" },
-                  "pricing": { "prompt": "0", "completion": "0" }
-                }
-              ]
-            }
-        """.trimIndent()
-
-        val models = ProviderModelsResponseParser.parse(body)
-
-        assertEquals(1, models.size)
-        assertEquals("meta-llama/llama-3.3-70b-instruct:free", models.first().id)
-    }
-
-    @Test
-    fun parse_routerTokenizer_enablesSpeedModes() {
-        val body = """
-            {
-              "data": [
-                {
-                  "id": "openrouter/free",
-                  "name": "Free Models Router",
-                  "architecture": { "modality": "text", "tokenizer": "Router" }
-                }
-              ]
-            }
-        """.trimIndent()
-
-        val model = ProviderModelsResponseParser.parse(body).single()
-
-        assertTrue(model.supportsSpeedModes)
-    }
-
-    @Test
-    fun parse_treatsFreeSuffixAsFreeWithoutPricing() {
-        val body = """
-            {
-              "data": [
-                {
-                  "id": "meta-llama/llama-3.3-70b-instruct:free",
-                  "name": "Llama 3.3 70B",
-                  "architecture": { "modality": "text" }
-                }
-              ]
-            }
-        """.trimIndent()
-
-        assertTrue(ProviderModelsResponseParser.parse(body).single().isFree)
-    }
-
-    @Test
-    fun parse_resolvesContextLengthFromAlternateKeys() {
-        val body = """
-            {
-              "data": [
-                {
-                  "id": "vendor/model",
-                  "name": "Vendor Model",
-                  "context": 65536,
-                  "architecture": { "modality": "text" }
-                }
-              ]
-            }
-        """.trimIndent()
-
-        assertEquals(65_536, ProviderModelsResponseParser.parse(body).single().contextLength)
-    }
-
-    @Test
-    fun parse_detectsReasoningFromSupportedParameters() {
-        val body = """
-            {
-              "data": [
-                {
-                  "id": "vendor/reasoner",
-                  "name": "Reasoner",
-                  "architecture": { "modality": "text" },
-                  "supported_parameters": ["reasoning_effort"]
-                }
-              ]
-            }
-        """.trimIndent()
-
-        assertTrue(ProviderModelsResponseParser.parse(body).single().supportsReasoning)
-    }
-
-    @Test
-    fun parse_openRouterFreeId_enablesSpeedModesWithoutRouterTokenizer() {
-        val body = """
-            {
-              "data": [
-                {
-                  "id": "openrouter/free",
-                  "name": "Free Models Router",
-                  "architecture": { "modality": "text", "tokenizer": "Other" }
-                }
-              ]
-            }
-        """.trimIndent()
-
-        assertTrue(ProviderModelsResponseParser.parse(body).single().supportsSpeedModes)
-    }
-
-    @Test
-    fun parse_detectsReasoningFromThinkingSuffix() {
-        val body = """
-            {
-              "data": [
-                {
-                  "id": "vendor/kimi-k2-thinking",
-                  "name": "Kimi K2 Thinking",
-                  "architecture": { "modality": "text" }
-                }
-              ]
-            }
-        """.trimIndent()
-
-        assertTrue(ProviderModelsResponseParser.parse(body).single().supportsReasoning)
-    }
-
-    @Test
-    fun parse_treatsFreeNameAsFreeWithoutPricing() {
-        val body = """
-            {
-              "data": [
-                {
-                  "id": "vendor/sample-model",
-                  "name": "Sample Free Model",
-                  "architecture": { "modality": "text" }
-                }
-              ]
-            }
-        """.trimIndent()
-
-        assertTrue(ProviderModelsResponseParser.parse(body).single().isFree)
-    }
-
-    @Test
-    fun parse_standardTokenizer_hidesSpeedModes() {
-        val body = """
-            {
-              "data": [
-                {
-                  "id": "meta-llama/llama-3.3-70b-instruct:free",
-                  "name": "Llama 3.3 70B",
-                  "architecture": { "modality": "text", "tokenizer": "Llama3" }
-                }
-              ]
-            }
-        """.trimIndent()
-
-        val model = ProviderModelsResponseParser.parse(body).single()
-
-        assertFalse(model.supportsSpeedModes)
-    }
-}
-
 class HomeModelCatalogClientTest {
+
+    private val openRouter = ProviderRegistry.resolve(ProviderDescriptor.openRouter.id)
 
     @Test
     fun listModels_withoutSecret_returnsEmptyCatalog() = runTest {
         val client = HomeModelCatalogClient()
-        val result = client.listModels(SidePanelProviderApi.openRouter, secret = null)
+        val result = client.listModels(openRouter, secret = null)
 
         assertTrue(result.models.isEmpty())
         assertFalse(result.isLive)
@@ -287,7 +42,7 @@ class HomeModelCatalogClientTest {
             }
         )
 
-        val result = client.listModels(SidePanelProviderApi.openRouter, secret = "sk-test")
+        val result = client.listModels(openRouter, secret = "sk-test")
 
         assertEquals(1, result.models.size)
         assertTrue(result.models.first().isFree)
@@ -306,7 +61,7 @@ class HomeModelCatalogClientTest {
             }
         )
 
-        val result = client.listModels(SidePanelProviderApi.openRouter, secret = "sk-test")
+        val result = client.listModels(openRouter, secret = "sk-test")
 
         assertFalse(result.isLive)
         assertEquals("Plan upgrade required", result.errorHint)
@@ -319,7 +74,7 @@ class HomeModelCatalogClientTest {
             httpGet = { _, _ -> throw RuntimeException("offline") }
         )
 
-        val result = client.listModels(SidePanelProviderApi.openRouter, secret = "sk-test")
+        val result = client.listModels(openRouter, secret = "sk-test")
 
         assertFalse(result.isLive)
         assertTrue(result.models.isEmpty())

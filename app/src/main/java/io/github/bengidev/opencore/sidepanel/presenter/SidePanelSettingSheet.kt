@@ -49,8 +49,8 @@ import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import io.github.bengidev.opencore.home.theme.HomeTheme
 import io.github.bengidev.opencore.sidepanel.application.setting.SidePanelSettingComponent
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelReasoningModel
+import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
+import io.github.bengidev.opencore.shared.providers.ProviderRegistry
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,7 +97,7 @@ internal fun SidePanelSettingSheet(
                 onProviderSelected = component::selectProvider
             )
 
-            val selectedProvider = SidePanelProviderApi.resolve(state.selectedProviderId)
+            val selectedProvider = ProviderRegistry.resolve(state.selectedProviderId).descriptor
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     text = selectedProvider.credentialLabel,
@@ -220,16 +220,16 @@ internal fun SidePanelSettingSheet(
                             .fillMaxWidth()
                             .testTag("settings-reasoning-picker")
                     ) {
-                        SidePanelReasoningModel.entries.forEachIndexed { index, model ->
+                        state.availableReasoningEfforts.forEachIndexed { index, effort ->
                             SegmentedButton(
-                                selected = state.reasoningModel == model,
-                                onClick = { component.selectReasoningModel(model) },
+                                selected = state.reasoningEffort == effort,
+                                onClick = { component.selectReasoningEffort(effort) },
                                 shape = SegmentedButtonDefaults.itemShape(
                                     index = index,
-                                    count = SidePanelReasoningModel.entries.size
+                                    count = state.availableReasoningEfforts.size
                                 )
                             ) {
-                                Text(model.title)
+                                Text(effort.title)
                             }
                         }
                     }
@@ -249,7 +249,7 @@ private fun ProviderPicker(
 ) {
     val palette = HomeTheme.palette
     var expanded by remember { mutableStateOf(false) }
-    val selectedProvider = SidePanelProviderApi.resolve(selectedProviderId)
+    val selectedProvider = ProviderRegistry.resolve(selectedProviderId).descriptor
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
@@ -284,7 +284,7 @@ private fun ProviderPicker(
                 expanded = expanded,
                 onDismissRequest = { expanded = false }
             ) {
-                SidePanelProviderApi.all.forEach { provider ->
+                ProviderRegistry.allDescriptors.forEach { provider ->
                     DropdownMenuItem(
                         text = { Text(provider.displayName) },
                         onClick = {

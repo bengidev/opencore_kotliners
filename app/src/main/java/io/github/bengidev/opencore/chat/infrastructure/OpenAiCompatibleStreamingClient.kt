@@ -2,9 +2,10 @@ package io.github.bengidev.opencore.chat.infrastructure
 
 import io.github.bengidev.opencore.chat.domain.ChatStreamError
 import io.github.bengidev.opencore.chat.domain.ChatStreamingEvent
+import io.github.bengidev.opencore.shared.providers.ProviderChatRequest
+import io.github.bengidev.opencore.shared.providers.ProviderRegistry
+import io.github.bengidev.opencore.shared.providers.ProviderWireTypes
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelReasoningModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -25,26 +26,25 @@ internal class OpenAiCompatibleStreamingClient(
     ) -> HttpStreamResult = ::defaultHttpStream
 ) {
     fun stream(
-        provider: SidePanelProviderApi,
+        providerId: String,
         modelId: String,
         apiKey: String,
         messages: List<SidePanelMessage>,
-        reasoning: SidePanelReasoningModel,
+        reasoningEffort: String? = null,
         providerSortBy: String? = null
     ): Flow<ChatStreamingEvent> = channelFlow {
         try {
-            val body = ChatCompletionsCodec.encodeRequest(
-                modelId = modelId,
-                messages = messages,
-                reasoning = reasoning,
-                stream = true,
-                providerSortBy = providerSortBy
+            val adapter = ProviderRegistry.resolve(providerId)
+            val request = adapter.encodeChatCompletionRequest(
+                secret = apiKey,
+                request = ProviderChatRequest(
+                    providerId = providerId,
+                    modelId = modelId,
+                    messages = messages,
+                    reasoningEffort = reasoningEffort,
+                    providerSortBy = providerSortBy
+                )
             )
-            val headers = buildMap {
-                put("Authorization", "Bearer $apiKey")
-                put("Accept", "text/event-stream")
-                putAll(provider.defaultHeaders)
-            }
             var decoder = ChatSSEDecoder()
             var didEmitDone = false
 
@@ -64,7 +64,7 @@ internal class OpenAiCompatibleStreamingClient(
             }
 
             when (
-                val result = httpStream(provider.chatCompletionsUrl, headers, body) { chunk ->
+                val result = httpStream(request.url, request.headers, request.body.orEmpty()) { chunk ->
                     for (event in decoder.append(chunk)) {
                         dispatchSseEvent(event)
                     }
@@ -98,15 +98,14 @@ internal class OpenAiCompatibleStreamingClient(
             return "Unauthorized (401). Check that your API key is valid."
         }
         if (status == 403) {
-            val providerMessage = ChatCompletionsCodec.parseErrorMessage(body)
+            val providerMessage = ProviderWireTypes.parseErrorMessage(body)
             return providerMessage?.let { "Forbidden (403): $it" }
                 ?: "Forbidden (403). Your plan may not include API access. Upgrade your provider plan to use these endpoints."
         }
-        val providerMessage = ChatCompletionsCodec.parseErrorMessage(body)
+        val providerMessage = ProviderWireTypes.parseErrorMessage(body)
         return providerMessage?.let { "Request failed ($status): $it" }
             ?: "Request failed with status $status."
     }
-
 }
 
 internal sealed class HttpStreamResult {

@@ -5,6 +5,10 @@ import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import kotlinx.coroutines.flow.Flow
 
 /** Strategy seam for provider chat streaming. */
-internal fun interface ChatStreamingClient {
-    fun stream(messages: List<SidePanelMessage>, providerSortBy: String?): Flow<ChatStreamingEvent>
+internal interface ChatStreamingClient {
+    fun stream(
+        messages: List<SidePanelMessage>,
+        providerSortBy: String?,
+        reasoningEffort: String?
+    ): Flow<ChatStreamingEvent>
 }

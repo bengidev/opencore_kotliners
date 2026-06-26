@@ -1,21 +1,21 @@
-package io.github.bengidev.opencore.sidepanel.domain
+package io.github.bengidev.opencore.shared.providers
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class SidePanelProviderApiTest {
+class ProviderDescriptorTest {
 
     @Test
-    fun all_includesOllamaCloud() {
-        val ids = SidePanelProviderApi.all.map { it.id }
+    fun allDescriptors_includesOllamaCloud() {
+        val ids = ProviderRegistry.allDescriptors.map { it.id }
         assertTrue(ids.contains("ollama"))
         assertEquals(4, ids.size)
     }
 
     @Test
     fun openRouter_exposesCredentialHints() {
-        val provider = SidePanelProviderApi.openRouter
+        val provider = ProviderDescriptor.openRouter
         assertEquals("sk-or-v1-...", provider.credentialPlaceholder)
         assertEquals("OPENROUTER_API_KEY", provider.credentialLabel)
         assertTrue(provider.credentialPrompt.contains("openrouter.ai/keys"))
@@ -23,7 +23,7 @@ class SidePanelProviderApiTest {
 
     @Test
     fun ollamaCloud_usesCloudBaseUrlAndCredentialHints() {
-        val provider = SidePanelProviderApi.ollamaCloud
+        val provider = ProviderDescriptor.ollamaCloud
         assertEquals("ollama", provider.id)
         assertEquals("Ollama Cloud", provider.displayName)
         assertEquals("https://ollama.com/v1", provider.baseUrl)

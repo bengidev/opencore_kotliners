@@ -1,6 +1,6 @@
 package io.github.bengidev.opencore.sidepanel.application.setting
 
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelReasoningModel
+import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -30,12 +30,13 @@ class SidePanelSettingReducerTest {
     }
 
     @Test
-    fun reasoningModelSelected_updatesModel() {
+    fun reasoningEffortSelected_updatesEffort() {
+        val low = ModelReasoningEffort("low")
         val result = SidePanelSettingReducer.reduce(
             SidePanelSettingState(),
-            SidePanelSettingIntent.ReasoningModelSelected(SidePanelReasoningModel.Low)
+            SidePanelSettingIntent.ReasoningEffortSelected(low)
         )
-        assertEquals(SidePanelReasoningModel.Low, result.reasoningModel)
+        assertEquals(low, result.reasoningEffort)
     }
 
     @Test

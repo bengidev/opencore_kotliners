@@ -25,7 +25,7 @@ import io.github.bengidev.opencore.onboarding.application.OnboardingComponent
 import io.github.bengidev.opencore.sidepanel.SidePanelFacade
 import io.github.bengidev.opencore.sidepanel.application.SidePanelComponent
 import io.github.bengidev.opencore.sidepanel.infrastructure.DataStoreSidePanelPreferenceStore
-import io.github.bengidev.opencore.sidepanel.infrastructure.EncryptedSidePanelCredentialStore
+import io.github.bengidev.opencore.shared.credential.CredentialEncryptedStore
 import io.github.bengidev.opencore.sidepanel.infrastructure.DataStoreSidePanelHistoryRepository
 import io.github.bengidev.opencore.ui.decompose.rememberComponentContext
 import io.github.bengidev.opencore.ui.theme.OpenCoreTheme
@@ -109,7 +109,7 @@ private fun HomeRoute(
     val componentContext = rememberComponentContext()
     val history = remember(activity) { DataStoreSidePanelHistoryRepository(activity) }
     val preferenceStore = remember(activity) { DataStoreSidePanelPreferenceStore(activity) }
-    val credentialStore = remember(activity) { EncryptedSidePanelCredentialStore(activity) }
+    val credentialStore = remember(activity) { CredentialEncryptedStore(activity) }
     val sidePanelComponent: SidePanelComponent = remember(componentContext, history, preferenceStore, credentialStore) {
         sidePanelFacade.createComponent(
             context = activity,
@@ -132,8 +132,8 @@ private fun HomeRoute(
             componentContext = componentContext,
             preferenceStore = preferenceStore,
             credentialStore = credentialStore,
-            onSendMessage = { message, providerSortBy ->
-                chatComponent.sendUserMessage(message, providerSortBy)
+            onSendMessage = { message, providerSortBy, reasoningEffort ->
+                chatComponent.sendUserMessage(message, providerSortBy, reasoningEffort)
             },
             onNewConversation = chatComponent::startNewConversation
         )

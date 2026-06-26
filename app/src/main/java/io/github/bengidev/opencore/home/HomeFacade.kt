@@ -2,15 +2,15 @@ package io.github.bengidev.opencore.home
 
 import com.arkivanov.decompose.ComponentContext
 import io.github.bengidev.opencore.home.application.HomeComponent
-import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelCredentialStore
+import io.github.bengidev.opencore.shared.credential.CredentialStoring
 import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelPreferenceStore
 
 internal class HomeFacade {
     fun createComponent(
         componentContext: ComponentContext,
         preferenceStore: SidePanelPreferenceStore,
-        credentialStore: SidePanelCredentialStore,
-        onSendMessage: ((String, String?) -> Unit)? = null,
+        credentialStore: CredentialStoring,
+        onSendMessage: ((String, String?, String?) -> Unit)? = null,
         onNewConversation: (() -> Unit)? = null
     ): HomeComponent = HomeComponent(
         componentContext = componentContext,

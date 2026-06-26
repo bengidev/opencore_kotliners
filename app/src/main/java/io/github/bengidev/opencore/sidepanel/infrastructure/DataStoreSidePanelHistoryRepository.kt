@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import io.github.bengidev.opencore.shared.persistence.PersistenceConversationHistoryStoring
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
@@ -29,7 +30,7 @@ private val Context.sidePanelHistoryDataStore: DataStore<Preferences> by prefere
 
 internal class DataStoreSidePanelHistoryRepository(
     private val context: Context
-) : SidePanelHistoryRepository {
+) : PersistenceConversationHistoryStoring {
 
     private val mutex = Mutex()
     private var conversations = linkedMapOf<UUID, SidePanelConversation>()

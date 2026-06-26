@@ -9,6 +9,7 @@ import io.github.bengidev.opencore.chat.infrastructure.EchoChatStreamingClient
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
+import io.github.bengidev.opencore.shared.persistence.PersistenceConversationHistoryStoring
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelHistoryRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -228,7 +229,11 @@ class ChatComponentTest {
 private class RecordingChatStreamingClient : ChatStreamingClient {
     var lastProviderSortBy: String? = null
 
-    override fun stream(messages: List<SidePanelMessage>, providerSortBy: String?): Flow<ChatStreamingEvent> {
+    override fun stream(
+        messages: List<SidePanelMessage>,
+        providerSortBy: String?,
+        reasoningEffort: String?
+    ): Flow<ChatStreamingEvent> {
         lastProviderSortBy = providerSortBy
         return flow {
             emit(ChatStreamingEvent.TextDelta("ok"))
@@ -240,7 +245,7 @@ private class RecordingChatStreamingClient : ChatStreamingClient {
 private class DelayedHistoryRepository(
     private val delegate: InMemorySidePanelHistoryRepository,
     private val loadDelayMs: Long
-) : io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelHistoryRepository {
+) : PersistenceConversationHistoryStoring {
     override suspend fun listConversations() = delegate.listConversations()
     override suspend fun saveConversation(conversation: SidePanelConversation) =
         delegate.saveConversation(conversation)

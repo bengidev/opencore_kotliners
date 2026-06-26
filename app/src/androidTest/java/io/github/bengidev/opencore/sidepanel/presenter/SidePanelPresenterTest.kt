@@ -17,7 +17,7 @@ import com.arkivanov.essenty.lifecycle.resume
 import io.github.bengidev.opencore.home.theme.OpenCoreHomeTheme
 import io.github.bengidev.opencore.sidepanel.application.SidePanelComponent
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
-import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelCredentialStore
+import io.github.bengidev.opencore.shared.credential.CredentialInMemoryStore
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelHistoryRepository
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelPreferenceStore
 import org.junit.Rule
@@ -103,7 +103,7 @@ class SidePanelPresenterTest {
         return SidePanelComponent(
             componentContext = DefaultComponentContext(lifecycle),
             history = history,
-            credentialStore = InMemorySidePanelCredentialStore(),
+            credentialStore = CredentialInMemoryStore(),
             preferenceStore = InMemorySidePanelPreferenceStore()
         )
     }

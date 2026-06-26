@@ -10,8 +10,8 @@ import io.github.bengidev.opencore.home.infrastructure.HomeModelCatalogClient
 import io.github.bengidev.opencore.home.models.HomeComposerSpeedMode
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
-import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelCredentialStore
+import io.github.bengidev.opencore.shared.providers.ProviderRegistry
+import io.github.bengidev.opencore.shared.credential.CredentialStoring
 import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelPreferenceStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,9 +24,9 @@ import kotlinx.coroutines.launch
 internal class HomeComponent(
     componentContext: ComponentContext,
     private val preferenceStore: SidePanelPreferenceStore,
-    private val credentialStore: SidePanelCredentialStore,
+    private val credentialStore: CredentialStoring,
     private val modelCatalogClient: HomeModelCatalogClient = HomeModelCatalogClient(),
-    private val onSendMessage: ((String, String?) -> Unit)? = null,
+    private val onSendMessage: ((String, String?, String?) -> Unit)? = null,
     private val onNewConversation: (() -> Unit)? = null
 ) : ComponentContext by componentContext {
 
@@ -41,6 +41,10 @@ internal class HomeComponent(
 
     init {
         lifecycle.doOnDestroy { scope.cancel() }
+        scope.launch {
+            val preference = preferenceStore.preference()
+            dispatch(HomeIntent.ReasoningEffortWireValueUpdated(preference.reasoningEffortWireValue))
+        }
         startCatalogReload(autoSelectWhenNoneSaved = false)
     }
 
@@ -61,7 +65,7 @@ internal class HomeComponent(
         val message = current.draftMessage.trim()
         dispatch(HomeIntent.SendTapped)
         if (message.isNotEmpty() && current.canSend) {
-            onSendMessage?.invoke(message, current.activeProviderSortBy)
+            onSendMessage?.invoke(message, current.activeProviderSortBy, current.activeReasoningEffort)
         }
     }
     fun onModelSelectorTapped() {
@@ -126,9 +130,10 @@ internal class HomeComponent(
 
     private suspend fun reloadModelSelection(autoSelectWhenNoneSaved: Boolean, generation: Int) {
         val preference = preferenceStore.preference()
-        val provider = SidePanelProviderApi.resolve(preference.providerId)
-        val secret = credentialStore.secret(provider.id)
-        val catalogResult = modelCatalogClient.listModels(provider, secret)
+        val providerId = preference.providerId ?: ProviderRegistry.defaultAdapter.descriptor.id
+        val adapter = ProviderRegistry.resolve(providerId)
+        val secret = credentialStore.secret(providerId)
+        val catalogResult = modelCatalogClient.listModels(adapter, secret)
         if (generation != catalogLoadGeneration) return
 
         val models = catalogResult.models
@@ -144,7 +149,7 @@ internal class HomeComponent(
             HomeIntent.ModelSelectionLoaded(
                 modelId = selection.modelId,
                 modelTitle = selection.modelTitle,
-                providerId = provider.id,
+                providerId = providerId,
                 models = models,
                 catalogIsLive = catalogResult.isLive,
                 catalogErrorHint = catalogResult.errorHint
@@ -169,8 +174,8 @@ internal class HomeComponent(
 
     private suspend fun reloadApiKeyStatus() {
         val preference = preferenceStore.preference()
-        val provider = SidePanelProviderApi.resolve(preference.providerId)
-        val hasApiKey = !credentialStore.secret(provider.id).isNullOrBlank()
+        val providerId = preference.providerId ?: ProviderRegistry.defaultAdapter.descriptor.id
+        val hasApiKey = !credentialStore.secret(providerId).isNullOrBlank()
         dispatch(HomeIntent.CredentialsLoaded(hasApiKey))
     }
 }

@@ -13,7 +13,7 @@ class HomeComposerSpeedModeTest {
     }
 
     @Test
-    fun titlesMatchSwiftLabels() {
+    fun modeTitles() {
         assertEquals("Standard", HomeComposerSpeedMode.STANDARD.title)
         assertEquals("Fast", HomeComposerSpeedMode.FAST.title)
     }

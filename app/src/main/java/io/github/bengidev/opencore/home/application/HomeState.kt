@@ -2,16 +2,17 @@ package io.github.bengidev.opencore.home.application
 
 import io.github.bengidev.opencore.home.models.ContextWindowUsage
 import io.github.bengidev.opencore.home.models.HomeComposerSpeedMode
+import io.github.bengidev.opencore.home.models.HomeModelOption
+import io.github.bengidev.opencore.shared.providers.ProviderDescriptor
+import io.github.bengidev.opencore.shared.providers.ProviderRegistry
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
 
 internal data class HomeState(
     val draftMessage: String = "",
     val selectedModelId: String? = null,
     val selectedModelTitle: String = "Not Available",
-    val selectedModelSupportsReasoning: Boolean = false,
-    val selectedModelSupportsSpeedModes: Boolean = false,
-    val selectedProviderId: String = SidePanelProviderApi.openRouter.id,
+    val reasoningEffortWireValue: String? = "high",
+    val selectedProviderId: String = ProviderDescriptor.openRouter.id,
     val hasApiKey: Boolean = false,
     val hasLoadedCredentials: Boolean = false,
     val contextUsage: ContextWindowUsage = ContextWindowUsage.zero,
@@ -35,34 +36,60 @@ internal data class HomeState(
     val showMissingApiKeyHint: Boolean
         get() = hasLoadedCredentials && !hasApiKey
 
-    val activeProviderSortBy: String?
-        get() = if (selectedModelSupportsSpeedModes) speedMode.providerSortBy else null
-
-    val filteredModels: List<SidePanelModel>
+    val selectedModelOption: HomeModelOption?
         get() {
-            var result = availableModels
+            val modelId = selectedModelId ?: return null
+            val model = availableModels.firstOrNull { it.id == modelId } ?: return null
+            return modelOptionFor(model)
+        }
+
+    val activeProviderSortBy: String?
+        get() {
+            val modes = selectedModelOption?.availableSpeedModes.orEmpty()
+            if (modes.isEmpty()) return null
+            return speedMode.providerSortBy
+        }
+
+    val activeReasoningEffort: String?
+        get() {
+            val option = selectedModelOption ?: return null
+            if (option.availableReasoningEfforts.isEmpty()) return null
+            return option.resolvedReasoningEffort(reasoningEffortWireValue).requestEffort
+        }
+
+    val selectedModelSupportsReasoning: Boolean
+        get() = selectedModelOption?.supportsReasoning == true
+
+    val selectedModelSupportsSpeedModes: Boolean
+        get() = selectedModelOption?.availableSpeedModes?.isNotEmpty() == true
+
+    fun modelOptionFor(model: SidePanelModel): HomeModelOption {
+        val adapter = ProviderRegistry.resolve(selectedProviderId)
+        return HomeModelOption(model = model, providerSupportsRouting = adapter.supportsProviderRouting)
+    }
+
+    val filteredModels: List<HomeModelOption>
+        get() {
+            var result = availableModels.map(::modelOptionFor)
             if (modelFilterFreeOnly) {
                 result = result.filter { it.isFree }
             }
             val query = appliedSearchQuery.trim()
             if (query.isNotEmpty()) {
                 result = result.filter { model ->
-                    model.displayTitle.contains(query, ignoreCase = true) ||
+                    model.title.contains(query, ignoreCase = true) ||
                         model.id.contains(query, ignoreCase = true)
                 }
             }
             return result
         }
 
-    /** True when the provider catalog has been loaded and offers at least one model. */
     val isModelCatalogAvailable: Boolean
         get() = availableModels.isNotEmpty()
 
-    /** True when the loaded catalog includes at least one free-tier model. */
     val catalogHasFreeModels: Boolean
         get() = availableModels.any { it.isFree }
 
-    /** Composer model chip label; shows "Not Available" when the catalog is empty. */
     val modelPickerTitle: String
         get() = if (isModelCatalogAvailable && selectedModelId != null) {
             selectedModelTitle

@@ -3,9 +3,8 @@ package io.github.bengidev.opencore.chat.infrastructure
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelReasoningModel
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
@@ -25,7 +24,7 @@ class ChatCompletionsCodecTest {
                     createdAt = Instant.now()
                 )
             ),
-            reasoning = SidePanelReasoningModel.High
+            reasoningEffort = "high"
         )
 
         assertTrue(body.contains(""""model":"openrouter/free""""))
@@ -60,8 +59,7 @@ class ChatCompletionsCodecTest {
                     kind = SidePanelMessageKind.THINKING,
                     isComplete = false
                 )
-            ),
-            reasoning = SidePanelReasoningModel.Off
+            )
         )
 
         assertTrue(body.contains(""""content":"hello""""))
@@ -81,7 +79,6 @@ class ChatCompletionsCodecTest {
                     createdAt = Instant.now()
                 )
             ),
-            reasoning = SidePanelReasoningModel.Off,
             stream = true
         )
 
@@ -100,7 +97,6 @@ class ChatCompletionsCodecTest {
                     createdAt = Instant.now()
                 )
             ),
-            reasoning = SidePanelReasoningModel.Off,
             stream = true,
             providerSortBy = "throughput"
         )
@@ -120,7 +116,6 @@ class ChatCompletionsCodecTest {
                     createdAt = Instant.now()
                 )
             ),
-            reasoning = SidePanelReasoningModel.Off,
             stream = true
         )
 

@@ -1,10 +1,11 @@
-package io.github.bengidev.opencore.sidepanel.infrastructure
+package io.github.bengidev.opencore.shared.persistence
 
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import java.util.UUID
 
-internal interface SidePanelHistoryRepository {
+/** Repository contract for conversation history. */
+internal interface PersistenceConversationHistoryStoring {
     suspend fun listConversations(): List<SidePanelConversation>
     suspend fun loadMessages(conversationId: UUID): List<SidePanelMessage>
     suspend fun saveConversation(conversation: SidePanelConversation)

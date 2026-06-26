@@ -5,8 +5,8 @@ import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.arkivanov.essenty.lifecycle.resume
 import io.github.bengidev.opencore.home.infrastructure.HomeModelCatalogClient
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderPreference
-import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderApi
-import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelCredentialStore
+import io.github.bengidev.opencore.shared.providers.ProviderDescriptor
+import io.github.bengidev.opencore.shared.credential.CredentialInMemoryStore
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelPreferenceStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -44,11 +44,11 @@ class HomeComponentTest {
         preferenceStore: InMemorySidePanelPreferenceStore = InMemorySidePanelPreferenceStore(
             SidePanelProviderPreference(modelId = "meta-llama/llama-3.3-70b-instruct:free")
         ),
-        credentialStore: InMemorySidePanelCredentialStore = HomeTestCatalog.credentialStoreWithKey(),
+        credentialStore: CredentialInMemoryStore = HomeTestCatalog.credentialStoreWithKey(),
         modelCatalogClient: HomeModelCatalogClient = HomeTestCatalog.catalogClient(
             ioDispatcher = testDispatcher
         ),
-        onSendMessage: ((String, String?) -> Unit)? = null,
+        onSendMessage: ((String, String?, String?) -> Unit)? = null,
         onNewConversation: (() -> Unit)? = null
     ) = HomeComponent(
         componentContext = DefaultComponentContext(lifecycle),
@@ -65,7 +65,7 @@ class HomeComponentTest {
         val lifecycle = LifecycleRegistry().apply { resume() }
         val component = homeComponent(
             lifecycle = lifecycle,
-            onSendMessage = { message, _ -> sent = message }
+            onSendMessage = { message, _, _ -> sent = message }
         )
         advanceUntilIdle()
 
@@ -82,7 +82,7 @@ class HomeComponentTest {
         val lifecycle = LifecycleRegistry().apply { resume() }
         val component = homeComponent(
             lifecycle = lifecycle,
-            onSendMessage = { _: String, _: String? -> sent = true }
+            onSendMessage = { _: String, _: String?, _: String? -> sent = true }
         )
         advanceUntilIdle()
 
@@ -98,8 +98,8 @@ class HomeComponentTest {
         val lifecycle = LifecycleRegistry().apply { resume() }
         val component = homeComponent(
             lifecycle = lifecycle,
-            credentialStore = InMemorySidePanelCredentialStore(),
-            onSendMessage = { _: String, _: String? -> sent = true }
+            credentialStore = CredentialInMemoryStore(),
+            onSendMessage = { _: String, _: String?, _: String? -> sent = true }
         )
         advanceUntilIdle()
 
@@ -112,7 +112,7 @@ class HomeComponentTest {
 
     @Test
     fun onCredentialsChanged_refreshesApiKeyState() = runTest(testDispatcher) {
-        val store = InMemorySidePanelCredentialStore()
+        val store = CredentialInMemoryStore()
         val lifecycle = LifecycleRegistry().apply { resume() }
         val component = homeComponent(
             lifecycle = lifecycle,
@@ -122,7 +122,7 @@ class HomeComponentTest {
         advanceUntilIdle()
         assertFalse(component.state.value.hasApiKey)
 
-        store.save("sk-test", SidePanelProviderApi.openRouter.id)
+        store.save("sk-test", ProviderDescriptor.openRouter.id)
         component.onCredentialsChanged()
         advanceUntilIdle()
 
@@ -188,13 +188,13 @@ class HomeComponentTest {
         )
         val preferenceStore = InMemorySidePanelPreferenceStore(
             SidePanelProviderPreference(
-                providerId = SidePanelProviderApi.openRouter.id,
+                providerId = ProviderDescriptor.openRouter.id,
                 modelId = "openrouter/free"
             )
         )
-        val credentialStore = InMemorySidePanelCredentialStore().apply {
-            save("sk-test", SidePanelProviderApi.openRouter.id)
-            save("sk-test", SidePanelProviderApi.openCode.id)
+        val credentialStore = CredentialInMemoryStore().apply {
+            save("sk-test", ProviderDescriptor.openRouter.id)
+            save("sk-test", ProviderDescriptor.openCode.id)
         }
         val lifecycle = LifecycleRegistry().apply { resume() }
         val component = homeComponent(
@@ -205,11 +205,11 @@ class HomeComponentTest {
         )
         advanceUntilIdle()
 
-        preferenceStore.setProviderId(SidePanelProviderApi.openCode.id)
+        preferenceStore.setProviderId(ProviderDescriptor.openCode.id)
         component.onProviderChanged()
         advanceUntilIdle()
 
-        assertEquals(SidePanelProviderApi.openCode.id, component.state.value.selectedProviderId)
+        assertEquals(ProviderDescriptor.openCode.id, component.state.value.selectedProviderId)
         assertEquals("gpt-4o-mini", component.state.value.selectedModelId)
     }
 
@@ -218,7 +218,7 @@ class HomeComponentTest {
         val lifecycle = LifecycleRegistry().apply { resume() }
         val component = homeComponent(
             lifecycle = lifecycle,
-            credentialStore = InMemorySidePanelCredentialStore(),
+            credentialStore = CredentialInMemoryStore(),
             modelCatalogClient = HomeModelCatalogClient(ioDispatcher = testDispatcher)
         )
         advanceUntilIdle()
