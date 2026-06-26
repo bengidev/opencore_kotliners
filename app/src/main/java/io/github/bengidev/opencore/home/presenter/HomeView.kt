@@ -21,6 +21,7 @@ import io.github.bengidev.opencore.chat.application.ChatState
 import io.github.bengidev.opencore.chat.presenter.ChatView
 import io.github.bengidev.opencore.home.application.HomeState
 import io.github.bengidev.opencore.home.models.HomeComposerSpeedMode
+import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
 import io.github.bengidev.opencore.home.theme.HomeTheme
 
 private val ComposerBottomPadding = 10.dp
@@ -39,6 +40,7 @@ internal fun HomeView(
     onModelSelectorTapped: () -> Unit,
     onSpeedModeTapped: () -> Unit,
     onSpeedModeSelected: (HomeComposerSpeedMode) -> Unit,
+    onReasoningEffortSelected: (ModelReasoningEffort) -> Unit,
     onContextUsageTapped: () -> Unit,
     onChatRetryTapped: () -> Unit = {},
     onChatErrorDismissed: () -> Unit = {},
@@ -82,6 +84,10 @@ internal fun HomeView(
                 onSpeedModeTapped()
             },
             onSpeedModeSelected = onSpeedModeSelected,
+            onReasoningEffortSelected = {
+                dismissKeyboard()
+                onReasoningEffortSelected(it)
+            },
             onContextUsageTapped = {
                 dismissKeyboard()
                 onContextUsageTapped()

@@ -1,6 +1,7 @@
 package io.github.bengidev.opencore.chat.application
 
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
+import io.github.bengidev.opencore.sidepanel.domain.dedupeByMessageId
 
 internal object ChatReducer {
     fun reduce(state: ChatState, intent: ChatIntent): ChatState = when (intent) {
@@ -26,7 +27,7 @@ internal object ChatReducer {
                 state
             } else {
                 state.clearedStreamingFields().copy(
-                    messages = intent.messages,
+                    messages = intent.messages.dedupeByMessageId(),
                     isLoadingMessages = false
                 )
             }

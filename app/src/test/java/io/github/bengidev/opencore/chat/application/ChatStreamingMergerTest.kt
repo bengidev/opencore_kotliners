@@ -212,6 +212,45 @@ class ChatStreamingMergerTest {
     }
 
     @Test
+    fun applyPendingPartial_reusesOrphanIncompleteRowsWhenStreamingIdsWereCleared() {
+        val orphanThinkingId = UUID.fromString("00000000-0000-0000-0000-000000000010")
+        val orphanAnswerId = UUID.fromString("00000000-0000-0000-0000-000000000011")
+        val initial = ChatStreamingState(
+            messages = listOf(
+                userMessage(),
+                SidePanelMessage(
+                    id = orphanThinkingId,
+                    role = ChatMessageRole.ASSISTANT,
+                    content = "Old think",
+                    createdAt = now,
+                    kind = SidePanelMessageKind.THINKING,
+                    isComplete = false
+                ),
+                SidePanelMessage(
+                    id = orphanAnswerId,
+                    role = ChatMessageRole.ASSISTANT,
+                    content = "Old answer",
+                    createdAt = now,
+                    kind = SidePanelMessageKind.TEXT,
+                    isComplete = false
+                )
+            )
+        )
+        val result = ChatStreamingMerger.applyPendingPartial(
+            state = initial,
+            partialThinking = "New think",
+            partialText = "New answer",
+            makeId = ::makeId,
+            now = now
+        )
+        assertEquals(3, result.state.messages.size)
+        assertEquals(orphanThinkingId, result.state.streamingThinkingId)
+        assertEquals(orphanAnswerId, result.state.streamingAnswerId)
+        assertEquals("New think", result.state.messages[1].content)
+        assertEquals("New answer", result.state.messages[2].content)
+    }
+
+    @Test
     fun applyPendingPartial_isNoOpWhenBuffersAreEmpty() {
         val initial = ChatStreamingState(messages = listOf(userMessage()))
         val result = ChatStreamingMerger.applyPendingPartial(

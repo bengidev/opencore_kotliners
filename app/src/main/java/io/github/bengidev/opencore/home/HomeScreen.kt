@@ -26,14 +26,6 @@ internal fun HomeScreen(
     val state by component.state.subscribeAsState()
     val chatState by chatComponent.state.subscribeAsState()
 
-    LaunchedEffect(state.selectedModelOption) {
-        val option = state.selectedModelOption
-        sidePanelComponent.setModelReasoningOptions(
-            modelSupportsReasoning = option?.supportsReasoning == true,
-            availableReasoningEfforts = option?.availableReasoningEfforts.orEmpty()
-        )
-    }
-
     LaunchedEffect(
         chatState.messages.size,
         chatState.streamingStatus,
@@ -60,6 +52,7 @@ internal fun HomeScreen(
                 onModelSelectorTapped = component::onModelSelectorTapped,
                 onSpeedModeTapped = component::onSpeedModeTapped,
                 onSpeedModeSelected = component::onSpeedModeSelected,
+                onReasoningEffortSelected = component::onReasoningEffortSelected,
                 onContextUsageTapped = component::onContextUsageTapped,
                 onChatRetryTapped = {
                     chatComponent.retry(state.activeProviderSortBy, state.activeReasoningEffort)

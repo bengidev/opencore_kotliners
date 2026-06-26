@@ -81,6 +81,10 @@ internal object HomeReducer {
             if (intent.mode !in modes) state else state.copy(speedMode = intent.mode)
         }
         is HomeIntent.ReasoningEffortWireValueUpdated -> state.copy(reasoningEffortWireValue = intent.wireValue)
+        is HomeIntent.ReasoningEffortSelected -> {
+            val efforts = state.selectedModelOption?.availableReasoningEfforts.orEmpty()
+            if (intent.effort !in efforts) state else state.copy(reasoningEffortWireValue = intent.effort.wireValue)
+        }
         is HomeIntent.ContextUsageUpdated -> state.copy(contextUsage = intent.usage)
         HomeIntent.AttachmentTapped,
         HomeIntent.ContextUsageTapped,

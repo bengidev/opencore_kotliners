@@ -2,9 +2,13 @@ package io.github.bengidev.opencore.chat.presenter
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -15,6 +19,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.chat.application.ChatState
@@ -28,6 +33,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun ChatThreadView(
     state: ChatState,
@@ -80,23 +86,28 @@ internal fun ChatThreadView(
             state.currentPartialText.encodeToByteArray().size,
             state.currentPartialThinking.encodeToByteArray().size
         )
+        val bottomTargetIndex = state.messages.lastIndex + if (awaitingAssistantReply) 1 else 0
+        val imeVisible = WindowInsets.isImeVisible
+        val imeBottomPx = WindowInsets.ime.getBottom(LocalDensity.current)
 
         LaunchedEffect(state.messages.size, awaitingAssistantReply) {
-            val targetIndex = state.messages.lastIndex + if (awaitingAssistantReply) 1 else 0
-            scrollThreadToBottom(listState, targetIndex, animate = true)
+            scrollThreadToBottom(listState, bottomTargetIndex, animate = true)
         }
 
         LaunchedEffect(state.streamingRevision) {
             if (state.streamingRevision == 0) return@LaunchedEffect
-            val targetIndex = state.messages.lastIndex + if (awaitingAssistantReply) 1 else 0
             val delayMs = ChatStreamingCoalescingPolicy.scrollDelayMs(pendingByteCount)
             if (delayMs > 0L) delay(delayMs)
-            scrollThreadToBottom(listState, targetIndex, animate = false)
+            scrollThreadToBottom(listState, bottomTargetIndex, animate = false)
         }
 
         LaunchedEffect(state.streamingStatus) {
-            val targetIndex = state.messages.lastIndex + if (awaitingAssistantReply) 1 else 0
-            scrollThreadToBottom(listState, targetIndex, animate = true)
+            scrollThreadToBottom(listState, bottomTargetIndex, animate = true)
+        }
+
+        LaunchedEffect(imeVisible, imeBottomPx, bottomTargetIndex) {
+            if (!imeVisible || imeBottomPx <= 0) return@LaunchedEffect
+            scrollThreadToBottom(listState, bottomTargetIndex, animate = false)
         }
 
         LazyColumn(
@@ -108,7 +119,7 @@ internal fun ChatThreadView(
             verticalArrangement = Arrangement.spacedBy(0.dp),
             contentPadding = PaddingValues(vertical = 8.dp)
         ) {
-            items(state.messages, key = { it.id }) { message ->
+            items(state.messages, key = { "${it.id}:${it.kind}" }) { message ->
                 val isLastMessage = message.id == state.messages.lastOrNull()?.id
                 val isStreamingAssistant = state.isSending &&
                     isLastMessage &&

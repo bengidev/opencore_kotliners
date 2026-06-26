@@ -3,6 +3,7 @@ package io.github.bengidev.opencore.home.application
 import io.github.bengidev.opencore.home.models.ContextWindowUsage
 import io.github.bengidev.opencore.home.models.HomeComposerSpeedMode
 import io.github.bengidev.opencore.home.models.HomeModelOption
+import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
 import io.github.bengidev.opencore.shared.providers.ProviderDescriptor
 import io.github.bengidev.opencore.shared.providers.ProviderRegistry
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
@@ -62,6 +63,12 @@ internal data class HomeState(
 
     val selectedModelSupportsSpeedModes: Boolean
         get() = selectedModelOption?.availableSpeedModes?.isNotEmpty() == true
+
+    val availableReasoningEfforts: List<ModelReasoningEffort>
+        get() = selectedModelOption?.availableReasoningEfforts.orEmpty()
+
+    val selectedReasoningEffort: ModelReasoningEffort
+        get() = selectedModelOption?.resolvedReasoningEffort(reasoningEffortWireValue) ?: ModelReasoningEffort.off
 
     fun modelOptionFor(model: SidePanelModel): HomeModelOption {
         val adapter = ProviderRegistry.resolve(selectedProviderId)

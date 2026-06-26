@@ -3,6 +3,7 @@ package io.github.bengidev.opencore.home.application
 import io.github.bengidev.opencore.home.models.ContextWindowUsage
 import io.github.bengidev.opencore.home.models.HomeComposerSpeedMode
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
+import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
 import io.github.bengidev.opencore.shared.providers.ProviderDescriptor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -282,6 +283,27 @@ class HomeReducerTest {
             )
         )
         assertTrue(result.selectedModelSupportsReasoning)
+    }
+
+    @Test
+    fun reasoningEffortSelected_updatesWireValueWhenSupported() {
+        val reasoningModel = SidePanelModel(
+            id = "deepseek/deepseek-r1:free",
+            displayTitle = "DeepSeek R1 (free)",
+            supportedReasoningEfforts = listOf("high", "medium", "low")
+        )
+        val initial = HomeState(
+            availableModels = listOf(reasoningModel),
+            selectedModelId = reasoningModel.id,
+            selectedModelTitle = reasoningModel.displayTitle,
+            reasoningEffortWireValue = "high",
+        )
+        val result = HomeReducer.reduce(
+            initial,
+            HomeIntent.ReasoningEffortSelected(ModelReasoningEffort("low"))
+        )
+        assertEquals("low", result.reasoningEffortWireValue)
+        assertEquals("low", result.selectedReasoningEffort.wireValue)
     }
 
     @Test

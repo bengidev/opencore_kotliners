@@ -107,7 +107,11 @@ internal object ChatStreamingMerger {
         makeId: () -> UUID,
         now: Instant
     ): ChatStreamingMergeResult {
-        val thinkingId = state.streamingThinkingId
+        val thinkingId = resolveStreamingRowId(
+            trackedId = state.streamingThinkingId,
+            messages = state.messages,
+            kind = SidePanelMessageKind.THINKING,
+        )
         return if (thinkingId != null) {
             val messages = state.messages.map { message ->
                 if (message.id == thinkingId && message.kind == SidePanelMessageKind.THINKING) {
@@ -120,6 +124,7 @@ internal object ChatStreamingMerger {
                 state.copy(
                     messages = messages,
                     currentPartialThinking = partialThinking,
+                    streamingThinkingId = thinkingId,
                     streamingStatus = ChatStreamingStatus.Running
                 )
             )
@@ -150,7 +155,11 @@ internal object ChatStreamingMerger {
         makeId: () -> UUID,
         now: Instant
     ): ChatStreamingMergeResult {
-        val answerId = state.streamingAnswerId
+        val answerId = resolveStreamingRowId(
+            trackedId = state.streamingAnswerId,
+            messages = state.messages,
+            kind = SidePanelMessageKind.TEXT,
+        )
         return if (answerId != null) {
             val messages = state.messages.map { message ->
                 if (message.id == answerId && message.kind == SidePanelMessageKind.TEXT) {
@@ -163,6 +172,7 @@ internal object ChatStreamingMerger {
                 state.copy(
                     messages = messages,
                     currentPartialText = partialText,
+                    streamingAnswerId = answerId,
                     streamingStatus = ChatStreamingStatus.Running
                 )
             )
@@ -233,5 +243,18 @@ internal object ChatStreamingMerger {
                 streamingAnswerId = null
             )
         )
+    }
+
+    private fun resolveStreamingRowId(
+        trackedId: UUID?,
+        messages: List<SidePanelMessage>,
+        kind: SidePanelMessageKind,
+    ): UUID? {
+        if (trackedId != null) return trackedId
+        return messages.lastOrNull { message ->
+            message.kind == kind &&
+                message.role == ChatMessageRole.ASSISTANT &&
+                !message.isComplete
+        }?.id
     }
 }
