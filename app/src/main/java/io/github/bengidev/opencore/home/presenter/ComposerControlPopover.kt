@@ -31,7 +31,9 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import io.github.bengidev.opencore.home.models.HomeComposerSpeedMode
 import io.github.bengidev.opencore.home.presenter.components.homeComposerGlass
 import io.github.bengidev.opencore.home.theme.HomeTheme
@@ -50,11 +52,39 @@ internal fun rememberComposerControlPopoverPositionProvider(): PopupPositionProv
             ): IntOffset {
                 val gapPx = with(density) { 8.dp.roundToPx() }
                 val x = anchorBounds.left + (anchorBounds.width - popupContentSize.width) / 2
-                val y = anchorBounds.top - popupContentSize.height - gapPx
+                val aboveY = anchorBounds.top - popupContentSize.height - gapPx
+                val y = if (aboveY >= 0) {
+                    aboveY
+                } else {
+                    anchorBounds.bottom + gapPx
+                }
                 return IntOffset(
                     x.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0)),
-                    y.coerceAtLeast(0),
+                    y.coerceIn(0, (windowSize.height - popupContentSize.height).coerceAtLeast(0)),
                 )
+            }
+        }
+    }
+}
+
+@Composable
+internal fun ComposerControlPopoverHost(
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    anchor: @Composable () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val popupPositionProvider = rememberComposerControlPopoverPositionProvider()
+    Box(modifier = modifier) {
+        anchor()
+        if (expanded) {
+            Popup(
+                popupPositionProvider = popupPositionProvider,
+                onDismissRequest = { onExpandedChange(false) },
+                properties = PopupProperties(focusable = true),
+            ) {
+                content()
             }
         }
     }

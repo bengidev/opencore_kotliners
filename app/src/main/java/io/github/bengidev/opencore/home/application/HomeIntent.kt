@@ -29,10 +29,8 @@ internal sealed interface HomeIntent {
     data class ModelSearchQueryChanged(val query: String) : HomeIntent
     data class ModelSearchQueryApplied(val query: String) : HomeIntent
     data class ModelFilterFreeOnlyChanged(val enabled: Boolean) : HomeIntent
-    data object SpeedModeTapped : HomeIntent
     data class SpeedModeSelected(val mode: HomeComposerSpeedMode) : HomeIntent
     data class ReasoningEffortWireValueUpdated(val wireValue: String?) : HomeIntent
     data class ReasoningEffortSelected(val effort: ModelReasoningEffort) : HomeIntent
-    data object ContextUsageTapped : HomeIntent
     data class ContextUsageUpdated(val usage: ContextWindowUsage) : HomeIntent
 }

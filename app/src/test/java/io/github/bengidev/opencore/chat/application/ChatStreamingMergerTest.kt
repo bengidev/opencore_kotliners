@@ -279,4 +279,111 @@ class ChatStreamingMergerTest {
         assertEquals(1, result.state.messages.size)
         assertEquals(ChatMessageRole.USER, result.state.messages.first().role)
     }
+
+    @Test
+    fun error_removesOrphanIncompleteRowsWhenStreamingIdsAreNull() {
+        val orphanAnswerId = UUID.fromString("00000000-0000-0000-0000-000000000011")
+        val initial = ChatStreamingState(
+            messages = listOf(
+                userMessage(),
+                SidePanelMessage(
+                    id = orphanAnswerId,
+                    role = ChatMessageRole.ASSISTANT,
+                    content = "Stale partial",
+                    createdAt = now,
+                    kind = SidePanelMessageKind.TEXT,
+                    isComplete = false
+                )
+            )
+        )
+        val result = ChatStreamingMerger.merge(
+            initial,
+            ChatStreamingEvent.Error(ChatStreamError("Missing API key")),
+            ::makeId,
+            now
+        )
+        assertEquals(1, result.state.messages.size)
+        assertEquals(ChatMessageRole.USER, result.state.messages.first().role)
+    }
+
+    @Test
+    fun textDelta_createsNewRowWhenPriorTurnHasIncompleteAssistantRow() {
+        val staleAnswerId = UUID.fromString("00000000-0000-0000-0000-000000000020")
+        val initial = ChatStreamingState(
+            messages = listOf(
+                userMessage("First"),
+                SidePanelMessage(
+                    id = staleAnswerId,
+                    role = ChatMessageRole.ASSISTANT,
+                    content = "Old partial",
+                    createdAt = now,
+                    kind = SidePanelMessageKind.TEXT,
+                    isComplete = false
+                ),
+                userMessage("Second"),
+            )
+        )
+        val result = ChatStreamingMerger.merge(
+            initial,
+            ChatStreamingEvent.TextDelta("Fresh"),
+            { answerId },
+            now
+        )
+        assertEquals(4, result.state.messages.size)
+        val assistantRows = result.state.messages.filter {
+            it.role == ChatMessageRole.ASSISTANT && it.kind == SidePanelMessageKind.TEXT
+        }
+        assertEquals(2, assistantRows.size)
+        assertEquals("Old partial", assistantRows.first().content)
+        assertEquals("Fresh", assistantRows.last().content)
+        assertEquals(answerId, result.state.streamingAnswerId)
+    }
+
+    @Test
+    fun textDelta_createsNewRowWhenTrackedIdPointsAtMissingRow() {
+        val missingId = UUID.fromString("00000000-0000-0000-0000-000000000099")
+        val initial = ChatStreamingState(
+            messages = listOf(userMessage()),
+            streamingAnswerId = missingId,
+        )
+        val result = ChatStreamingMerger.merge(
+            initial,
+            ChatStreamingEvent.TextDelta("Hello"),
+            { answerId },
+            now
+        )
+        assertEquals(2, result.state.messages.size)
+        assertEquals("Hello", result.state.messages.last().content)
+        assertEquals(answerId, result.state.streamingAnswerId)
+    }
+
+    @Test
+    fun done_finalizesResolvedRowsWhenStreamingIdsAreNull() {
+        val orphanThinkingId = UUID.fromString("00000000-0000-0000-0000-000000000010")
+        val orphanAnswerId = UUID.fromString("00000000-0000-0000-0000-000000000011")
+        val initial = ChatStreamingState(
+            messages = listOf(
+                userMessage(),
+                SidePanelMessage(
+                    id = orphanThinkingId,
+                    role = ChatMessageRole.ASSISTANT,
+                    content = "Think",
+                    createdAt = now,
+                    kind = SidePanelMessageKind.THINKING,
+                    isComplete = false
+                ),
+                SidePanelMessage(
+                    id = orphanAnswerId,
+                    role = ChatMessageRole.ASSISTANT,
+                    content = "Reply",
+                    createdAt = now,
+                    kind = SidePanelMessageKind.TEXT,
+                    isComplete = false
+                )
+            )
+        )
+        val result = ChatStreamingMerger.merge(initial, ChatStreamingEvent.Done, ::makeId, now)
+        assertTrue(result.state.messages.all { it.isComplete })
+        assertEquals(2, result.finalizedMessages.size)
+    }
 }

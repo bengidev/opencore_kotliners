@@ -1,7 +1,6 @@
 package io.github.bengidev.opencore.chat.application
 
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
-import io.github.bengidev.opencore.sidepanel.domain.dedupeByMessageId
 
 internal object ChatReducer {
     fun reduce(state: ChatState, intent: ChatIntent): ChatState = when (intent) {
@@ -27,7 +26,7 @@ internal object ChatReducer {
                 state
             } else {
                 state.clearedStreamingFields().copy(
-                    messages = intent.messages.dedupeByMessageId(),
+                    messages = intent.messages,
                     isLoadingMessages = false
                 )
             }
@@ -58,16 +57,18 @@ internal object ChatReducer {
                 )
             }
         }
-        ChatIntent.StreamingTurnStarted -> state.copy(
-            isSending = true,
-            streamingStatus = ChatStreamingStatus.Running,
-            currentPartialText = "",
-            currentPartialThinking = "",
-            streamErrorMessage = null,
-            streamingThinkingId = null,
-            streamingAnswerId = null,
-            streamingRevision = 0
-        )
+        ChatIntent.StreamingTurnStarted -> state
+            .withoutIncompleteAssistantRows()
+            .copy(
+                isSending = true,
+                streamingStatus = ChatStreamingStatus.Running,
+                currentPartialText = "",
+                currentPartialThinking = "",
+                streamErrorMessage = null,
+                streamingThinkingId = null,
+                streamingAnswerId = null,
+                streamingRevision = 0
+            )
         is ChatIntent.StreamingMerged -> {
             val stillSending = when (intent.result.state.streamingStatus) {
                 ChatStreamingStatus.Running -> true

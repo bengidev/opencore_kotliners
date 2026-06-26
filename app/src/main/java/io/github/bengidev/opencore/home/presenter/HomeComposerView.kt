@@ -49,8 +49,6 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
 import io.github.bengidev.opencore.home.application.HomeState
 import io.github.bengidev.opencore.home.presenter.components.homeComposerGlass
 import io.github.bengidev.opencore.home.theme.HomeTheme
@@ -66,10 +64,8 @@ internal fun HomeComposerView(
     onSendTapped: () -> Unit,
     onConfigureApiKeyTapped: () -> Unit,
     onModelSelectorTapped: () -> Unit,
-    onSpeedModeTapped: () -> Unit,
     onSpeedModeSelected: (HomeComposerSpeedMode) -> Unit,
     onReasoningEffortSelected: (ModelReasoningEffort) -> Unit,
-    onContextUsageTapped: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -90,10 +86,8 @@ internal fun HomeComposerView(
         HomeComposerContextRail(
             state = state,
             onModelSelectorTapped = onModelSelectorTapped,
-            onSpeedModeTapped = onSpeedModeTapped,
             onSpeedModeSelected = onSpeedModeSelected,
             onReasoningEffortSelected = onReasoningEffortSelected,
-            onContextUsageTapped = onContextUsageTapped
         )
     }
 }
@@ -222,10 +216,8 @@ private fun MissingApiKeyHint(onClick: () -> Unit) {
 private fun HomeComposerContextRail(
     state: HomeState,
     onModelSelectorTapped: () -> Unit,
-    onSpeedModeTapped: () -> Unit,
     onSpeedModeSelected: (HomeComposerSpeedMode) -> Unit,
     onReasoningEffortSelected: (ModelReasoningEffort) -> Unit,
-    onContextUsageTapped: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -271,14 +263,10 @@ private fun HomeComposerContextRail(
                 if (state.selectedModelSupportsSpeedModes) {
                     HomeComposerSpeedChip(
                         speedMode = state.speedMode,
-                        onSpeedModeTapped = onSpeedModeTapped,
                         onSpeedModeSelected = onSpeedModeSelected
                     )
                 }
-                HomeComposerContextUsageIndicator(
-                    usage = state.contextUsage,
-                    onClick = onContextUsageTapped
-                )
+                HomeComposerContextUsageIndicator(usage = state.contextUsage)
             }
         }
     }
@@ -355,167 +343,149 @@ private fun HomeComposerReasoningChip(
     val palette = HomeTheme.palette
     val typography = HomeTheme.typography
     var popoverExpanded by remember { mutableStateOf(false) }
-    val popupPositionProvider = rememberComposerControlPopoverPositionProvider()
 
-    Box {
-        Row(
-            modifier = Modifier
-                .widthIn(min = 92.dp)
-                .height(30.dp)
-                .homeComposerGlass(cornerRadius = 16.dp, shadowOpacity = 0.06f)
-                .clickable { popoverExpanded = true }
-                .padding(horizontal = 10.dp)
-                .semantics {
-                    contentDescription = "Reasoning, ${selectedEffort.title}"
-                },
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Default.Psychology,
-                contentDescription = null,
-                tint = palette.textSecondary,
-                modifier = Modifier.size(14.dp),
-            )
-            Text(
-                text = selectedEffort.title,
-                style = typography.chipLabel,
-                color = palette.textSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowDown,
-                contentDescription = null,
-                tint = palette.textSecondary,
-                modifier = Modifier.size(16.dp),
-            )
-        }
-        if (popoverExpanded) {
-            Popup(
-                popupPositionProvider = popupPositionProvider,
-                onDismissRequest = { popoverExpanded = false },
-                properties = PopupProperties(focusable = true),
-            ) {
-                ReasoningControlPopover(
-                    selectedEffort = selectedEffort,
-                    availableEfforts = availableEfforts,
-                    onEffortSelected = { effort ->
-                        popoverExpanded = false
-                        onReasoningEffortSelected(effort)
+    ComposerControlPopoverHost(
+        expanded = popoverExpanded,
+        onExpandedChange = { popoverExpanded = it },
+        anchor = {
+            Row(
+                modifier = Modifier
+                    .widthIn(min = 92.dp)
+                    .height(30.dp)
+                    .homeComposerGlass(cornerRadius = 16.dp, shadowOpacity = 0.06f)
+                    .clickable { popoverExpanded = true }
+                    .padding(horizontal = 10.dp)
+                    .semantics {
+                        contentDescription = "Reasoning, ${selectedEffort.title}"
                     },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Psychology,
+                    contentDescription = null,
+                    tint = palette.textSecondary,
+                    modifier = Modifier.size(14.dp),
+                )
+                Text(
+                    text = selectedEffort.title,
+                    style = typography.chipLabel,
+                    color = palette.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = palette.textSecondary,
+                    modifier = Modifier.size(16.dp),
                 )
             }
-        }
-    }
+        },
+        content = {
+            ReasoningControlPopover(
+                selectedEffort = selectedEffort,
+                availableEfforts = availableEfforts,
+                onEffortSelected = { effort ->
+                    popoverExpanded = false
+                    onReasoningEffortSelected(effort)
+                },
+            )
+        },
+    )
 }
 
 @Composable
 private fun HomeComposerSpeedChip(
     speedMode: HomeComposerSpeedMode,
-    onSpeedModeTapped: () -> Unit,
     onSpeedModeSelected: (HomeComposerSpeedMode) -> Unit
 ) {
     val palette = HomeTheme.palette
     var popoverExpanded by remember { mutableStateOf(false) }
-    val popupPositionProvider = rememberComposerControlPopoverPositionProvider()
     val isFast = speedMode == HomeComposerSpeedMode.FAST
 
-    Box {
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .homeComposerGlass(cornerRadius = 16.dp, shadowOpacity = 0.06f)
-                .clickable {
-                    onSpeedModeTapped()
-                    popoverExpanded = true
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Bolt,
-                contentDescription = "Speed, ${speedMode.title}",
-                tint = if (isFast) palette.accentPrimary else palette.textSecondary,
-                modifier = Modifier.size(14.dp)
-            )
-        }
-        if (popoverExpanded) {
-            Popup(
-                popupPositionProvider = popupPositionProvider,
-                onDismissRequest = { popoverExpanded = false },
-                properties = PopupProperties(focusable = true),
+    ComposerControlPopoverHost(
+        expanded = popoverExpanded,
+        onExpandedChange = { popoverExpanded = it },
+        anchor = {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .homeComposerGlass(cornerRadius = 16.dp, shadowOpacity = 0.06f)
+                    .clickable { popoverExpanded = true },
+                contentAlignment = Alignment.Center
             ) {
-                SpeedControlPopover(
-                    speedMode = speedMode,
-                    onSpeedModeSelected = { mode ->
-                        popoverExpanded = false
-                        onSpeedModeSelected(mode)
-                    },
+                Icon(
+                    imageVector = Icons.Default.Bolt,
+                    contentDescription = "Speed, ${speedMode.title}",
+                    tint = if (isFast) palette.accentPrimary else palette.textSecondary,
+                    modifier = Modifier.size(14.dp)
                 )
             }
-        }
-    }
+        },
+        content = {
+            SpeedControlPopover(
+                speedMode = speedMode,
+                onSpeedModeSelected = { mode ->
+                    popoverExpanded = false
+                    onSpeedModeSelected(mode)
+                },
+            )
+        },
+    )
 }
 
 @Composable
 private fun HomeComposerContextUsageIndicator(
     usage: ContextWindowUsage,
-    onClick: () -> Unit
 ) {
     val palette = HomeTheme.palette
     val typography = HomeTheme.typography
     val usagePercent = usage.percentUsed
     val fraction = (usagePercent / 100f).coerceIn(0f, 1f)
     var popoverExpanded by remember { mutableStateOf(false) }
-    val popupPositionProvider = rememberComposerControlPopoverPositionProvider()
 
-    Box {
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .clip(CircleShape)
-                .background(palette.surfaceRaised.copy(alpha = if (palette.isDark) 0.42f else 0.72f))
-                .border(1.dp, palette.accentPrimary.copy(alpha = if (palette.isDark) 0.18f else 0.12f), CircleShape)
-                .clickable {
-                    onClick()
-                    popoverExpanded = true
+    ComposerControlPopoverHost(
+        expanded = popoverExpanded,
+        onExpandedChange = { popoverExpanded = it },
+        anchor = {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(palette.surfaceRaised.copy(alpha = if (palette.isDark) 0.42f else 0.72f))
+                    .border(1.dp, palette.accentPrimary.copy(alpha = if (palette.isDark) 0.18f else 0.12f), CircleShape)
+                    .clickable { popoverExpanded = true }
+                    .semantics {
+                        contentDescription = "Context usage $usagePercent percent"
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                androidx.compose.foundation.Canvas(modifier = Modifier.size(23.dp)) {
+                    drawCircle(
+                        color = palette.accentPrimary.copy(alpha = if (palette.isDark) 0.14f else 0.12f),
+                        style = Stroke(width = 3.dp.toPx())
+                    )
+                    drawArc(
+                        color = palette.accentPrimary.copy(alpha = if (palette.isDark) 0.92f else 0.82f),
+                        startAngle = -90f,
+                        sweepAngle = 360f * fraction,
+                        useCenter = false,
+                        style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+                    )
                 }
-                .semantics {
-                    contentDescription = "Context usage $usagePercent percent"
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            androidx.compose.foundation.Canvas(modifier = Modifier.size(23.dp)) {
-                drawCircle(
-                    color = palette.accentPrimary.copy(alpha = if (palette.isDark) 0.14f else 0.12f),
-                    style = Stroke(width = 3.dp.toPx())
-                )
-                drawArc(
-                    color = palette.accentPrimary.copy(alpha = if (palette.isDark) 0.92f else 0.82f),
-                    startAngle = -90f,
-                    sweepAngle = 360f * fraction,
-                    useCenter = false,
-                    style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+
+                Text(
+                    text = usagePercent.toString(),
+                    style = typography.contextUsage,
+                    color = palette.accentPrimary
                 )
             }
-
-            Text(
-                text = usagePercent.toString(),
-                style = typography.contextUsage,
-                color = palette.accentPrimary
-            )
-
-            if (popoverExpanded) {
-                Popup(
-                    popupPositionProvider = popupPositionProvider,
-                    onDismissRequest = { popoverExpanded = false },
-                    properties = PopupProperties(focusable = true),
-                ) {
-                    ContextWindowPopover(usage = usage)
-                }
-            }
-        }
-    }
+        },
+        content = {
+            ContextWindowPopover(usage = usage)
+        },
+    )
 }
 
 @Composable

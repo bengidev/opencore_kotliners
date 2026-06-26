@@ -91,8 +91,6 @@ internal class HomeComponent(
     }
     fun onModelFilterFreeOnlyChanged(enabled: Boolean) =
         dispatch(HomeIntent.ModelFilterFreeOnlyChanged(enabled))
-    fun onSpeedModeTapped() = dispatch(HomeIntent.SpeedModeTapped)
-    fun onContextUsageTapped() = dispatch(HomeIntent.ContextUsageTapped)
     fun onSpeedModeSelected(mode: HomeComposerSpeedMode) = dispatch(HomeIntent.SpeedModeSelected(mode))
     fun onReasoningEffortSelected(effort: ModelReasoningEffort) {
         scope.launch {

@@ -4,7 +4,6 @@ import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
-import io.github.bengidev.opencore.sidepanel.domain.dedupeByMessageId
 import java.util.UUID
 
 internal data class ChatState(
@@ -43,7 +42,7 @@ internal data class ChatState(
         bumpStreamingRevision: Boolean = false
     ): ChatState =
         copy(
-            messages = result.state.messages.dedupeByMessageId(),
+            messages = result.state.messages,
             currentPartialText = result.state.currentPartialText,
             currentPartialThinking = result.state.currentPartialThinking,
             streamingThinkingId = result.state.streamingThinkingId,

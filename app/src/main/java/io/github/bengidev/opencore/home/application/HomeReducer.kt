@@ -87,9 +87,7 @@ internal object HomeReducer {
         }
         is HomeIntent.ContextUsageUpdated -> state.copy(contextUsage = intent.usage)
         HomeIntent.AttachmentTapped,
-        HomeIntent.ContextUsageTapped,
-        HomeIntent.MicrophoneTapped,
-        HomeIntent.SpeedModeTapped -> state
+        HomeIntent.MicrophoneTapped -> state
         HomeIntent.NewConversationTapped,
         HomeIntent.SidebarTapped -> state
     }

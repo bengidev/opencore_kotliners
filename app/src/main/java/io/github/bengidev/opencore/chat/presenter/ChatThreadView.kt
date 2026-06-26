@@ -90,24 +90,21 @@ internal fun ChatThreadView(
         val imeVisible = WindowInsets.isImeVisible
         val imeBottomPx = WindowInsets.ime.getBottom(LocalDensity.current)
 
-        LaunchedEffect(state.messages.size, awaitingAssistantReply) {
-            scrollThreadToBottom(listState, bottomTargetIndex, animate = true)
-        }
-
-        LaunchedEffect(state.streamingRevision) {
-            if (state.streamingRevision == 0) return@LaunchedEffect
-            val delayMs = ChatStreamingCoalescingPolicy.scrollDelayMs(pendingByteCount)
-            if (delayMs > 0L) delay(delayMs)
-            scrollThreadToBottom(listState, bottomTargetIndex, animate = false)
-        }
-
-        LaunchedEffect(state.streamingStatus) {
-            scrollThreadToBottom(listState, bottomTargetIndex, animate = true)
-        }
-
-        LaunchedEffect(imeVisible, imeBottomPx, bottomTargetIndex) {
-            if (!imeVisible || imeBottomPx <= 0) return@LaunchedEffect
-            scrollThreadToBottom(listState, bottomTargetIndex, animate = false)
+        LaunchedEffect(
+            state.messages.size,
+            awaitingAssistantReply,
+            state.streamingRevision,
+            state.streamingStatus,
+            imeVisible,
+            imeBottomPx,
+        ) {
+            if (imeVisible && imeBottomPx <= 0) return@LaunchedEffect
+            val animate = state.streamingRevision == 0 && !imeVisible
+            if (state.streamingRevision > 0) {
+                val delayMs = ChatStreamingCoalescingPolicy.scrollDelayMs(pendingByteCount)
+                if (delayMs > 0L) delay(delayMs)
+            }
+            scrollThreadToBottom(listState, bottomTargetIndex, animate = animate)
         }
 
         LazyColumn(

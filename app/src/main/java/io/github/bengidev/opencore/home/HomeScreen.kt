@@ -50,10 +50,8 @@ internal fun HomeScreen(
                 onSendTapped = component::onSendTapped,
                 onConfigureApiKeyTapped = sidePanelComponent::settingsButtonTapped,
                 onModelSelectorTapped = component::onModelSelectorTapped,
-                onSpeedModeTapped = component::onSpeedModeTapped,
                 onSpeedModeSelected = component::onSpeedModeSelected,
                 onReasoningEffortSelected = component::onReasoningEffortSelected,
-                onContextUsageTapped = component::onContextUsageTapped,
                 onChatRetryTapped = {
                     chatComponent.retry(state.activeProviderSortBy, state.activeReasoningEffort)
                 },

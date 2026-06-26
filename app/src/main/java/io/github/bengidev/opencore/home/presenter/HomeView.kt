@@ -38,10 +38,8 @@ internal fun HomeView(
     onSendTapped: () -> Unit,
     onConfigureApiKeyTapped: () -> Unit,
     onModelSelectorTapped: () -> Unit,
-    onSpeedModeTapped: () -> Unit,
     onSpeedModeSelected: (HomeComposerSpeedMode) -> Unit,
     onReasoningEffortSelected: (ModelReasoningEffort) -> Unit,
-    onContextUsageTapped: () -> Unit,
     onChatRetryTapped: () -> Unit = {},
     onChatErrorDismissed: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -79,18 +77,13 @@ internal fun HomeView(
                 dismissKeyboard()
                 onModelSelectorTapped()
             },
-            onSpeedModeTapped = {
+            onSpeedModeSelected = {
                 dismissKeyboard()
-                onSpeedModeTapped()
+                onSpeedModeSelected(it)
             },
-            onSpeedModeSelected = onSpeedModeSelected,
             onReasoningEffortSelected = {
                 dismissKeyboard()
                 onReasoningEffortSelected(it)
-            },
-            onContextUsageTapped = {
-                dismissKeyboard()
-                onContextUsageTapped()
             },
             modifier = Modifier
                 .fillMaxWidth()

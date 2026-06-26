@@ -311,11 +311,9 @@ class HomeReducerTest {
         val state = HomeState(draftMessage = "Draft", selectedModelId = sampleModel.id)
         val intents = listOf(
             HomeIntent.AttachmentTapped,
-            HomeIntent.ContextUsageTapped,
             HomeIntent.MicrophoneTapped,
             HomeIntent.NewConversationTapped,
             HomeIntent.SidebarTapped,
-            HomeIntent.SpeedModeTapped
         )
 
         intents.forEach { intent ->
