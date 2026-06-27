@@ -41,6 +41,21 @@ class SidePanelMessageTest {
     }
 
     @Test
+    fun threadItemKey_matchesPresenterPolicy() {
+        val message = SidePanelMessage(
+            id = UUID.fromString("00000000-0000-0000-0000-000000000003"),
+            role = ChatMessageRole.ASSISTANT,
+            content = "Body",
+            createdAt = now,
+            kind = SidePanelMessageKind.THINKING,
+        )
+        assertEquals(
+            io.github.bengidev.opencore.chat.presenter.ChatThreadItemKeyPolicy.keyFor(message),
+            message.threadItemKey,
+        )
+    }
+
+    @Test
     fun dedupeByThreadItemKey_keepsLatestDuplicateRow() {
         val id = UUID.fromString("00000000-0000-0000-0000-000000000002")
         val messages = listOf(

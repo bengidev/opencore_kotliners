@@ -121,6 +121,21 @@ class ChatReducerTest {
     }
 
     @Test
+    fun userMessageAppended_dedupesDuplicateThreadItemKeys() {
+        val user = message(ChatMessageRole.USER, "Hello")
+        val duplicate = user.copy(content = "Updated")
+        val result = ChatReducer.reduce(
+            ChatState(
+                activeConversation = conversation(),
+                messages = listOf(user),
+            ),
+            ChatIntent.UserMessageAppended(duplicate),
+        )
+        assertEquals(1, result.messages.size)
+        assertEquals("Updated", result.messages.single().content)
+    }
+
+    @Test
     fun activeConversationRenamed_updatesTitleWhenIdsMatch() {
         val result = ChatReducer.reduce(
             ChatState(activeConversation = conversation("Old")),

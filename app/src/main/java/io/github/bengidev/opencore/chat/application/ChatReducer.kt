@@ -33,7 +33,7 @@ internal object ChatReducer {
             }
         }
         is ChatIntent.UserMessageAppended -> state.copy(
-            messages = state.messages + intent.message
+            messages = (state.messages + intent.message).dedupeByThreadItemKey()
         )
         is ChatIntent.ActiveConversationRenamed -> {
             if (state.activeConversation?.id != intent.id) {

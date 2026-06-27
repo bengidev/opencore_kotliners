@@ -4,7 +4,7 @@ import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 
 /** Stable LazyColumn keys for chat thread rows. */
 internal object ChatThreadItemKeyPolicy {
-    fun keyFor(message: SidePanelMessage): String = "${message.id}:${message.kind}"
+    fun keyFor(message: SidePanelMessage): String = message.threadItemKey
 
     fun keysFor(messages: List<SidePanelMessage>): List<String> =
         messages.map(::keyFor)
