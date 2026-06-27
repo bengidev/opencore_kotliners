@@ -1,6 +1,7 @@
 package io.github.bengidev.opencore.sidepanel.domain
 
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
+import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.Instant
@@ -37,5 +38,31 @@ class SidePanelMessageTest {
         val second = message(UUID.randomUUID(), "b")
         val deduped = listOf(first, second).dedupeByMessageId()
         assertEquals(listOf(first, second), deduped)
+    }
+
+    @Test
+    fun dedupeByThreadItemKey_keepsLatestDuplicateRow() {
+        val id = UUID.fromString("00000000-0000-0000-0000-000000000002")
+        val messages = listOf(
+            SidePanelMessage(
+                id = id,
+                role = ChatMessageRole.ASSISTANT,
+                content = "older",
+                createdAt = now,
+                kind = SidePanelMessageKind.TEXT,
+            ),
+            message(UUID.randomUUID(), "unique"),
+            SidePanelMessage(
+                id = id,
+                role = ChatMessageRole.ASSISTANT,
+                content = "newer",
+                createdAt = now,
+                kind = SidePanelMessageKind.TEXT,
+            ),
+        )
+        val deduped = messages.dedupeByThreadItemKey()
+        assertEquals(2, deduped.size)
+        assertEquals("unique", deduped[0].content)
+        assertEquals("newer", deduped[1].content)
     }
 }

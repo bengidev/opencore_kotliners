@@ -80,6 +80,22 @@ class ChatReducerTest {
     }
 
     @Test
+    fun messagesLoaded_dedupesDuplicateThreadItemKeys() {
+        val duplicateId = UUID.randomUUID()
+        val loaded = listOf(
+            message(ChatMessageRole.USER, "One"),
+            message(ChatMessageRole.ASSISTANT, "Stale").copy(id = duplicateId),
+            message(ChatMessageRole.ASSISTANT, "Fresh").copy(id = duplicateId),
+        )
+        val result = ChatReducer.reduce(
+            ChatState(activeConversation = conversation(), isLoadingMessages = true),
+            ChatIntent.MessagesLoaded(conversationId, loaded)
+        )
+        assertEquals(2, result.messages.size)
+        assertEquals("Fresh", result.messages.last().content)
+    }
+
+    @Test
     fun messagesLoaded_ignoredWhenConversationIdMismatch() {
         val stale = listOf(message(ChatMessageRole.USER, "Wrong thread"))
         val otherId = UUID.randomUUID()

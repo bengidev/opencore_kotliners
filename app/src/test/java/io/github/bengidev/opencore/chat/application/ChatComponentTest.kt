@@ -224,6 +224,42 @@ class ChatComponentTest {
 
         assertEquals("Renamed chat", component.state.value.headerTitle)
     }
+
+    @Test
+    fun sendUserMessage_afterHistoryRestore_producesUniqueThreadKeys() = runTest(testDispatcher) {
+        val conversation = SidePanelConversation(title = "Saved")
+        history.saveConversation(conversation)
+        history.appendMessage(
+            conversation.id,
+            SidePanelMessage(
+                id = UUID.randomUUID(),
+                role = ChatMessageRole.USER,
+                content = "Earlier",
+                createdAt = Instant.parse("2024-01-01T00:00:00Z"),
+            ),
+        )
+        history.appendMessage(
+            conversation.id,
+            SidePanelMessage(
+                id = UUID.randomUUID(),
+                role = ChatMessageRole.ASSISTANT,
+                content = "Reply",
+                createdAt = Instant.parse("2024-01-01T00:01:00Z"),
+            ),
+        )
+
+        val component = createComponent()
+        component.openConversation(conversation)
+        advanceUntilIdle()
+        component.sendUserMessage("Follow up")
+        advanceUntilIdle()
+
+        val messages = component.state.value.messages
+        assertTrue(messages.size >= 4)
+        assertTrue(
+            io.github.bengidev.opencore.chat.presenter.ChatThreadItemKeyPolicy.hasUniqueKeys(messages)
+        )
+    }
 }
 
 private class RecordingChatStreamingClient : ChatStreamingClient {
