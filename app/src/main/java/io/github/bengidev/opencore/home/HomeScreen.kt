@@ -52,6 +52,7 @@ internal fun HomeScreen(
                 onModelSelectorTapped = component::onModelSelectorTapped,
                 onSpeedModeSelected = component::onSpeedModeSelected,
                 onReasoningEffortSelected = component::onReasoningEffortSelected,
+                onContextUsagePresentedChanged = component::onContextUsagePresentedChanged,
                 onChatRetryTapped = {
                     chatComponent.retry(state.activeProviderSortBy, state.activeReasoningEffort)
                 },

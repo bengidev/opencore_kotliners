@@ -37,6 +37,8 @@ import kotlin.math.roundToInt
 @Composable
 internal fun WelcomeScrollContainer(
     modifier: Modifier = Modifier,
+    showsContextUsageDismissScrim: Boolean = false,
+    onDismissContextUsage: () -> Unit = {},
     content: @Composable (viewportHeight: Dp) -> Unit,
     composer: @Composable () -> Unit
 ) {
@@ -53,6 +55,7 @@ internal fun WelcomeScrollContainer(
     var restingViewportHeight by remember { mutableStateOf(0.dp) }
     var peakImeBottomPx by remember { mutableIntStateOf(0) }
     var readyForImeScroll by remember { mutableStateOf(false) }
+    val reduceMotion = HomeContextUsagePopoverMotion.rememberReduceMotion()
 
     Column(
         modifier = modifier
@@ -124,6 +127,13 @@ internal fun WelcomeScrollContainer(
                 }
 
                 Spacer(Modifier.height(1.dp))
+            }
+
+            if (showsContextUsageDismissScrim) {
+                HomeContextUsageDismissScrim(
+                    reduceMotion = reduceMotion,
+                    onDismiss = onDismissContextUsage,
+                )
             }
         }
 

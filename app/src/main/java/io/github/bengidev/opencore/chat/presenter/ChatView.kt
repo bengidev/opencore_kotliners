@@ -27,6 +27,8 @@ internal fun ChatView(
     onDismissKeyboard: () -> Unit,
     onRetry: () -> Unit = {},
     onDismiss: () -> Unit = {},
+    showsContextUsageDismissScrim: Boolean = false,
+    onDismissContextUsage: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     OpenCoreChatTheme {
@@ -65,6 +67,8 @@ internal fun ChatView(
             ChatThreadView(
                 state = state,
                 onDismissKeyboard = onDismissKeyboard,
+                showsContextUsageDismissScrim = showsContextUsageDismissScrim,
+                onDismissContextUsage = onDismissContextUsage,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()

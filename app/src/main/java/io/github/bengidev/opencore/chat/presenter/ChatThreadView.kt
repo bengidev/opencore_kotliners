@@ -2,6 +2,7 @@ package io.github.bengidev.opencore.chat.presenter
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -32,6 +33,8 @@ import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.chat.theme.ChatTheme
 import io.github.bengidev.opencore.chat.theme.OpenCoreChatTheme
+import io.github.bengidev.opencore.home.presenter.HomeContextUsageDismissScrim
+import io.github.bengidev.opencore.home.presenter.HomeContextUsagePopoverMotion
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
@@ -44,6 +47,8 @@ private const val HISTORY_RESTORE_SCROLL_DELAY_MS = 50L
 internal fun ChatThreadView(
     state: ChatState,
     onDismissKeyboard: () -> Unit = {},
+    showsContextUsageDismissScrim: Boolean = false,
+    onDismissContextUsage: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     OpenCoreChatTheme {
@@ -89,6 +94,7 @@ internal fun ChatThreadView(
         val bottomTargetIndex = state.messages.lastIndex
         val imeVisible = WindowInsets.isImeVisible
         val imeBottomPx = WindowInsets.ime.getBottom(LocalDensity.current)
+        val reduceMotion = HomeContextUsagePopoverMotion.rememberReduceMotion()
         var previousMessageCount by remember { mutableIntStateOf(0) }
 
         LaunchedEffect(
@@ -111,26 +117,34 @@ internal fun ChatThreadView(
             scrollThreadToBottom(listState, bottomTargetIndex, animate = animate)
         }
 
-        LazyColumn(
-            state = listState,
-            modifier = modifier
-                .fillMaxWidth()
-                .fillMaxHeight()
-                .testTag("chat-thread-list"),
-            verticalArrangement = Arrangement.spacedBy(0.dp),
-            contentPadding = PaddingValues(vertical = 8.dp)
-        ) {
-            items(state.messages, key = { "${it.id}:${it.kind}" }) { message ->
-                val isLastMessage = message.id == state.messages.lastOrNull()?.id
-                val isStreamingAssistant = state.isSending &&
-                    isLastMessage &&
-                    message.kind == SidePanelMessageKind.TEXT &&
-                    message.role == ChatMessageRole.ASSISTANT
-                ChatMessageRowView(
-                    message = message,
-                    isLastAssistantMessage = message.id == lastAssistantTextId,
-                    isStreamingAssistant = isStreamingAssistant,
-                    onDismissKeyboard = onDismissKeyboard
+        Box(modifier = modifier.fillMaxWidth().fillMaxHeight()) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+                    .testTag("chat-thread-list"),
+                verticalArrangement = Arrangement.spacedBy(0.dp),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                items(state.messages, key = { "${it.id}:${it.kind}" }) { message ->
+                    val isLastMessage = message.id == state.messages.lastOrNull()?.id
+                    val isStreamingAssistant = state.isSending &&
+                        isLastMessage &&
+                        message.kind == SidePanelMessageKind.TEXT &&
+                        message.role == ChatMessageRole.ASSISTANT
+                    ChatMessageRowView(
+                        message = message,
+                        isLastAssistantMessage = message.id == lastAssistantTextId,
+                        isStreamingAssistant = isStreamingAssistant,
+                        onDismissKeyboard = onDismissKeyboard
+                    )
+                }
+            }
+            if (showsContextUsageDismissScrim && onDismissContextUsage != null) {
+                HomeContextUsageDismissScrim(
+                    reduceMotion = reduceMotion,
+                    onDismiss = onDismissContextUsage,
                 )
             }
         }

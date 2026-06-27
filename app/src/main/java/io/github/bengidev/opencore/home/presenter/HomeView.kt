@@ -43,6 +43,7 @@ internal fun HomeView(
     onModelSelectorTapped: () -> Unit,
     onSpeedModeSelected: (HomeComposerSpeedMode) -> Unit,
     onReasoningEffortSelected: (ModelReasoningEffort) -> Unit,
+    onContextUsagePresentedChanged: (Boolean) -> Unit,
     onChatRetryTapped: () -> Unit = {},
     onChatErrorDismissed: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -103,6 +104,10 @@ internal fun HomeView(
                 dismissKeyboard()
                 onReasoningEffortSelected(it)
             },
+            onContextUsagePresentedChanged = { presented ->
+                if (presented) dismissKeyboard()
+                onContextUsagePresentedChanged(presented)
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .widthIn(max = 620.dp)
@@ -131,6 +136,8 @@ internal fun HomeView(
                     onDismissKeyboard = dismissKeyboard,
                     onRetry = onChatRetryTapped,
                     onDismiss = onChatErrorDismissed,
+                    showsContextUsageDismissScrim = state.isContextUsagePresented,
+                    onDismissContextUsage = { onContextUsagePresentedChanged(false) },
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
@@ -146,6 +153,8 @@ internal fun HomeView(
                     .fillMaxSize()
                     .statusBarsPadding()
                     .padding(top = HomeTopBarClearance),
+                showsContextUsageDismissScrim = state.isContextUsagePresented,
+                onDismissContextUsage = { onContextUsagePresentedChanged(false) },
                 content = { viewportHeight ->
                     HomeWelcomeView(
                         viewportHeight = viewportHeight,

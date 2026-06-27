@@ -66,6 +66,7 @@ internal fun HomeComposerView(
     onModelSelectorTapped: () -> Unit,
     onSpeedModeSelected: (HomeComposerSpeedMode) -> Unit,
     onReasoningEffortSelected: (ModelReasoningEffort) -> Unit,
+    onContextUsagePresentedChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -88,6 +89,7 @@ internal fun HomeComposerView(
             onModelSelectorTapped = onModelSelectorTapped,
             onSpeedModeSelected = onSpeedModeSelected,
             onReasoningEffortSelected = onReasoningEffortSelected,
+            onContextUsagePresentedChanged = onContextUsagePresentedChanged,
         )
     }
 }
@@ -218,55 +220,80 @@ private fun HomeComposerContextRail(
     onModelSelectorTapped: () -> Unit,
     onSpeedModeSelected: (HomeComposerSpeedMode) -> Unit,
     onReasoningEffortSelected: (ModelReasoningEffort) -> Unit,
+    onContextUsagePresentedChanged: (Boolean) -> Unit,
 ) {
-    Column(
+    val reduceMotion = HomeContextUsagePopoverMotion.rememberReduceMotion()
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 2.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        if (state.hasApiKey && !state.isModelCatalogAvailable) {
-            state.modelCatalogErrorHint?.let { hint ->
-                CatalogUnavailableHint(message = hint)
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (state.hasApiKey && !state.isModelCatalogAvailable) {
+                state.modelCatalogErrorHint?.let { hint ->
+                    CatalogUnavailableHint(message = hint)
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp)
+                ) {
+                    HomeComposerModelChip(
+                        title = state.modelPickerTitle,
+                        enabled = state.isModelCatalogAvailable,
+                        onClick = onModelSelectorTapped
+                    )
+                    if (state.selectedModelSupportsReasoning) {
+                        HomeComposerReasoningChip(
+                            selectedEffort = state.selectedReasoningEffort,
+                            availableEfforts = state.availableReasoningEfforts,
+                            onReasoningEffortSelected = onReasoningEffortSelected,
+                        )
+                    }
+                }
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (state.selectedModelSupportsSpeedModes) {
+                        HomeComposerSpeedChip(
+                            speedMode = state.speedMode,
+                            onSpeedModeSelected = onSpeedModeSelected
+                        )
+                    }
+                    HomeComposerContextUsageButton(
+                        usage = state.contextUsage,
+                        onTogglePresented = {
+                            onContextUsagePresentedChanged(!state.isContextUsagePresented)
+                        },
+                    )
+                }
             }
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 46.dp, end = 2.dp),
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp)
+            HomeContextUsagePopoverAnimated(
+                visible = state.isContextUsagePresented,
+                reduceMotion = reduceMotion,
             ) {
-                HomeComposerModelChip(
-                    title = state.modelPickerTitle,
-                    enabled = state.isModelCatalogAvailable,
-                    onClick = onModelSelectorTapped
-                )
-                if (state.selectedModelSupportsReasoning) {
-                    HomeComposerReasoningChip(
-                        selectedEffort = state.selectedReasoningEffort,
-                        availableEfforts = state.availableReasoningEfforts,
-                        onReasoningEffortSelected = onReasoningEffortSelected,
-                    )
-                }
-            }
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (state.selectedModelSupportsSpeedModes) {
-                    HomeComposerSpeedChip(
-                        speedMode = state.speedMode,
-                        onSpeedModeSelected = onSpeedModeSelected
-                    )
-                }
-                HomeComposerContextUsageIndicator(usage = state.contextUsage)
+                ContextWindowPopover(usage = state.contextUsage)
             }
         }
     }
@@ -436,56 +463,47 @@ private fun HomeComposerSpeedChip(
 }
 
 @Composable
-private fun HomeComposerContextUsageIndicator(
+private fun HomeComposerContextUsageButton(
     usage: ContextWindowUsage,
+    onTogglePresented: () -> Unit,
 ) {
     val palette = HomeTheme.palette
     val typography = HomeTheme.typography
     val usagePercent = usage.percentUsed
     val fraction = (usagePercent / 100f).coerceIn(0f, 1f)
-    var popoverExpanded by remember { mutableStateOf(false) }
 
-    ComposerControlPopoverHost(
-        expanded = popoverExpanded,
-        onExpandedChange = { popoverExpanded = it },
-        anchor = {
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(palette.surfaceRaised.copy(alpha = if (palette.isDark) 0.42f else 0.72f))
-                    .border(1.dp, palette.accentPrimary.copy(alpha = if (palette.isDark) 0.18f else 0.12f), CircleShape)
-                    .clickable { popoverExpanded = true }
-                    .semantics {
-                        contentDescription = "Context usage $usagePercent percent"
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                androidx.compose.foundation.Canvas(modifier = Modifier.size(23.dp)) {
-                    drawCircle(
-                        color = palette.accentPrimary.copy(alpha = if (palette.isDark) 0.14f else 0.12f),
-                        style = Stroke(width = 3.dp.toPx())
-                    )
-                    drawArc(
-                        color = palette.accentPrimary.copy(alpha = if (palette.isDark) 0.92f else 0.82f),
-                        startAngle = -90f,
-                        sweepAngle = 360f * fraction,
-                        useCenter = false,
-                        style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
-                    )
-                }
+    Box(
+        modifier = Modifier
+            .size(38.dp)
+            .clip(CircleShape)
+            .background(palette.surfaceRaised.copy(alpha = if (palette.isDark) 0.42f else 0.72f))
+            .border(1.dp, palette.accentPrimary.copy(alpha = if (palette.isDark) 0.18f else 0.12f), CircleShape)
+            .clickable(onClick = onTogglePresented)
+            .semantics {
+                contentDescription = "Context usage $usagePercent percent"
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        androidx.compose.foundation.Canvas(modifier = Modifier.size(23.dp)) {
+            drawCircle(
+                color = palette.accentPrimary.copy(alpha = if (palette.isDark) 0.14f else 0.12f),
+                style = Stroke(width = 3.dp.toPx())
+            )
+            drawArc(
+                color = palette.accentPrimary.copy(alpha = if (palette.isDark) 0.92f else 0.82f),
+                startAngle = -90f,
+                sweepAngle = 360f * fraction,
+                useCenter = false,
+                style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+            )
+        }
 
-                Text(
-                    text = usagePercent.toString(),
-                    style = typography.contextUsage,
-                    color = palette.accentPrimary
-                )
-            }
-        },
-        content = {
-            ContextWindowPopover(usage = usage)
-        },
-    )
+        Text(
+            text = usagePercent.toString(),
+            style = typography.contextUsage,
+            color = palette.accentPrimary
+        )
+    }
 }
 
 @Composable
