@@ -47,6 +47,7 @@ internal fun ChatStreamingTextView(
                 isFocusable = false
                 isClickable = false
                 isLongClickable = isTextSelectable
+                clipToOutline = true
                 setHorizontallyScrolling(false)
                 maxLines = Int.MAX_VALUE
                 includeFontPadding = false
@@ -133,7 +134,7 @@ private class StreamingTextCoordinator {
         textStyle: TextStyle,
         color: Color,
     ) {
-        if (!textView.isAttachedToWindow) return
+        if (!textView.isAttachedToWindow || boundTextView !== textView) return
 
         val text = pendingText
         val showsCursor = pendingShowsCursor
@@ -281,17 +282,18 @@ private fun TextView.setStreamingContent(
     text = builder
 }
 
-private fun TextView.ensureEditable(): Editable {
+private fun TextView.ensureEditable(): Editable? {
+    if (!isAttachedToWindow) return null
     val current = text
     if (current is Editable) return current
     val builder = SpannableStringBuilder(current ?: "")
     setText(builder, TextView.BufferType.EDITABLE)
-    return builder
+    return text as? Editable
 }
 
 private fun TextView.appendStyledDelta(delta: String, textColorArgb: Int) {
     if (delta.isEmpty()) return
-    val editable = ensureEditable()
+    val editable = ensureEditable() ?: return
     val start = editable.length
     editable.append(delta)
     editable.setSpan(
@@ -303,7 +305,7 @@ private fun TextView.appendStyledDelta(delta: String, textColorArgb: Int) {
 }
 
 private fun TextView.appendInlineCursor(cursorColorArgb: Int) {
-    val editable = ensureEditable()
+    val editable = ensureEditable() ?: return
     val start = editable.length
     editable.append(ChatStreamingTextCursorPolicy.GLYPH)
     editable.setSpan(

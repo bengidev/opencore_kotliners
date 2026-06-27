@@ -1,5 +1,8 @@
 package io.github.bengidev.opencore.home.presenter
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,17 +21,25 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
@@ -40,9 +51,11 @@ import io.github.bengidev.opencore.home.theme.HomeTheme
 import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
 
 @Composable
-internal fun rememberComposerControlPopoverPositionProvider(): PopupPositionProvider {
+internal fun rememberComposerControlPopoverPositionProvider(
+    anchorAlignment: PopoverAnchorAlignment = PopoverAnchorAlignment.Center,
+): PopupPositionProvider {
     val density = LocalDensity.current
-    return remember(density) {
+    return remember(density, anchorAlignment) {
         object : PopupPositionProvider {
             override fun calculatePosition(
                 anchorBounds: IntRect,
@@ -51,7 +64,12 @@ internal fun rememberComposerControlPopoverPositionProvider(): PopupPositionProv
                 popupContentSize: IntSize,
             ): IntOffset {
                 val gapPx = with(density) { 8.dp.roundToPx() }
-                val x = anchorBounds.left + (anchorBounds.width - popupContentSize.width) / 2
+                val x = when (anchorAlignment) {
+                    PopoverAnchorAlignment.Center ->
+                        anchorBounds.left + (anchorBounds.width - popupContentSize.width) / 2
+                    PopoverAnchorAlignment.Trailing ->
+                        anchorBounds.right - popupContentSize.width
+                }
                 val aboveY = anchorBounds.top - popupContentSize.height - gapPx
                 val y = if (aboveY >= 0) {
                     aboveY
@@ -67,15 +85,23 @@ internal fun rememberComposerControlPopoverPositionProvider(): PopupPositionProv
     }
 }
 
+internal enum class PopoverAnchorAlignment {
+    Center,
+    Trailing,
+}
+
 @Composable
 internal fun ComposerControlPopoverHost(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    anchorAlignment: PopoverAnchorAlignment = PopoverAnchorAlignment.Center,
+    animateContent: Boolean = false,
+    reduceMotion: Boolean = false,
     anchor: @Composable () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    val popupPositionProvider = rememberComposerControlPopoverPositionProvider()
+    val popupPositionProvider = rememberComposerControlPopoverPositionProvider(anchorAlignment)
     Box(modifier = modifier) {
         anchor()
         if (expanded) {
@@ -84,9 +110,37 @@ internal fun ComposerControlPopoverHost(
                 onDismissRequest = { onExpandedChange(false) },
                 properties = PopupProperties(focusable = true),
             ) {
-                content()
+                if (animateContent) {
+                    ComposerControlPopoverEnterAnimation(reduceMotion = reduceMotion, content = content)
+                } else {
+                    content()
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun ComposerControlPopoverEnterAnimation(
+    reduceMotion: Boolean,
+    content: @Composable () -> Unit,
+) {
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+    val spec = HomeContextUsagePopoverMotion.presentationAnimationSpec(reduceMotion)
+    AnimatedVisibility(
+        visible = visible,
+        enter = if (reduceMotion) {
+            fadeIn(spec)
+        } else {
+            fadeIn(spec) + scaleIn(
+                animationSpec = spec,
+                initialScale = 0.92f,
+                transformOrigin = TransformOrigin(1f, 1f),
+            )
+        },
+    ) {
+        content()
     }
 }
 
@@ -95,23 +149,26 @@ internal fun ComposerControlPopoverShell(
     title: String,
     badge: String?,
     modifier: Modifier = Modifier,
+    cornerRadius: Dp = 18.dp,
+    prominentBadge: Boolean = false,
     footer: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val palette = HomeTheme.palette
     val typography = HomeTheme.typography
     val badgeStyle = typography.contextUsage.copy(
-        fontSize = 9.sp,
-        lineHeight = 12.sp,
+        fontSize = if (prominentBadge) 12.sp else 9.sp,
+        lineHeight = if (prominentBadge) 14.sp else 12.sp,
         fontWeight = FontWeight.SemiBold,
+        fontFamily = if (prominentBadge) FontFamily.Monospace else FontFamily.Default,
     )
 
     Column(
         modifier = modifier
             .widthIn(min = 232.dp, max = 280.dp)
-            .homeComposerGlass(cornerRadius = 18.dp, shadowOpacity = 0.14f)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+            .homeComposerGlass(cornerRadius = cornerRadius, shadowOpacity = 0.14f)
+            .padding(horizontal = if (cornerRadius >= 24.dp) 12.dp else 16.dp, vertical = if (cornerRadius >= 24.dp) 11.dp else 14.dp),
+        verticalArrangement = Arrangement.spacedBy(if (cornerRadius >= 24.dp) 12.dp else 10.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -120,17 +177,25 @@ internal fun ComposerControlPopoverShell(
         ) {
             Text(
                 text = title,
-                style = typography.chipLabel.copy(fontWeight = FontWeight.Medium),
-                color = palette.textPrimary,
+                style = typography.chipLabel.copy(
+                    fontWeight = if (prominentBadge) FontWeight.SemiBold else FontWeight.Medium,
+                    fontSize = if (prominentBadge) 11.sp else typography.chipLabel.fontSize,
+                ),
+                color = if (prominentBadge) palette.textSecondary else palette.textPrimary,
             )
             if (badge != null) {
                 Text(
                     text = badge,
                     style = badgeStyle,
-                    color = palette.textSecondary,
+                    color = if (prominentBadge) palette.accentPrimary else palette.textSecondary,
                     modifier = Modifier
                         .clip(RoundedCornerShape(999.dp))
-                        .background(palette.surfaceSubtle.copy(alpha = if (palette.isDark) 0.55f else 0.85f))
+                        .background(
+                            when {
+                                prominentBadge -> palette.accentPrimary.copy(alpha = if (palette.isDark) 0.18f else 0.12f)
+                                else -> palette.surfaceSubtle.copy(alpha = if (palette.isDark) 0.55f else 0.85f)
+                            }
+                        )
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                 )
             }
@@ -203,25 +268,34 @@ internal fun ComposerControlPopoverOptionRow(
 }
 
 @Composable
-internal fun ComposerControlProgressBar(fraction: Float) {
+internal fun ComposerControlProgressBar(
+    fraction: Float,
+    modifier: Modifier = Modifier,
+    height: Dp = 4.dp,
+    cornerRadius: Dp = 999.dp,
+    trackColorOverride: Color? = null,
+    fillColorOverride: Color? = null,
+) {
     val palette = HomeTheme.palette
-    val trackColor = palette.lineSoft.copy(alpha = if (palette.isDark) 0.45f else 0.55f)
-    val fillColor = palette.textPrimary.copy(alpha = if (palette.isDark) 0.55f else 0.35f)
+    val trackColor = trackColorOverride
+        ?: palette.lineSoft.copy(alpha = if (palette.isDark) 0.45f else 0.55f)
+    val fillColor = fillColorOverride
+        ?: palette.textPrimary.copy(alpha = if (palette.isDark) 0.55f else 0.35f)
     val clamped = fraction.coerceIn(0f, 1f)
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .height(4.dp)
-            .clip(RoundedCornerShape(999.dp))
+            .height(height)
+            .clip(RoundedCornerShape(cornerRadius))
             .background(trackColor),
     ) {
         if (clamped > 0f) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth(clamped)
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(999.dp))
+                    .height(height)
+                    .clip(RoundedCornerShape(cornerRadius))
                     .background(fillColor),
             )
         }

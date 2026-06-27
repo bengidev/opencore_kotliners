@@ -33,4 +33,5 @@ internal sealed interface HomeIntent {
     data class ReasoningEffortWireValueUpdated(val wireValue: String?) : HomeIntent
     data class ReasoningEffortSelected(val effort: ModelReasoningEffort) : HomeIntent
     data class ContextUsageUpdated(val usage: ContextWindowUsage) : HomeIntent
+    data class ContextUsagePresentedChanged(val presented: Boolean) : HomeIntent
 }

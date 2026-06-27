@@ -9,6 +9,7 @@ import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.domain.ChatStreamingEvent
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.chat.infrastructure.ChatStreamingClient
+import io.github.bengidev.opencore.sidepanel.domain.ConversationTitlePolicy
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.shared.persistence.PersistenceConversationHistoryStoring
@@ -41,6 +42,7 @@ internal class ChatComponent(
 
     var onActiveConversationChanged: ((UUID?) -> Unit)? = null
     var onHistoryChanged: (() -> Unit)? = null
+    var onConversationTitleChanged: ((UUID, String) -> Unit)? = null
 
     init {
         lifecycle.doOnDestroy {
@@ -97,18 +99,30 @@ internal class ChatComponent(
         val current = _state.value
         if (text.isEmpty() || current.isSending || current.isLoadingMessages) return
 
-        scope.launch {
-            val conversation = ensureActiveConversation(text)
-            val userMessage = SidePanelMessage(
-                id = UUID.randomUUID(),
-                role = ChatMessageRole.USER,
-                content = text,
-                createdAt = Instant.now()
+        val userMessage = SidePanelMessage(
+            id = UUID.randomUUID(),
+            role = ChatMessageRole.USER,
+            content = text,
+            createdAt = Instant.now()
+        )
+        val activeConversation = current.activeConversation
+        if (activeConversation != null) {
+            appendUserTurn(
+                conversationId = activeConversation.id,
+                userMessageText = text,
+                userMessage = userMessage,
+                providerSortBy = providerSortBy,
+                reasoningEffort = reasoningEffort,
             )
-            history.appendMessage(conversation.id, userMessage)
-            dispatch(ChatIntent.UserMessageAppended(userMessage))
-            startStream(conversation.id, providerSortBy, reasoningEffort)
+            return
         }
+
+        beginNewConversationTurn(
+            userMessageText = text,
+            userMessage = userMessage,
+            providerSortBy = providerSortBy,
+            reasoningEffort = reasoningEffort,
+        )
     }
 
     fun retry(providerSortBy: String? = null, reasoningEffort: String? = null) {
@@ -231,18 +245,61 @@ internal class ChatComponent(
         streamJob = null
     }
 
-    private suspend fun ensureActiveConversation(firstMessage: String): SidePanelConversation {
-        val existing = _state.value.activeConversation
-        if (existing != null) return existing
+    private fun appendUserTurn(
+        conversationId: UUID,
+        userMessageText: String,
+        userMessage: SidePanelMessage,
+        providerSortBy: String?,
+        reasoningEffort: String?,
+    ) {
+        dispatch(ChatIntent.UserMessageAppended(userMessage))
+        syncConversationTitle(conversationId, userMessageText)
+        launchPersistAndStream(conversationId, userMessage, providerSortBy, reasoningEffort)
+    }
 
+    private fun beginNewConversationTurn(
+        userMessageText: String,
+        userMessage: SidePanelMessage,
+        providerSortBy: String?,
+        reasoningEffort: String?,
+    ) {
         val conversation = SidePanelConversation(
-            title = firstMessage.take(80),
-            updatedAt = Instant.now()
+            title = ConversationTitlePolicy.fromUserMessage(userMessageText),
+            updatedAt = Instant.now(),
         )
-        history.saveConversation(conversation)
         dispatch(ChatIntent.ConversationOpened(conversation, loadMessages = false))
+        dispatch(ChatIntent.UserMessageAppended(userMessage))
         onActiveConversationChanged?.invoke(conversation.id)
-        onHistoryChanged?.invoke()
-        return conversation
+        scope.launch {
+            history.saveConversation(conversation)
+            onHistoryChanged?.invoke()
+        }
+        launchPersistAndStream(conversation.id, userMessage, providerSortBy, reasoningEffort)
+    }
+
+    private fun launchPersistAndStream(
+        conversationId: UUID,
+        userMessage: SidePanelMessage,
+        providerSortBy: String?,
+        reasoningEffort: String?,
+    ) {
+        scope.launch {
+            startStream(conversationId, providerSortBy, reasoningEffort)
+        }
+        scope.launch {
+            history.appendMessage(conversationId, userMessage)
+        }
+    }
+
+    private fun syncConversationTitle(conversationId: UUID, userMessageText: String) {
+        val newTitle = ConversationTitlePolicy.fromUserMessage(userMessageText)
+        if (newTitle.isEmpty()) return
+        val currentTitle = _state.value.activeConversation?.title ?: return
+        if (currentTitle == newTitle) return
+        dispatch(ChatIntent.ActiveConversationRenamed(conversationId, newTitle))
+        onConversationTitleChanged?.invoke(conversationId, newTitle)
+        scope.launch {
+            history.renameConversation(conversationId, newTitle)
+        }
     }
 }

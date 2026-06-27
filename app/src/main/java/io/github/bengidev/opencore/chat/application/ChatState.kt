@@ -4,6 +4,7 @@ import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
+import io.github.bengidev.opencore.sidepanel.domain.dedupeByThreadItemKey
 import java.util.UUID
 
 internal data class ChatState(
@@ -22,6 +23,18 @@ internal data class ChatState(
 ) {
     val isThreadActive: Boolean
         get() = activeConversation != null
+
+    /** True while a turn is actively streaming; drives the status capsule above the composer. */
+    val showsStreamingStatusCapsule: Boolean
+        get() {
+            if (!isSending || streamingStatus != ChatStreamingStatus.Running) return false
+            val last = messages.lastOrNull() ?: return false
+            if (last.role == ChatMessageRole.USER) return true
+            return streamingAnswerId != null ||
+                streamingThinkingId != null ||
+                currentPartialText.isNotEmpty() ||
+                currentPartialThinking.isNotEmpty()
+        }
 
     val headerTitle: String
         get() = activeConversation?.title.orEmpty()
@@ -42,7 +55,7 @@ internal data class ChatState(
         bumpStreamingRevision: Boolean = false
     ): ChatState =
         copy(
-            messages = result.state.messages,
+            messages = result.state.messages.dedupeByThreadItemKey(),
             currentPartialText = result.state.currentPartialText,
             currentPartialThinking = result.state.currentPartialThinking,
             streamingThinkingId = result.state.streamingThinkingId,

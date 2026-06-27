@@ -16,22 +16,28 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.withFrameNanos
 import io.github.bengidev.opencore.chat.application.ChatState
 import io.github.bengidev.opencore.chat.application.ChatStreamingCoalescingPolicy
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
-import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.chat.theme.ChatTheme
 import io.github.bengidev.opencore.chat.theme.OpenCoreChatTheme
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+
+private const val HISTORY_RESTORE_SCROLL_DELAY_MS = 50L
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -40,12 +46,6 @@ internal fun ChatThreadView(
     onDismissKeyboard: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val awaitingAssistantReply =
-        state.isSending &&
-            state.messages.lastOrNull()?.role == ChatMessageRole.USER &&
-            state.streamingThinkingId == null &&
-            state.streamingAnswerId == null
-
     OpenCoreChatTheme {
         val palette = ChatTheme.palette
         val typography = ChatTheme.typography
@@ -86,24 +86,36 @@ internal fun ChatThreadView(
             state.currentPartialText.encodeToByteArray().size,
             state.currentPartialThinking.encodeToByteArray().size
         )
-        val bottomTargetIndex = state.messages.lastIndex + if (awaitingAssistantReply) 1 else 0
+        val bottomTargetIndex = state.messages.lastIndex
         val imeVisible = WindowInsets.isImeVisible
         val imeBottomPx = WindowInsets.ime.getBottom(LocalDensity.current)
+        var previousMessageCount by remember { mutableIntStateOf(0) }
 
         LaunchedEffect(
             state.messages.size,
-            awaitingAssistantReply,
             state.streamingRevision,
             state.streamingStatus,
             imeVisible,
             imeBottomPx,
         ) {
             if (imeVisible && imeBottomPx <= 0) return@LaunchedEffect
-            val animate = state.streamingRevision == 0 && !imeVisible
-            if (state.streamingRevision > 0) {
+            val isBulkRestore = ChatThreadScrollPolicy.isBulkRestore(
+                previousMessageCount = previousMessageCount,
+                messageCount = state.messages.size,
+            )
+            previousMessageCount = state.messages.size
+            val animate = ChatThreadScrollPolicy.shouldAnimateScroll(
+                isBulkRestore = isBulkRestore,
+                streamingRevision = state.streamingRevision,
+                imeVisible = imeVisible,
+            )
+            if (isBulkRestore) {
+                delay(HISTORY_RESTORE_SCROLL_DELAY_MS)
+            } else if (state.streamingRevision > 0) {
                 val delayMs = ChatStreamingCoalescingPolicy.scrollDelayMs(pendingByteCount)
                 if (delayMs > 0L) delay(delayMs)
             }
+            withFrameNanos { }
             scrollThreadToBottom(listState, bottomTargetIndex, animate = animate)
         }
 
@@ -116,7 +128,10 @@ internal fun ChatThreadView(
             verticalArrangement = Arrangement.spacedBy(0.dp),
             contentPadding = PaddingValues(vertical = 8.dp)
         ) {
-            items(state.messages, key = { "${it.id}:${it.kind}" }) { message ->
+            items(
+                items = state.messages,
+                key = ChatThreadItemKeyPolicy::keyFor,
+            ) { message ->
                 val isLastMessage = message.id == state.messages.lastOrNull()?.id
                 val isStreamingAssistant = state.isSending &&
                     isLastMessage &&
@@ -129,11 +144,6 @@ internal fun ChatThreadView(
                     onDismissKeyboard = onDismissKeyboard
                 )
             }
-            if (awaitingAssistantReply) {
-                item(key = "chat-loading-indicator") {
-                    ChatLoadingIndicatorView()
-                }
-            }
         }
     }
 }
@@ -145,8 +155,12 @@ private suspend fun scrollThreadToBottom(
     animate: Boolean
 ) {
     if (targetIndex < 0) return
-    snapshotFlow { listState.layoutInfo.totalItemsCount }
-        .filter { it > targetIndex }
+    snapshotFlow {
+        listState.layoutInfo.totalItemsCount to listState.isScrollInProgress
+    }
+        .filter { (count, scrolling) ->
+            count > targetIndex && !ChatThreadScrollPolicy.shouldDeferForActiveScroll(scrolling)
+        }
         .first()
     try {
         if (animate) {
@@ -155,6 +169,18 @@ private suspend fun scrollThreadToBottom(
             listState.scrollToItem(targetIndex, scrollOffset = Int.MAX_VALUE)
         }
     } catch (_: IllegalArgumentException) {
-        // ponytail: layout race during rapid stream updates — safe to ignore
+        // Layout race during rapid stream updates — safe to ignore.
+    } catch (_: IllegalStateException) {
+        delay(32L)
+        try {
+            if (animate) {
+                listState.animateScrollToItem(targetIndex, scrollOffset = Int.MAX_VALUE)
+            } else {
+                listState.scrollToItem(targetIndex, scrollOffset = Int.MAX_VALUE)
+            }
+        } catch (_: IllegalArgumentException) {
+        } catch (_: IllegalStateException) {
+            // Concurrent user drag or pending scroll — safe to ignore.
+        }
     }
 }

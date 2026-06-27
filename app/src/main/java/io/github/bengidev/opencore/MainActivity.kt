@@ -146,6 +146,9 @@ private fun HomeRoute(
         chatComponent.onHistoryChanged = {
             sidePanelComponent.session.refreshConversationsIfVisible()
         }
+        chatComponent.onConversationTitleChanged = { id, title ->
+            sidePanelComponent.session.syncConversationTitle(id, title)
+        }
         sidePanelComponent.onOpenConversation = chatComponent::openConversation
         sidePanelComponent.onActiveConversationRenamed = chatComponent::onActiveConversationRenamed
         sidePanelComponent.onActiveConversationDeleted = chatComponent::onActiveConversationDeleted

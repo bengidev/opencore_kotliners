@@ -64,16 +64,18 @@ internal class HomeComponent(
     fun onSendTapped() {
         val current = _state.value
         val message = current.draftMessage.trim()
-        dispatch(HomeIntent.SendTapped)
         if (message.isNotEmpty() && current.canSend) {
             onSendMessage?.invoke(message, current.activeProviderSortBy, current.activeReasoningEffort)
         }
+        dispatch(HomeIntent.SendTapped)
     }
     fun onModelSelectorTapped() {
         dispatch(HomeIntent.ModelSelectorTapped)
         startCatalogReload(autoSelectWhenNoneSaved = false, onlyIfNeeded = true)
     }
     fun onModelPickerDismissed() = dispatch(HomeIntent.ModelPickerDismissed)
+    fun onContextUsagePresentedChanged(presented: Boolean) =
+        dispatch(HomeIntent.ContextUsagePresentedChanged(presented))
     fun onModelSelected(model: SidePanelModel) {
         scope.launch {
             preferenceStore.setModelId(model.id)

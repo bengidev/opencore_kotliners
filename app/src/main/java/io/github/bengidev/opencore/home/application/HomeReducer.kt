@@ -6,13 +6,18 @@ import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
 internal object HomeReducer {
     fun reduce(state: HomeState, intent: HomeIntent): HomeState = when (intent) {
         is HomeIntent.DraftMessageChanged -> state.copy(draftMessage = intent.value)
-        HomeIntent.SendTapped -> if (state.canSend) state.copy(draftMessage = "") else state
+        HomeIntent.SendTapped -> if (state.canSend) {
+            state.copy(draftMessage = "", isContextUsagePresented = false)
+        } else {
+            state
+        }
         HomeIntent.ModelSelectorTapped -> {
             val selectedIsPaid = state.availableModels
                 .firstOrNull { it.id == state.selectedModelId }
                 ?.isFree == false
             state.copy(
                 isModelPickerVisible = true,
+                isContextUsagePresented = false,
                 modelSearchQuery = "",
                 appliedSearchQuery = "",
                 modelFilterFreeOnly = when {
@@ -86,6 +91,10 @@ internal object HomeReducer {
             if (intent.effort !in efforts) state else state.copy(reasoningEffortWireValue = intent.effort.wireValue)
         }
         is HomeIntent.ContextUsageUpdated -> state.copy(contextUsage = intent.usage)
+        is HomeIntent.ContextUsagePresentedChanged -> state.copy(
+            isContextUsagePresented = intent.presented,
+            isModelPickerVisible = if (intent.presented) false else state.isModelPickerVisible,
+        )
         HomeIntent.AttachmentTapped,
         HomeIntent.MicrophoneTapped -> state
         HomeIntent.NewConversationTapped,

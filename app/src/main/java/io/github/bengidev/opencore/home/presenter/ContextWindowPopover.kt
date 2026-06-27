@@ -1,14 +1,18 @@
 package io.github.bengidev.opencore.home.presenter
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material3.Text
 import io.github.bengidev.opencore.home.models.ContextWindowUsage
 import io.github.bengidev.opencore.home.theme.HomeTheme
 
@@ -19,21 +23,25 @@ internal fun ContextWindowPopover(
 ) {
     val palette = HomeTheme.palette
     val typography = HomeTheme.typography
-    val valueStyle = typography.contextUsage.copy(
+    val metricStyle = typography.contextUsage.copy(
         fontSize = 11.sp,
         lineHeight = 14.sp,
         fontWeight = FontWeight.Medium,
+        fontFamily = FontFamily.Monospace,
     )
     val footerStyle = typography.contextUsage.copy(
-        fontSize = 9.sp,
-        lineHeight = 12.sp,
-        fontWeight = FontWeight.Normal,
+        fontSize = 11.sp,
+        lineHeight = 14.sp,
+        fontWeight = FontWeight.Medium,
+        fontFamily = FontFamily.Monospace,
     )
 
     ComposerControlPopoverShell(
         title = "Context window",
         badge = if (usage.hasKnownLimit) "${usage.percentRemaining}% left" else null,
-        modifier = modifier,
+        modifier = modifier.width(260.dp),
+        cornerRadius = 28.dp,
+        prominentBadge = true,
         footer = if (usage.hasKnownLimit) {
             {
                 Row(
@@ -44,7 +52,7 @@ internal fun ContextWindowPopover(
                     Text(
                         text = "${usage.percentUsed}% used",
                         style = footerStyle,
-                        color = palette.textTertiary,
+                        color = palette.textPrimary,
                     )
                     Text(
                         text = "${usage.percentRemaining}% left",
@@ -58,22 +66,31 @@ internal fun ContextWindowPopover(
         },
     ) {
         if (usage.hasKnownLimit) {
-            ComposerControlProgressBar(fraction = usage.fractionUsed.toFloat())
+            ComposerControlProgressBar(
+                fraction = usage.fractionUsed.toFloat(),
+                height = 10.dp,
+                cornerRadius = 10.dp,
+                trackColorOverride = palette.lineSoft.copy(alpha = if (palette.isDark) 0.35f else 0.55f),
+                fillColorOverride = palette.accentPrimary.copy(alpha = if (palette.isDark) 0.92f else 0.82f),
+            )
         }
-        ComposerControlPopoverMetricRow(
-            label = "Free",
-            value = if (usage.hasKnownLimit) usage.tokensRemainingFormatted else "—",
-            valueStyle = valueStyle,
-        )
-        ComposerControlPopoverMetricRow(
-            label = "Used",
-            value = usage.tokensUsedFormatted,
-            valueStyle = valueStyle,
-        )
-        ComposerControlPopoverMetricRow(
-            label = "Total",
-            value = if (usage.hasKnownLimit) usage.tokenLimitFormatted else "—",
-            valueStyle = valueStyle,
-        )
+
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            ComposerControlPopoverMetricRow(
+                label = "Free:",
+                value = if (usage.hasKnownLimit) usage.tokensRemainingFormatted else "—",
+                valueStyle = metricStyle,
+            )
+            ComposerControlPopoverMetricRow(
+                label = "Used:",
+                value = usage.tokensUsedFormatted,
+                valueStyle = metricStyle,
+            )
+            ComposerControlPopoverMetricRow(
+                label = "Total:",
+                value = if (usage.hasKnownLimit) usage.tokenLimitFormatted else "—",
+                valueStyle = metricStyle,
+            )
+        }
     }
 }

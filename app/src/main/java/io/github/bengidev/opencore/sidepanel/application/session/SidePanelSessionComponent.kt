@@ -5,6 +5,7 @@ import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import com.arkivanov.essenty.lifecycle.doOnDestroy
+import io.github.bengidev.opencore.sidepanel.domain.ConversationTitlePolicy
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.shared.persistence.PersistenceConversationHistoryStoring
 import kotlinx.coroutines.CoroutineScope
@@ -97,6 +98,14 @@ internal class SidePanelSessionComponent(
         }
     }
 
+    fun syncConversationTitle(id: UUID, title: String) {
+        val trimmed = title.trim()
+        if (trimmed.isEmpty()) return
+        _state.update { current ->
+            SidePanelSessionReducer.reduce(current, SidePanelSessionIntent.ConversationRenamed(id, trimmed))
+        }
+    }
+
     fun deleteConversation(id: UUID) {
         scope.launch {
             dispatch(SidePanelSessionIntent.ConversationDeleted(id))
@@ -135,7 +144,7 @@ internal class SidePanelSessionComponent(
         if (trimmed.isEmpty()) return
         scope.launch {
             val conversation = SidePanelConversation(
-                title = trimmed.take(80),
+                title = ConversationTitlePolicy.fromUserMessage(trimmed),
                 updatedAt = java.time.Instant.now()
             )
             history.saveConversation(conversation)
