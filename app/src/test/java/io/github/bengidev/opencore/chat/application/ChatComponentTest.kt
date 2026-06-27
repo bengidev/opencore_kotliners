@@ -226,6 +226,31 @@ class ChatComponentTest {
     }
 
     @Test
+    fun sendUserMessage_updatesTitleToLatestUserMessage() = runTest(testDispatcher) {
+        val conversation = SidePanelConversation(title = "hello there")
+        history.saveConversation(conversation)
+        history.appendMessage(
+            conversation.id,
+            SidePanelMessage(
+                id = UUID.randomUUID(),
+                role = ChatMessageRole.USER,
+                content = "hello there",
+                createdAt = Instant.parse("2024-01-01T00:00:00Z"),
+            ),
+        )
+
+        val component = createComponent()
+        component.openConversation(conversation)
+        advanceUntilIdle()
+
+        component.sendUserMessage("what is circuit?")
+        advanceUntilIdle()
+
+        assertEquals("what is circuit?", component.state.value.headerTitle)
+        assertEquals("what is circuit?", history.listConversations().single().title)
+    }
+
+    @Test
     fun sendUserMessage_appendsUserMessageBeforePersistenceForActiveConversation() = runTest(testDispatcher) {
         val conversation = SidePanelConversation(title = "Saved")
         history.saveConversation(conversation)
@@ -250,6 +275,36 @@ class ChatComponentTest {
 
         component.sendUserMessage("Follow up")
 
+        assertEquals("Follow up", component.state.value.messages.last().content)
+    }
+
+    @Test
+    fun sendUserMessage_startsStreamWithoutWaitingForPersistence() = runTest(testDispatcher) {
+        val conversation = SidePanelConversation(title = "Saved")
+        history.saveConversation(conversation)
+        history.appendMessage(
+            conversation.id,
+            SidePanelMessage(
+                id = UUID.randomUUID(),
+                role = ChatMessageRole.USER,
+                content = "Earlier",
+                createdAt = Instant.parse("2024-01-01T00:00:00Z"),
+            ),
+        )
+
+        val delayedHistory = DelayedAppendHistoryRepository(history, appendDelayMs = 10_000)
+        val component = ChatComponent(
+            componentContext = DefaultComponentContext(lifecycle = LifecycleRegistry()),
+            history = delayedHistory,
+            streamingClient = EchoChatStreamingClient(),
+        )
+        component.openConversation(conversation)
+        advanceUntilIdle()
+
+        component.sendUserMessage("Follow up")
+        testDispatcher.scheduler.runCurrent()
+
+        assertTrue(component.state.value.isSending)
         assertEquals("Follow up", component.state.value.messages.last().content)
     }
 
