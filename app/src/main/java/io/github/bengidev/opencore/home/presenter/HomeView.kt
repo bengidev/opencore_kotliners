@@ -3,6 +3,8 @@ package io.github.bengidev.opencore.home.presenter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +20,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.chat.application.ChatState
+import io.github.bengidev.opencore.chat.presenter.ChatStreamingStatusCapsuleView
 import io.github.bengidev.opencore.chat.presenter.ChatView
 import io.github.bengidev.opencore.home.application.HomeState
 import io.github.bengidev.opencore.home.models.HomeComposerSpeedMode
@@ -52,7 +55,22 @@ internal fun HomeView(
         keyboardController?.hide()
     }
     val composer: @Composable () -> Unit = {
-        HomeComposerView(
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            if (chatState.showsStreamingStatusCapsule) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 620.dp)
+                        .padding(horizontal = 20.dp)
+                        .padding(top = 8.dp, bottom = 4.dp),
+                ) {
+                    ChatStreamingStatusCapsuleView()
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+            HomeComposerView(
             state = state,
             isSending = chatState.isSending,
             isLoadingMessages = chatState.isLoadingMessages,
@@ -90,7 +108,8 @@ internal fun HomeView(
                 .widthIn(max = 620.dp)
                 .padding(horizontal = 8.dp)
                 .padding(bottom = ComposerBottomPadding)
-        )
+            )
+        }
     }
 
     Box(

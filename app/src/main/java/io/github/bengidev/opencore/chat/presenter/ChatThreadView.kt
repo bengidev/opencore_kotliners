@@ -40,12 +40,6 @@ internal fun ChatThreadView(
     onDismissKeyboard: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val awaitingAssistantReply =
-        state.isSending &&
-            state.messages.lastOrNull()?.role == ChatMessageRole.USER &&
-            state.streamingThinkingId == null &&
-            state.streamingAnswerId == null
-
     OpenCoreChatTheme {
         val palette = ChatTheme.palette
         val typography = ChatTheme.typography
@@ -86,13 +80,12 @@ internal fun ChatThreadView(
             state.currentPartialText.encodeToByteArray().size,
             state.currentPartialThinking.encodeToByteArray().size
         )
-        val bottomTargetIndex = state.messages.lastIndex + if (awaitingAssistantReply) 1 else 0
+        val bottomTargetIndex = state.messages.lastIndex
         val imeVisible = WindowInsets.isImeVisible
         val imeBottomPx = WindowInsets.ime.getBottom(LocalDensity.current)
 
         LaunchedEffect(
             state.messages.size,
-            awaitingAssistantReply,
             state.streamingRevision,
             state.streamingStatus,
             imeVisible,
@@ -128,11 +121,6 @@ internal fun ChatThreadView(
                     isStreamingAssistant = isStreamingAssistant,
                     onDismissKeyboard = onDismissKeyboard
                 )
-            }
-            if (awaitingAssistantReply) {
-                item(key = "chat-loading-indicator") {
-                    ChatLoadingIndicatorView()
-                }
             }
         }
     }

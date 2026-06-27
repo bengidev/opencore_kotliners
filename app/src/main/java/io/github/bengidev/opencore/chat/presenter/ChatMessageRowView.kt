@@ -163,12 +163,7 @@ private fun AssistantRow(
         }
         if (isLastAssistantMessage) {
             when {
-                isStreamingAssistant -> Text(
-                    text = "Streaming…",
-                    style = typography.streamingLabel,
-                    color = palette.messageMetaText
-                )
-                message.content.isNotEmpty() -> Text(
+                !isStreamingAssistant && message.content.isNotEmpty() -> Text(
                     text = formatTime(message),
                     style = typography.messageMeta,
                     color = palette.messageMetaText
