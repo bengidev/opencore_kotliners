@@ -90,6 +90,32 @@ class ChatStreamingStatusCapsuleTest {
     }
 
     @Test
+    fun showsStreamingStatusCapsule_whenAssistantTailHasPartialStream() {
+        val assistantId = UUID.randomUUID()
+        val state = ChatState(
+            isSending = true,
+            streamingStatus = ChatStreamingStatus.Running,
+            messages = listOf(
+                SidePanelMessage(
+                    id = UUID.randomUUID(),
+                    role = ChatMessageRole.USER,
+                    content = "Question",
+                    createdAt = Instant.now(),
+                ),
+                SidePanelMessage(
+                    id = assistantId,
+                    role = ChatMessageRole.ASSISTANT,
+                    content = "Earlier reply",
+                    createdAt = Instant.now(),
+                ),
+            ),
+            streamingAnswerId = assistantId,
+            currentPartialText = "Streaming",
+        )
+        assertTrue(state.showsStreamingStatusCapsule)
+    }
+
+    @Test
     fun showsStreamingStatusCapsule_hiddenAfterStreamCompletes() = runTest(testDispatcher) {
         val component = ChatComponent(
             componentContext = DefaultComponentContext(lifecycle = LifecycleRegistry()),

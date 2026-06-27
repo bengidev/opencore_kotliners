@@ -18,35 +18,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import android.provider.Settings
 import io.github.bengidev.opencore.chat.theme.ChatTheme
+import io.github.bengidev.opencore.shared.ui.rememberReduceMotion
 
 /** Compact status chip above the composer while a response is streaming. */
 @Composable
 internal fun ChatStreamingStatusCapsuleView(modifier: Modifier = Modifier) {
     val palette = ChatTheme.palette
     val typography = ChatTheme.typography
-    val context = LocalContext.current
-    val reduceMotion = Settings.Global.getFloat(
-        context.contentResolver,
-        Settings.Global.ANIMATOR_DURATION_SCALE,
-        1f,
-    ) == 0f
-    val transition = rememberInfiniteTransition(label = "processing-capsule-dot")
-    val dotAlpha by transition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 600),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "processing-dot-alpha",
-    )
+    val reduceMotion = rememberReduceMotion()
 
     Row(
         modifier = modifier
@@ -63,11 +47,31 @@ internal fun ChatStreamingStatusCapsuleView(modifier: Modifier = Modifier) {
             style = typography.streamingLabel,
             color = palette.reasoningText,
         )
-        Box(
-            modifier = Modifier
-                .size(6.dp)
-                .clip(CircleShape)
-                .background(palette.reasoningText.copy(alpha = if (reduceMotion) 1f else dotAlpha)),
-        )
+        if (reduceMotion) {
+            ProcessingDot(alpha = 1f)
+        } else {
+            val transition = rememberInfiniteTransition(label = "processing-capsule-dot")
+            val dotAlpha by transition.animateFloat(
+                initialValue = 0.35f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(durationMillis = 600),
+                    repeatMode = RepeatMode.Reverse,
+                ),
+                label = "processing-dot-alpha",
+            )
+            ProcessingDot(alpha = dotAlpha)
+        }
     }
+}
+
+@Composable
+private fun ProcessingDot(alpha: Float) {
+    val palette = ChatTheme.palette
+    Box(
+        modifier = Modifier
+            .size(6.dp)
+            .clip(CircleShape)
+            .background(palette.reasoningText.copy(alpha = alpha)),
+    )
 }

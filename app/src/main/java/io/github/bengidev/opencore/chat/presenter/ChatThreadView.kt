@@ -171,6 +171,16 @@ private suspend fun scrollThreadToBottom(
     } catch (_: IllegalArgumentException) {
         // Layout race during rapid stream updates — safe to ignore.
     } catch (_: IllegalStateException) {
-        // Concurrent user drag or pending scroll — safe to ignore.
+        delay(32L)
+        try {
+            if (animate) {
+                listState.animateScrollToItem(targetIndex, scrollOffset = Int.MAX_VALUE)
+            } else {
+                listState.scrollToItem(targetIndex, scrollOffset = Int.MAX_VALUE)
+            }
+        } catch (_: IllegalArgumentException) {
+        } catch (_: IllegalStateException) {
+            // Concurrent user drag or pending scroll — safe to ignore.
+        }
     }
 }
