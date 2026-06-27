@@ -29,6 +29,15 @@ class HomePopupPresentationTest {
     }
 
     @Test
+    fun closingContextUsage_clearsPresentationFlag() {
+        val result = HomeReducer.reduce(
+            HomeState(isContextUsagePresented = true),
+            HomeIntent.ContextUsagePresentedChanged(presented = false),
+        )
+        assertFalse(result.isContextUsagePresented)
+    }
+
+    @Test
     fun sendTapped_closesContextUsage() {
         val model = SidePanelModel(
             id = "openai/gpt-4o-mini",

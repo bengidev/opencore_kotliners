@@ -37,6 +37,7 @@ import androidx.compose.runtime.setValue
 import io.github.bengidev.opencore.home.models.ContextWindowUsage
 import io.github.bengidev.opencore.home.models.HomeComposerSpeedMode
 import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
+import io.github.bengidev.opencore.shared.ui.rememberReduceMotion
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -222,7 +223,7 @@ private fun HomeComposerContextRail(
     onReasoningEffortSelected: (ModelReasoningEffort) -> Unit,
     onContextUsagePresentedChanged: (Boolean) -> Unit,
 ) {
-    val reduceMotion = HomeContextUsagePopoverMotion.rememberReduceMotion()
+    val reduceMotion = rememberReduceMotion()
 
     Column(
         modifier = Modifier
@@ -275,6 +276,8 @@ private fun HomeComposerContextRail(
                     expanded = state.isContextUsagePresented,
                     onExpandedChange = onContextUsagePresentedChanged,
                     anchorAlignment = PopoverAnchorAlignment.Trailing,
+                    animateContent = true,
+                    reduceMotion = reduceMotion,
                     anchor = {
                         HomeComposerContextUsageButton(
                             usage = state.contextUsage,
@@ -284,12 +287,7 @@ private fun HomeComposerContextRail(
                         )
                     },
                     content = {
-                        HomeContextUsagePopoverAnimated(
-                            visible = true,
-                            reduceMotion = reduceMotion,
-                        ) {
-                            ContextWindowPopover(usage = state.contextUsage)
-                        }
+                        ContextWindowPopover(usage = state.contextUsage)
                     },
                 )
             }
