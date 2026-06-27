@@ -16,6 +16,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +36,8 @@ import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+
+private const val HISTORY_RESTORE_SCROLL_DELAY_MS = 50L
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -83,6 +89,7 @@ internal fun ChatThreadView(
         val bottomTargetIndex = state.messages.lastIndex
         val imeVisible = WindowInsets.isImeVisible
         val imeBottomPx = WindowInsets.ime.getBottom(LocalDensity.current)
+        var previousMessageCount by remember { mutableIntStateOf(0) }
 
         LaunchedEffect(
             state.messages.size,
@@ -92,8 +99,12 @@ internal fun ChatThreadView(
             imeBottomPx,
         ) {
             if (imeVisible && imeBottomPx <= 0) return@LaunchedEffect
-            val animate = state.streamingRevision == 0 && !imeVisible
-            if (state.streamingRevision > 0) {
+            val isBulkRestore = previousMessageCount == 0 && state.messages.size > 1
+            previousMessageCount = state.messages.size
+            val animate = !isBulkRestore && state.streamingRevision == 0 && !imeVisible
+            if (isBulkRestore) {
+                delay(HISTORY_RESTORE_SCROLL_DELAY_MS)
+            } else if (state.streamingRevision > 0) {
                 val delayMs = ChatStreamingCoalescingPolicy.scrollDelayMs(pendingByteCount)
                 if (delayMs > 0L) delay(delayMs)
             }
