@@ -97,16 +97,26 @@ internal class ChatComponent(
         val current = _state.value
         if (text.isEmpty() || current.isSending || current.isLoadingMessages) return
 
+        val userMessage = SidePanelMessage(
+            id = UUID.randomUUID(),
+            role = ChatMessageRole.USER,
+            content = text,
+            createdAt = Instant.now()
+        )
+        val activeConversation = current.activeConversation
+        if (activeConversation != null) {
+            dispatch(ChatIntent.UserMessageAppended(userMessage))
+            scope.launch {
+                history.appendMessage(activeConversation.id, userMessage)
+                startStream(activeConversation.id, providerSortBy, reasoningEffort)
+            }
+            return
+        }
+
         scope.launch {
             val conversation = ensureActiveConversation(text)
-            val userMessage = SidePanelMessage(
-                id = UUID.randomUUID(),
-                role = ChatMessageRole.USER,
-                content = text,
-                createdAt = Instant.now()
-            )
-            history.appendMessage(conversation.id, userMessage)
             dispatch(ChatIntent.UserMessageAppended(userMessage))
+            history.appendMessage(conversation.id, userMessage)
             startStream(conversation.id, providerSortBy, reasoningEffort)
         }
     }

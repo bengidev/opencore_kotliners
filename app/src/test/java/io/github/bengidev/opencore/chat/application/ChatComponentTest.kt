@@ -226,6 +226,34 @@ class ChatComponentTest {
     }
 
     @Test
+    fun sendUserMessage_appendsUserMessageBeforePersistenceForActiveConversation() = runTest(testDispatcher) {
+        val conversation = SidePanelConversation(title = "Saved")
+        history.saveConversation(conversation)
+        history.appendMessage(
+            conversation.id,
+            SidePanelMessage(
+                id = UUID.randomUUID(),
+                role = ChatMessageRole.USER,
+                content = "Earlier",
+                createdAt = Instant.parse("2024-01-01T00:00:00Z"),
+            ),
+        )
+
+        val delayedHistory = DelayedAppendHistoryRepository(history, appendDelayMs = 10_000)
+        val component = ChatComponent(
+            componentContext = DefaultComponentContext(lifecycle = LifecycleRegistry()),
+            history = delayedHistory,
+            streamingClient = EchoChatStreamingClient(),
+        )
+        component.openConversation(conversation)
+        advanceUntilIdle()
+
+        component.sendUserMessage("Follow up")
+
+        assertEquals("Follow up", component.state.value.messages.last().content)
+    }
+
+    @Test
     fun sendUserMessage_afterHistoryRestore_producesUniqueThreadKeys() = runTest(testDispatcher) {
         val conversation = SidePanelConversation(title = "Saved")
         history.saveConversation(conversation)
@@ -276,6 +304,29 @@ private class RecordingChatStreamingClient : ChatStreamingClient {
             emit(ChatStreamingEvent.Done)
         }
     }
+}
+
+private class DelayedAppendHistoryRepository(
+    private val delegate: InMemorySidePanelHistoryRepository,
+    private val appendDelayMs: Long,
+) : PersistenceConversationHistoryStoring {
+    override suspend fun listConversations() = delegate.listConversations()
+    override suspend fun saveConversation(conversation: SidePanelConversation) =
+        delegate.saveConversation(conversation)
+    override suspend fun appendMessage(conversationId: UUID, message: SidePanelMessage) {
+        delay(appendDelayMs)
+        delegate.appendMessage(conversationId, message)
+    }
+    override suspend fun loadMessages(conversationId: UUID) = delegate.loadMessages(conversationId)
+    override suspend fun deleteConversation(conversationId: UUID) =
+        delegate.deleteConversation(conversationId)
+    override suspend fun setPinned(conversationId: UUID, isPinned: Boolean) =
+        delegate.setPinned(conversationId, isPinned)
+    override suspend fun renameConversation(conversationId: UUID, title: String) =
+        delegate.renameConversation(conversationId, title)
+    override suspend fun setGroup(conversationId: UUID, groupName: String?) =
+        delegate.setGroup(conversationId, groupName)
+    override suspend fun listGroups(): List<String> = delegate.listGroups()
 }
 
 private class DelayedHistoryRepository(
