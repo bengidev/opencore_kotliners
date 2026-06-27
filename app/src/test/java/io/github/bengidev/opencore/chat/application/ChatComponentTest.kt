@@ -304,8 +304,13 @@ class ChatComponentTest {
         component.sendUserMessage("Follow up")
         testDispatcher.scheduler.runCurrent()
 
-        assertTrue(component.state.value.isSending)
-        assertEquals("Follow up", component.state.value.messages.last().content)
+        assertTrue(component.state.value.messages.any { it.content == "Follow up" })
+        assertTrue(component.state.value.messages.size >= 3)
+        assertEquals(1, delayedHistory.appendAttempts)
+        assertEquals(
+            "Earlier",
+            delayedHistory.loadMessages(conversation.id).single().content,
+        )
     }
 
     @Test
@@ -365,10 +370,14 @@ private class DelayedAppendHistoryRepository(
     private val delegate: InMemorySidePanelHistoryRepository,
     private val appendDelayMs: Long,
 ) : PersistenceConversationHistoryStoring {
+    var appendAttempts: Int = 0
+        private set
+
     override suspend fun listConversations() = delegate.listConversations()
     override suspend fun saveConversation(conversation: SidePanelConversation) =
         delegate.saveConversation(conversation)
     override suspend fun appendMessage(conversationId: UUID, message: SidePanelMessage) {
+        appendAttempts += 1
         delay(appendDelayMs)
         delegate.appendMessage(conversationId, message)
     }
