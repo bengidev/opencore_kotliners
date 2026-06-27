@@ -140,20 +140,16 @@ private fun AssistantRow(
     ) {
         if (message.content.isNotEmpty()) {
             if (isStreamingAssistant) {
-                ChatStreamingTextView(
+                ChatAssistantStreamingTextView(
                     text = message.content,
-                    textStyle = typography.assistantMessageBody,
-                    color = palette.assistantBubbleText,
                     modifier = Modifier
                         .widthIn(max = 540.dp)
                         .align(Alignment.Start)
                         .testTag("chat-message-text")
                 )
             } else {
-                Text(
+                ChatAssistantMarkdownTextView(
                     text = message.content,
-                    style = typography.assistantMessageBody,
-                    color = palette.assistantBubbleText,
                     modifier = Modifier
                         .widthIn(max = 540.dp)
                         .align(Alignment.Start)
