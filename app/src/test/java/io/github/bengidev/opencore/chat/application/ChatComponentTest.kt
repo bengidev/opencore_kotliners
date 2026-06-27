@@ -11,6 +11,7 @@ import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
 import io.github.bengidev.opencore.shared.persistence.PersistenceConversationHistoryStoring
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelHistoryRepository
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -292,24 +293,24 @@ class ChatComponentTest {
             ),
         )
 
-        val delayedHistory = DelayedAppendHistoryRepository(history, appendDelayMs = 10_000)
+        val gatedHistory = GatedAppendHistoryRepository(history)
         val component = ChatComponent(
             componentContext = DefaultComponentContext(lifecycle = LifecycleRegistry()),
-            history = delayedHistory,
+            history = gatedHistory,
             streamingClient = EchoChatStreamingClient(),
         )
         component.openConversation(conversation)
         advanceUntilIdle()
 
         component.sendUserMessage("Follow up")
-        testDispatcher.scheduler.runCurrent()
+        advanceUntilIdle()
 
         assertTrue(component.state.value.messages.any { it.content == "Follow up" })
         assertTrue(component.state.value.messages.size >= 3)
-        assertEquals(1, delayedHistory.appendAttempts)
+        assertEquals(1, gatedHistory.appendAttempts)
         assertEquals(
             "Earlier",
-            delayedHistory.loadMessages(conversation.id).single().content,
+            gatedHistory.loadMessages(conversation.id).single().content,
         )
     }
 
@@ -364,6 +365,33 @@ private class RecordingChatStreamingClient : ChatStreamingClient {
             emit(ChatStreamingEvent.Done)
         }
     }
+}
+
+private class GatedAppendHistoryRepository(
+    private val delegate: InMemorySidePanelHistoryRepository,
+) : PersistenceConversationHistoryStoring {
+    val appendGate = CompletableDeferred<Unit>()
+    var appendAttempts: Int = 0
+        private set
+
+    override suspend fun listConversations() = delegate.listConversations()
+    override suspend fun saveConversation(conversation: SidePanelConversation) =
+        delegate.saveConversation(conversation)
+    override suspend fun appendMessage(conversationId: UUID, message: SidePanelMessage) {
+        appendAttempts += 1
+        appendGate.await()
+        delegate.appendMessage(conversationId, message)
+    }
+    override suspend fun loadMessages(conversationId: UUID) = delegate.loadMessages(conversationId)
+    override suspend fun deleteConversation(conversationId: UUID) =
+        delegate.deleteConversation(conversationId)
+    override suspend fun setPinned(conversationId: UUID, isPinned: Boolean) =
+        delegate.setPinned(conversationId, isPinned)
+    override suspend fun renameConversation(conversationId: UUID, title: String) =
+        delegate.renameConversation(conversationId, title)
+    override suspend fun setGroup(conversationId: UUID, groupName: String?) =
+        delegate.setGroup(conversationId, groupName)
+    override suspend fun listGroups(): List<String> = delegate.listGroups()
 }
 
 private class DelayedAppendHistoryRepository(
