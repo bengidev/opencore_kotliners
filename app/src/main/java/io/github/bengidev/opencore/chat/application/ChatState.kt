@@ -24,9 +24,17 @@ internal data class ChatState(
     val isThreadActive: Boolean
         get() = activeConversation != null
 
-    /** True while a turn is actively streaming; drives the status capsule above the composer. */
+    /** True while a turn is actively streaming; drives the status capsule in the thread. */
     val showsStreamingStatusCapsule: Boolean
-        get() = isSending && streamingStatus == ChatStreamingStatus.Running
+        get() {
+            if (!isSending || streamingStatus != ChatStreamingStatus.Running) return false
+            val last = messages.lastOrNull() ?: return false
+            if (last.role == ChatMessageRole.USER) return true
+            return streamingAnswerId != null ||
+                streamingThinkingId != null ||
+                currentPartialText.isNotEmpty() ||
+                currentPartialThinking.isNotEmpty()
+        }
 
     val headerTitle: String
         get() = activeConversation?.title.orEmpty()

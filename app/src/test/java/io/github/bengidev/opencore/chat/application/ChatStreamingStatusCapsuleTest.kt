@@ -2,7 +2,11 @@ package io.github.bengidev.opencore.chat.application
 
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
+import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
+import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
+import java.time.Instant
+import java.util.UUID
 import io.github.bengidev.opencore.chat.infrastructure.EchoChatStreamingClient
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelHistoryRepository
 import kotlinx.coroutines.Dispatchers
@@ -34,9 +38,37 @@ class ChatStreamingStatusCapsuleTest {
     }
 
     @Test
-    fun showsStreamingStatusCapsule_whenSendingAndRunning() {
-        val state = ChatState(isSending = true, streamingStatus = ChatStreamingStatus.Running)
+    fun showsStreamingStatusCapsule_whenSendingAndRunningWithOutgoingUserTurn() {
+        val state = ChatState(
+            isSending = true,
+            streamingStatus = ChatStreamingStatus.Running,
+            messages = listOf(
+                SidePanelMessage(
+                    id = UUID.randomUUID(),
+                    role = ChatMessageRole.USER,
+                    content = "Question",
+                    createdAt = Instant.now(),
+                ),
+            ),
+        )
         assertTrue(state.showsStreamingStatusCapsule)
+    }
+
+    @Test
+    fun showsStreamingStatusCapsule_hiddenUntilOutgoingUserTurnIsAnchored() {
+        val state = ChatState(
+            isSending = true,
+            streamingStatus = ChatStreamingStatus.Running,
+            messages = listOf(
+                SidePanelMessage(
+                    id = UUID.randomUUID(),
+                    role = ChatMessageRole.ASSISTANT,
+                    content = "Earlier reply",
+                    createdAt = Instant.now(),
+                ),
+            ),
+        )
+        assertFalse(state.showsStreamingStatusCapsule)
     }
 
     @Test
