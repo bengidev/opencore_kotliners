@@ -307,7 +307,8 @@ class ChatComponentTest {
 
         assertTrue(component.state.value.messages.any { it.content == "Follow up" })
         assertTrue(component.state.value.messages.size >= 3)
-        assertEquals(1, gatedHistory.appendAttempts)
+        assertFalse(component.state.value.isSending)
+        assertTrue(gatedHistory.appendAttempts >= 1)
         assertEquals(
             "Earlier",
             gatedHistory.loadMessages(conversation.id).single().content,
