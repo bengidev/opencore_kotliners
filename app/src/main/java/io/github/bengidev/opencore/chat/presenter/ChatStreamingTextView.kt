@@ -47,6 +47,7 @@ internal fun ChatStreamingTextView(
                 isFocusable = false
                 isClickable = false
                 isLongClickable = isTextSelectable
+                clipToOutline = true
                 setHorizontallyScrolling(false)
                 maxLines = Int.MAX_VALUE
                 includeFontPadding = false
