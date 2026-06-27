@@ -74,6 +74,8 @@ internal class HomeComponent(
         startCatalogReload(autoSelectWhenNoneSaved = false, onlyIfNeeded = true)
     }
     fun onModelPickerDismissed() = dispatch(HomeIntent.ModelPickerDismissed)
+    fun onContextUsagePresentedChanged(presented: Boolean) =
+        dispatch(HomeIntent.ContextUsagePresentedChanged(presented))
     fun onModelSelected(model: SidePanelModel) {
         scope.launch {
             preferenceStore.setModelId(model.id)

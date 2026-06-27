@@ -13,6 +13,7 @@ internal object HomeReducer {
                 ?.isFree == false
             state.copy(
                 isModelPickerVisible = true,
+                isContextUsagePresented = false,
                 modelSearchQuery = "",
                 appliedSearchQuery = "",
                 modelFilterFreeOnly = when {
@@ -86,6 +87,10 @@ internal object HomeReducer {
             if (intent.effort !in efforts) state else state.copy(reasoningEffortWireValue = intent.effort.wireValue)
         }
         is HomeIntent.ContextUsageUpdated -> state.copy(contextUsage = intent.usage)
+        is HomeIntent.ContextUsagePresentedChanged -> state.copy(
+            isContextUsagePresented = intent.presented,
+            isModelPickerVisible = if (intent.presented) false else state.isModelPickerVisible,
+        )
         HomeIntent.AttachmentTapped,
         HomeIntent.MicrophoneTapped -> state
         HomeIntent.NewConversationTapped,

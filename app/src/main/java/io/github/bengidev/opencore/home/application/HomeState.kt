@@ -19,6 +19,7 @@ internal data class HomeState(
     val contextUsage: ContextWindowUsage = ContextWindowUsage.zero,
     val speedMode: HomeComposerSpeedMode = HomeComposerSpeedMode.STANDARD,
     val isModelPickerVisible: Boolean = false,
+    val isContextUsagePresented: Boolean = false,
     val availableModels: List<SidePanelModel> = emptyList(),
     val isLoadingModels: Boolean = false,
     val modelCatalogIsLive: Boolean = false,
