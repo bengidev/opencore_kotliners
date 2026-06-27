@@ -23,6 +23,10 @@ internal data class ChatState(
     val isThreadActive: Boolean
         get() = activeConversation != null
 
+    /** True while a turn is actively streaming; drives the status capsule above the composer. */
+    val showsStreamingStatusCapsule: Boolean
+        get() = isSending && streamingStatus == ChatStreamingStatus.Running
+
     val headerTitle: String
         get() = activeConversation?.title.orEmpty()
 
