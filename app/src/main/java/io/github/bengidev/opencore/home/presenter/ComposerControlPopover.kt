@@ -40,9 +40,11 @@ import io.github.bengidev.opencore.home.theme.HomeTheme
 import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
 
 @Composable
-internal fun rememberComposerControlPopoverPositionProvider(): PopupPositionProvider {
+internal fun rememberComposerControlPopoverPositionProvider(
+    anchorAlignment: PopoverAnchorAlignment = PopoverAnchorAlignment.Center,
+): PopupPositionProvider {
     val density = LocalDensity.current
-    return remember(density) {
+    return remember(density, anchorAlignment) {
         object : PopupPositionProvider {
             override fun calculatePosition(
                 anchorBounds: IntRect,
@@ -51,7 +53,12 @@ internal fun rememberComposerControlPopoverPositionProvider(): PopupPositionProv
                 popupContentSize: IntSize,
             ): IntOffset {
                 val gapPx = with(density) { 8.dp.roundToPx() }
-                val x = anchorBounds.left + (anchorBounds.width - popupContentSize.width) / 2
+                val x = when (anchorAlignment) {
+                    PopoverAnchorAlignment.Center ->
+                        anchorBounds.left + (anchorBounds.width - popupContentSize.width) / 2
+                    PopoverAnchorAlignment.Trailing ->
+                        anchorBounds.right - popupContentSize.width
+                }
                 val aboveY = anchorBounds.top - popupContentSize.height - gapPx
                 val y = if (aboveY >= 0) {
                     aboveY
@@ -67,15 +74,21 @@ internal fun rememberComposerControlPopoverPositionProvider(): PopupPositionProv
     }
 }
 
+internal enum class PopoverAnchorAlignment {
+    Center,
+    Trailing,
+}
+
 @Composable
 internal fun ComposerControlPopoverHost(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    anchorAlignment: PopoverAnchorAlignment = PopoverAnchorAlignment.Center,
     anchor: @Composable () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    val popupPositionProvider = rememberComposerControlPopoverPositionProvider()
+    val popupPositionProvider = rememberComposerControlPopoverPositionProvider(anchorAlignment)
     Box(modifier = modifier) {
         anchor()
         if (expanded) {

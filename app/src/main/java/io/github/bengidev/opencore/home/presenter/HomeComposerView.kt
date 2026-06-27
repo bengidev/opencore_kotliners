@@ -224,76 +224,74 @@ private fun HomeComposerContextRail(
 ) {
     val reduceMotion = HomeContextUsagePopoverMotion.rememberReduceMotion()
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Column(
+        if (state.hasApiKey && !state.isModelCatalogAvailable) {
+            state.modelCatalogErrorHint?.let { hint ->
+                CatalogUnavailableHint(message = hint)
+            }
+        }
+
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            if (state.hasApiKey && !state.isModelCatalogAvailable) {
-                state.modelCatalogErrorHint?.let { hint ->
-                    CatalogUnavailableHint(message = hint)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
+            ) {
+                HomeComposerModelChip(
+                    title = state.modelPickerTitle,
+                    enabled = state.isModelCatalogAvailable,
+                    onClick = onModelSelectorTapped
+                )
+                if (state.selectedModelSupportsReasoning) {
+                    HomeComposerReasoningChip(
+                        selectedEffort = state.selectedReasoningEffort,
+                        availableEfforts = state.availableReasoningEfforts,
+                        onReasoningEffortSelected = onReasoningEffortSelected,
+                    )
                 }
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(end = 8.dp)
-                ) {
-                    HomeComposerModelChip(
-                        title = state.modelPickerTitle,
-                        enabled = state.isModelCatalogAvailable,
-                        onClick = onModelSelectorTapped
-                    )
-                    if (state.selectedModelSupportsReasoning) {
-                        HomeComposerReasoningChip(
-                            selectedEffort = state.selectedReasoningEffort,
-                            availableEfforts = state.availableReasoningEfforts,
-                            onReasoningEffortSelected = onReasoningEffortSelected,
-                        )
-                    }
-                }
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (state.selectedModelSupportsSpeedModes) {
-                        HomeComposerSpeedChip(
-                            speedMode = state.speedMode,
-                            onSpeedModeSelected = onSpeedModeSelected
-                        )
-                    }
-                    HomeComposerContextUsageButton(
-                        usage = state.contextUsage,
-                        onTogglePresented = {
-                            onContextUsagePresentedChanged(!state.isContextUsagePresented)
-                        },
+                if (state.selectedModelSupportsSpeedModes) {
+                    HomeComposerSpeedChip(
+                        speedMode = state.speedMode,
+                        onSpeedModeSelected = onSpeedModeSelected
                     )
                 }
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(bottom = 46.dp, end = 2.dp),
-        ) {
-            HomeContextUsagePopoverAnimated(
-                visible = state.isContextUsagePresented,
-                reduceMotion = reduceMotion,
-            ) {
-                ContextWindowPopover(usage = state.contextUsage)
+                ComposerControlPopoverHost(
+                    expanded = state.isContextUsagePresented,
+                    onExpandedChange = onContextUsagePresentedChanged,
+                    anchorAlignment = PopoverAnchorAlignment.Trailing,
+                    anchor = {
+                        HomeComposerContextUsageButton(
+                            usage = state.contextUsage,
+                            onClick = {
+                                onContextUsagePresentedChanged(!state.isContextUsagePresented)
+                            },
+                        )
+                    },
+                    content = {
+                        HomeContextUsagePopoverAnimated(
+                            visible = true,
+                            reduceMotion = reduceMotion,
+                        ) {
+                            ContextWindowPopover(usage = state.contextUsage)
+                        }
+                    },
+                )
             }
         }
     }
@@ -465,7 +463,7 @@ private fun HomeComposerSpeedChip(
 @Composable
 private fun HomeComposerContextUsageButton(
     usage: ContextWindowUsage,
-    onTogglePresented: () -> Unit,
+    onClick: () -> Unit,
 ) {
     val palette = HomeTheme.palette
     val typography = HomeTheme.typography
@@ -478,7 +476,7 @@ private fun HomeComposerContextUsageButton(
             .clip(CircleShape)
             .background(palette.surfaceRaised.copy(alpha = if (palette.isDark) 0.42f else 0.72f))
             .border(1.dp, palette.accentPrimary.copy(alpha = if (palette.isDark) 0.18f else 0.12f), CircleShape)
-            .clickable(onClick = onTogglePresented)
+            .clickable(onClick = onClick)
             .semantics {
                 contentDescription = "Context usage $usagePercent percent"
             },

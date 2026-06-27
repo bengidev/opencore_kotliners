@@ -136,8 +136,6 @@ internal fun HomeView(
                     onDismissKeyboard = dismissKeyboard,
                     onRetry = onChatRetryTapped,
                     onDismiss = onChatErrorDismissed,
-                    showsContextUsageDismissScrim = state.isContextUsagePresented,
-                    onDismissContextUsage = { onContextUsagePresentedChanged(false) },
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
@@ -153,8 +151,6 @@ internal fun HomeView(
                     .fillMaxSize()
                     .statusBarsPadding()
                     .padding(top = HomeTopBarClearance),
-                showsContextUsageDismissScrim = state.isContextUsagePresented,
-                onDismissContextUsage = { onContextUsagePresentedChanged(false) },
                 content = { viewportHeight ->
                     HomeWelcomeView(
                         viewportHeight = viewportHeight,
