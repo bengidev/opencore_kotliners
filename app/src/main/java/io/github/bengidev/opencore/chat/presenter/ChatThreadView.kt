@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -87,18 +86,13 @@ internal fun ChatThreadView(
             state.currentPartialText.encodeToByteArray().size,
             state.currentPartialThinking.encodeToByteArray().size
         )
-        val bottomTargetIndex = when {
-            state.messages.isEmpty() -> -1
-            state.showsStreamingStatusCapsule -> state.messages.size
-            else -> state.messages.lastIndex
-        }
+        val bottomTargetIndex = state.messages.lastIndex
         val imeVisible = WindowInsets.isImeVisible
         val imeBottomPx = WindowInsets.ime.getBottom(LocalDensity.current)
         var previousMessageCount by remember { mutableIntStateOf(0) }
 
         LaunchedEffect(
             state.messages.size,
-            state.showsStreamingStatusCapsule,
             state.streamingRevision,
             state.streamingStatus,
             imeVisible,
@@ -149,18 +143,6 @@ internal fun ChatThreadView(
                     isStreamingAssistant = isStreamingAssistant,
                     onDismissKeyboard = onDismissKeyboard
                 )
-            }
-
-            if (state.showsStreamingStatusCapsule) {
-                item(key = "streaming-status-capsule") {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("chat-streaming-status-capsule-row"),
-                    ) {
-                        ChatStreamingStatusCapsuleView()
-                    }
-                }
             }
         }
     }
