@@ -139,23 +139,14 @@ private fun AssistantRow(
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         if (message.content.isNotEmpty()) {
-            if (isStreamingAssistant) {
-                ChatAssistantStreamingTextView(
-                    text = message.content,
-                    modifier = Modifier
-                        .widthIn(max = 540.dp)
-                        .align(Alignment.Start)
-                        .testTag("chat-message-text")
-                )
-            } else {
-                ChatAssistantMarkdownTextView(
-                    text = message.content,
-                    modifier = Modifier
-                        .widthIn(max = 540.dp)
-                        .align(Alignment.Start)
-                        .testTag("chat-message-text")
-                )
-            }
+            ChatAssistantTextView(
+                text = message.content,
+                isStreaming = isStreamingAssistant,
+                modifier = Modifier
+                    .widthIn(max = 540.dp)
+                    .align(Alignment.Start)
+                    .testTag("chat-message-text")
+            )
         }
         if (isLastAssistantMessage) {
             when {

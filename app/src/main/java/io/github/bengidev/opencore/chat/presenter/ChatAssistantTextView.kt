@@ -10,20 +10,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import io.github.bengidev.opencore.chat.theme.ChatTheme
 import io.github.bengidev.opencore.chat.utilities.ChatAssistantMarkdownRenderer
-import io.github.bengidev.opencore.home.theme.HomeTheme
 import io.github.bengidev.opencore.onboarding.theme.OpenCorePalette
 
 /**
- * Markdown-aware streaming assistant text — full attributed rebuild per flush.
- * Mirrors iOS `ChatAssistantStreamingTextView`.
+ * Assistant answer text with markdown styling.
+ * [isStreaming] coalesces full attributed rebuilds; completed messages render immediately.
  */
 @Composable
-internal fun ChatAssistantStreamingTextView(
+internal fun ChatAssistantTextView(
     text: String,
     modifier: Modifier = Modifier,
+    isStreaming: Boolean = false,
     isTextSelectable: Boolean = true,
 ) {
-    val palette = HomeTheme.palette
+    val palette = ChatTheme.corePalette
     val typography = ChatTheme.typography
     val coordinator = remember { AssistantMarkdownStreamingCoordinator() }
 
@@ -31,37 +31,51 @@ internal fun ChatAssistantStreamingTextView(
         modifier = modifier,
         factory = { context ->
             ChatStreamingSizingTextView(context).apply {
-                isEnabled = true
-                isFocusable = false
-                isClickable = false
-                isLongClickable = isTextSelectable
-                movementMethod = LinkMovementMethod.getInstance()
-                clipToOutline = true
-                setHorizontallyScrolling(false)
-                maxLines = Int.MAX_VALUE
-                includeFontPadding = false
-                setPadding(0, 0, 0, 0)
-                setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, typography.assistantMessageBody.fontSize.value)
+                configureAssistantMarkdownTextView(
+                    isStreaming = isStreaming,
+                    isTextSelectable = isTextSelectable,
+                    fontSizeSp = typography.assistantMessageBody.fontSize.value,
+                )
             }
         },
         update = { textView ->
             textView.setTextIsSelectable(isTextSelectable)
-            coordinator.apply(text = text, palette = palette, textView = textView)
+            if (isStreaming) {
+                coordinator.apply(text = text, palette = palette, textView = textView)
+            } else {
+                coordinator.cancel(textView)
+                textView.text = ChatAssistantMarkdownRenderer.spanned(text, palette)
+            }
         },
-        onRelease = { textView ->
-            coordinator.cancel(textView)
-        },
+        onRelease = coordinator::cancel,
     )
 }
 
+private fun TextView.configureAssistantMarkdownTextView(
+    isStreaming: Boolean,
+    isTextSelectable: Boolean,
+    fontSizeSp: Float,
+) {
+    isEnabled = true
+    isFocusable = false
+    isClickable = !isStreaming
+    isLongClickable = isTextSelectable
+    movementMethod = LinkMovementMethod.getInstance()
+    clipToOutline = true
+    setHorizontallyScrolling(false)
+    maxLines = Int.MAX_VALUE
+    includeFontPadding = false
+    setPadding(0, 0, 0, 0)
+    setBackgroundColor(android.graphics.Color.TRANSPARENT)
+    setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
+}
+
 private class AssistantMarkdownStreamingCoordinator {
-    private var boundTextView: ChatStreamingSizingTextView? = null
+    private val scheduler = CoalescedTextViewScheduler()
     private var appliedText = ""
     private var appliedIsDark: Boolean? = null
     private var pendingText = ""
     private var pendingPalette: OpenCorePalette? = null
-    private var updateRunnable: Runnable? = null
     private var lastLayoutInvalidationUptimeMs = 0L
 
     fun apply(
@@ -69,30 +83,18 @@ private class AssistantMarkdownStreamingCoordinator {
         palette: OpenCorePalette,
         textView: ChatStreamingSizingTextView,
     ) {
-        if (boundTextView !== textView) {
-            boundTextView?.let(::cancel)
-            boundTextView = textView
-            resetAppliedState()
-        }
         pendingText = text
         pendingPalette = palette
-        if (updateRunnable != null) return
-
-        val runnable = Runnable {
-            updateRunnable = null
-            flushPending(textView)
-        }
-        updateRunnable = runnable
-        textView.postDelayed(runnable, COALESCE_DELAY_MS)
+        scheduler.schedule(
+            textView = textView,
+            onBindingChanged = ::resetAppliedState,
+            onFlush = ::flushPending,
+        )
     }
 
     fun cancel(textView: ChatStreamingSizingTextView) {
-        updateRunnable?.let(textView::removeCallbacks)
-        updateRunnable = null
-        if (boundTextView === textView) {
-            boundTextView = null
-            resetAppliedState()
-        }
+        scheduler.cancel(textView)
+        resetAppliedState()
     }
 
     private fun resetAppliedState() {
@@ -102,8 +104,6 @@ private class AssistantMarkdownStreamingCoordinator {
     }
 
     private fun flushPending(textView: ChatStreamingSizingTextView) {
-        if (!textView.isAttachedToWindow || boundTextView !== textView) return
-
         val palette = pendingPalette ?: return
         val text = pendingText
         val isDark = palette.isDark
@@ -118,9 +118,5 @@ private class AssistantMarkdownStreamingCoordinator {
             lastLayoutInvalidationUptimeMs = SystemClock.uptimeMillis()
             textView.invalidateMeasuredHeight()
         }
-    }
-
-    private companion object {
-        const val COALESCE_DELAY_MS = 33L
     }
 }

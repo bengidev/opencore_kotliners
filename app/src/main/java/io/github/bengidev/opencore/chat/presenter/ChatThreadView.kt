@@ -81,15 +81,16 @@ internal fun ChatThreadView(
         }
 
         val listState = rememberLazyListState()
-        val lastAssistantTextId = state.messages.lastOrNull {
-            it.role == ChatMessageRole.ASSISTANT && it.kind == SidePanelMessageKind.TEXT
-        }?.id
         val pendingByteCount = maxOf(
             state.currentPartialText.encodeToByteArray().size,
             state.currentPartialThinking.encodeToByteArray().size
         )
         val displayMessages = ChatThreadLayoutPolicy.displayOrder(state.messages)
-        val bottomTargetIndex = ChatThreadLayoutPolicy.tailScrollIndex(state.messages.size)
+        val bottomTargetIndex = ChatThreadLayoutPolicy.tailScrollIndex(displayMessages)
+        val lastDisplayMessage = displayMessages.lastOrNull()
+        val lastAssistantTextId = displayMessages.lastOrNull {
+            it.role == ChatMessageRole.ASSISTANT && it.kind == SidePanelMessageKind.TEXT
+        }?.id
         val imeVisible = WindowInsets.isImeVisible
         val imeBottomPx = WindowInsets.ime.getBottom(LocalDensity.current)
         var previousMessageCount by remember { mutableIntStateOf(0) }
@@ -142,7 +143,7 @@ internal fun ChatThreadView(
                     items = displayMessages,
                     key = ChatThreadItemKeyPolicy::keyFor,
                 ) { message ->
-                    val isLastMessage = message.id == state.messages.lastOrNull()?.id
+                    val isLastMessage = message.id == lastDisplayMessage?.id
                     val isStreamingAssistant = state.isSending &&
                         isLastMessage &&
                         message.kind == SidePanelMessageKind.TEXT &&

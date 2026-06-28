@@ -7,6 +7,7 @@ import android.text.style.StyleSpan
 import android.text.style.TypefaceSpan
 import android.text.style.URLSpan
 import androidx.compose.ui.graphics.toArgb
+import io.github.bengidev.opencore.onboarding.theme.DarkOpenCorePalette
 import io.github.bengidev.opencore.onboarding.theme.LightOpenCorePalette
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -118,5 +119,40 @@ class ChatAssistantMarkdownRendererTest {
 
         assertNull(rendered.getSpans(badStart, badStart + 3, URLSpan::class.java).firstOrNull())
         assertTrue(rendered.getSpans(okStart, okStart + 2, URLSpan::class.java).isNotEmpty())
+    }
+
+    @Test
+    fun darkPalette_usesPrimaryTextColor() {
+        val rendered = ChatAssistantMarkdownRenderer.spanned("Hello", DarkOpenCorePalette)
+        val color = rendered.getSpans(0, 1, ForegroundColorSpan::class.java).single()
+        assertEquals(DarkOpenCorePalette.textPrimary.toArgb(), color.foregroundColor)
+    }
+
+    @Test
+    fun spanned_reusesCachedInstance_forIdenticalInput() {
+        val markdown = "Cached prose stays stable."
+        val first = ChatAssistantMarkdownRenderer.spanned(markdown, palette)
+        val second = ChatAssistantMarkdownRenderer.spanned(markdown, palette)
+        assertTrue(first === second)
+    }
+
+    @Test
+    fun spanned_cacheSeparatesLightAndDarkPalettes() {
+        val markdown = "Theme-specific cache key."
+        val light = ChatAssistantMarkdownRenderer.spanned(markdown, LightOpenCorePalette)
+        val dark = ChatAssistantMarkdownRenderer.spanned(markdown, DarkOpenCorePalette)
+        assertTrue(light !== dark)
+    }
+
+    @Test
+    fun shouldUsePlainFallback_detectsUnclosedFenceInSinglePass() {
+        assertTrue(ChatAssistantMarkdownRenderer.shouldUsePlainFallback("```open"))
+        assertFalse(ChatAssistantMarkdownRenderer.shouldUsePlainFallback("```closed```"))
+    }
+
+    @Test
+    fun shouldUsePlainFallback_detectsUnclosedInlineBacktick() {
+        assertTrue(ChatAssistantMarkdownRenderer.shouldUsePlainFallback("partial `token"))
+        assertFalse(ChatAssistantMarkdownRenderer.shouldUsePlainFallback("closed `token`"))
     }
 }

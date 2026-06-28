@@ -6,6 +6,8 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import io.github.bengidev.opencore.home.theme.HomePalette
+import io.github.bengidev.opencore.onboarding.theme.LightOpenCorePalette
+import io.github.bengidev.opencore.onboarding.theme.OpenCorePalette
 
 /** Chat-specific palette aliases over `OpenCorePalette`. Mirrors iOS chat tokens. */
 @Immutable
@@ -52,11 +54,19 @@ internal val LocalChatPalette = staticCompositionLocalOf {
     )
 }
 
+internal val LocalCorePalette = staticCompositionLocalOf { LightOpenCorePalette }
+
 internal object ChatTheme {
     val palette: ChatPalette
         @Composable
         @ReadOnlyComposable
         get() = LocalChatPalette.current
+
+    /** Full OpenCore tokens for markdown and other prose styling. */
+    val corePalette: OpenCorePalette
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalCorePalette.current
 
     val typography
         @Composable

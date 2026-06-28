@@ -9,6 +9,7 @@ internal fun OpenCoreChatTheme(content: @Composable () -> Unit) {
     val palette = HomeTheme.palette
     CompositionLocalProvider(
         LocalChatPalette provides ChatPaletteDefaults.fromPalette(palette),
+        LocalCorePalette provides palette,
         LocalChatTypography provides ChatTypographyDefaults.default
     ) {
         content()

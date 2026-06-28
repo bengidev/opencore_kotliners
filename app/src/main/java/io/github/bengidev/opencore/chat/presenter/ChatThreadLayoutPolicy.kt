@@ -11,9 +11,10 @@ import androidx.compose.ui.Alignment
 internal object ChatThreadLayoutPolicy {
     fun <T> displayOrder(messages: List<T>): List<T> = messages
 
-    fun tailScrollIndex(messageCount: Int): Int {
-        if (messageCount <= 0) return -1
-        return messageCount - 1
+    fun <T> tailScrollIndex(messages: List<T>): Int {
+        val ordered = displayOrder(messages)
+        if (ordered.isEmpty()) return -1
+        return ordered.lastIndex
     }
 
     fun useReverseLayout(): Boolean = false
