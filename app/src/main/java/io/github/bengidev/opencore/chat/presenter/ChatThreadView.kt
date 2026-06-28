@@ -2,8 +2,10 @@ package io.github.bengidev.opencore.chat.presenter
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -79,14 +81,16 @@ internal fun ChatThreadView(
         }
 
         val listState = rememberLazyListState()
-        val lastAssistantTextId = state.messages.lastOrNull {
-            it.role == ChatMessageRole.ASSISTANT && it.kind == SidePanelMessageKind.TEXT
-        }?.id
         val pendingByteCount = maxOf(
             state.currentPartialText.encodeToByteArray().size,
             state.currentPartialThinking.encodeToByteArray().size
         )
-        val bottomTargetIndex = state.messages.lastIndex
+        val displayMessages = ChatThreadLayoutPolicy.displayOrder(state.messages)
+        val bottomTargetIndex = ChatThreadLayoutPolicy.tailScrollIndex(displayMessages)
+        val lastDisplayMessage = displayMessages.lastOrNull()
+        val lastAssistantTextId = displayMessages.lastOrNull {
+            it.role == ChatMessageRole.ASSISTANT && it.kind == SidePanelMessageKind.TEXT
+        }?.id
         val imeVisible = WindowInsets.isImeVisible
         val imeBottomPx = WindowInsets.ime.getBottom(LocalDensity.current)
         var previousMessageCount by remember { mutableIntStateOf(0) }
@@ -119,30 +123,38 @@ internal fun ChatThreadView(
             scrollThreadToBottom(listState, bottomTargetIndex, animate = animate)
         }
 
-        LazyColumn(
-            state = listState,
+        BoxWithConstraints(
             modifier = modifier
                 .fillMaxWidth()
                 .fillMaxHeight()
                 .testTag("chat-thread-list"),
-            verticalArrangement = Arrangement.spacedBy(0.dp),
-            contentPadding = PaddingValues(vertical = 8.dp)
         ) {
-            items(
-                items = state.messages,
-                key = ChatThreadItemKeyPolicy::keyFor,
-            ) { message ->
-                val isLastMessage = message.id == state.messages.lastOrNull()?.id
-                val isStreamingAssistant = state.isSending &&
-                    isLastMessage &&
-                    message.kind == SidePanelMessageKind.TEXT &&
-                    message.role == ChatMessageRole.ASSISTANT
-                ChatMessageRowView(
-                    message = message,
-                    isLastAssistantMessage = message.id == lastAssistantTextId,
-                    isStreamingAssistant = isStreamingAssistant,
-                    onDismissKeyboard = onDismissKeyboard
-                )
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .align(ChatThreadLayoutPolicy.listAlignment)
+                    .fillMaxWidth()
+                    .heightIn(max = maxHeight),
+                reverseLayout = ChatThreadLayoutPolicy.useReverseLayout(),
+                verticalArrangement = Arrangement.spacedBy(0.dp),
+                contentPadding = PaddingValues(vertical = 8.dp),
+            ) {
+                items(
+                    items = displayMessages,
+                    key = ChatThreadItemKeyPolicy::keyFor,
+                ) { message ->
+                    val isLastMessage = message.id == lastDisplayMessage?.id
+                    val isStreamingAssistant = state.isSending &&
+                        isLastMessage &&
+                        message.kind == SidePanelMessageKind.TEXT &&
+                        message.role == ChatMessageRole.ASSISTANT
+                    ChatMessageRowView(
+                        message = message,
+                        isLastAssistantMessage = message.id == lastAssistantTextId,
+                        isStreamingAssistant = isStreamingAssistant,
+                        onDismissKeyboard = onDismissKeyboard
+                    )
+                }
             }
         }
     }
@@ -163,20 +175,22 @@ private suspend fun scrollThreadToBottom(
         }
         .first()
     try {
+        val scrollOffset = ChatThreadLayoutPolicy.tailScrollOffset()
         if (animate) {
-            listState.animateScrollToItem(targetIndex, scrollOffset = Int.MAX_VALUE)
+            listState.animateScrollToItem(targetIndex, scrollOffset = scrollOffset)
         } else {
-            listState.scrollToItem(targetIndex, scrollOffset = Int.MAX_VALUE)
+            listState.scrollToItem(targetIndex, scrollOffset = scrollOffset)
         }
     } catch (_: IllegalArgumentException) {
         // Layout race during rapid stream updates — safe to ignore.
     } catch (_: IllegalStateException) {
         delay(32L)
         try {
+            val scrollOffset = ChatThreadLayoutPolicy.tailScrollOffset()
             if (animate) {
-                listState.animateScrollToItem(targetIndex, scrollOffset = Int.MAX_VALUE)
+                listState.animateScrollToItem(targetIndex, scrollOffset = scrollOffset)
             } else {
-                listState.scrollToItem(targetIndex, scrollOffset = Int.MAX_VALUE)
+                listState.scrollToItem(targetIndex, scrollOffset = scrollOffset)
             }
         } catch (_: IllegalArgumentException) {
         } catch (_: IllegalStateException) {

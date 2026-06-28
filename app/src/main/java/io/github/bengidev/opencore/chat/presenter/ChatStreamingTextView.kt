@@ -74,6 +74,7 @@ internal fun ChatStreamingTextView(
 }
 
 private class StreamingTextCoordinator {
+    private val scheduler = CoalescedTextViewScheduler()
     private var boundTextView: ChatStreamingSizingTextView? = null
     private var appliedText = ""
     private var appliedShowsCursor = false
@@ -82,7 +83,8 @@ private class StreamingTextCoordinator {
     private var pendingShowsCursor = false
     private var pendingCursorColor: Color = Color.Unspecified
     private var pendingCursorOpacity = 1f
-    private var updateRunnable: Runnable? = null
+    private var pendingTextStyle: TextStyle? = null
+    private var pendingColor: Color? = null
     private var lastLayoutInvalidationUptimeMs = 0L
 
     fun apply(
@@ -94,28 +96,22 @@ private class StreamingTextCoordinator {
         cursorColor: Color,
         cursorOpacity: Float,
     ) {
-        if (boundTextView !== textView) {
-            boundTextView?.let(::cancel)
-            boundTextView = textView
-            resetAppliedState()
-        }
+        boundTextView = textView
         pendingText = text
         pendingShowsCursor = showsCursor
         pendingCursorColor = cursorColor
         pendingCursorOpacity = cursorOpacity
-        if (updateRunnable != null) return
-
-        val runnable = Runnable {
-            updateRunnable = null
-            flushPending(textView, textStyle, color)
-        }
-        updateRunnable = runnable
-        textView.postDelayed(runnable, COALESCE_DELAY_MS)
+        pendingTextStyle = textStyle
+        pendingColor = color
+        scheduler.schedule(
+            textView = textView,
+            onBindingChanged = ::resetAppliedState,
+            onFlush = ::flushPending,
+        )
     }
 
     fun cancel(textView: ChatStreamingSizingTextView) {
-        updateRunnable?.let(textView::removeCallbacks)
-        updateRunnable = null
+        scheduler.cancel(textView)
         if (boundTextView === textView) {
             boundTextView = null
             resetAppliedState()
@@ -129,11 +125,9 @@ private class StreamingTextCoordinator {
         lastLayoutInvalidationUptimeMs = 0L
     }
 
-    private fun flushPending(
-        textView: ChatStreamingSizingTextView,
-        textStyle: TextStyle,
-        color: Color,
-    ) {
+    private fun flushPending(textView: ChatStreamingSizingTextView) {
+        val textStyle = pendingTextStyle ?: return
+        val color = pendingColor ?: return
         if (!textView.isAttachedToWindow || boundTextView !== textView) return
 
         val text = pendingText
@@ -196,10 +190,6 @@ private class StreamingTextCoordinator {
             lastLayoutInvalidationUptimeMs = SystemClock.uptimeMillis()
             textView.invalidateMeasuredHeight()
         }
-    }
-
-    private companion object {
-        const val COALESCE_DELAY_MS = 33L
     }
 }
 

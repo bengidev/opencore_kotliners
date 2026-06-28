@@ -20,7 +20,8 @@ Internal module with `ChatFacade` as the app-shell wiring entry. `ChatComponent`
 | Reducer | `ChatReducer` |
 | Facade | `ChatFacade` |
 | Strategy | `ChatStreamingClient`, `ChatStreamingTextAppendStrategy` |
-| Policy | `ChatStreamingCoalescingPolicy`, `ChatStreamingTextAppendPolicy`, `ChatStreamingTextCursorPolicy`, `ChatViewTitlePolicy` |
+| Policy | `ChatStreamingCoalescingPolicy`, `ChatStreamingTextAppendPolicy`, `ChatStreamingTextCursorPolicy`, `ChatViewTitlePolicy`, `ChatThreadLayoutPolicy`, `ChatThreadScrollPolicy` |
+| Pure utility | `ChatAssistantMarkdownRenderer` |
 | State | `ChatStreamingCoalescer` |
 | Pure merge | `ChatStreamingMerger` |
 
@@ -29,7 +30,7 @@ Internal module with `ChatFacade` as the app-shell wiring entry. `ChatComponent`
 - **ChatComponent**: Decompose component for thread lifecycle and send
 - **ChatIntent** / **ChatReducer**: Command-style state mutations
 - **ChatView**: Entry view for the active thread (title, thread, error banner; composer stays in Home)
-- **ChatThreadView**: Scrollable message list used inside `ChatView`
+- **ChatThreadView**: Bottom-aligned scrollable message list inside `ChatView` (`BoxWithConstraints` + chronological `LazyColumn`; mirrors iOS `defaultScrollAnchor(.bottom)`)
 - **ChatErrorBannerView**: Turn-level failure banner colocated in `ChatView`
 - **ChatStreamingClient**: Strategy seam for provider streaming (`ProviderChatStreamingClient` → OpenAI-compatible SSE HTTP)
 - **SidePanelHistoryRepository**: Persistence for conversations and messages (owned by SidePanel infrastructure)
