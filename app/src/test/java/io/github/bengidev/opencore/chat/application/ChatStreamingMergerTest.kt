@@ -1,6 +1,8 @@
 package io.github.bengidev.opencore.chat.application
 
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
+import io.github.bengidev.opencore.chat.domain.ChatOutputStreamDetail
+import io.github.bengidev.opencore.chat.domain.ChatOutputStreamStatus
 import io.github.bengidev.opencore.chat.domain.ChatStreamError
 import io.github.bengidev.opencore.chat.domain.ChatStreamingEvent
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
@@ -200,6 +202,7 @@ class ChatStreamingMergerTest {
             state = initial,
             partialThinking = "Weighing options",
             partialText = "Hello",
+            partialOutputStreamDelta = "",
             makeId = ::makeId,
             now = now
         )
@@ -240,6 +243,7 @@ class ChatStreamingMergerTest {
             state = initial,
             partialThinking = "New think",
             partialText = "New answer",
+            partialOutputStreamDelta = "",
             makeId = ::makeId,
             now = now
         )
@@ -257,6 +261,7 @@ class ChatStreamingMergerTest {
             state = initial,
             partialThinking = "",
             partialText = "",
+            partialOutputStreamDelta = "",
             makeId = ::makeId,
             now = now
         )
@@ -385,5 +390,78 @@ class ChatStreamingMergerTest {
         val result = ChatStreamingMerger.merge(initial, ChatStreamingEvent.Done, ::makeId, now)
         assertTrue(result.state.messages.all { it.isComplete })
         assertEquals(2, result.finalizedMessages.size)
+    }
+
+    @Test
+    fun outputStreamDeltas_mergeIntoOneRow() {
+        var state = ChatStreamingState(messages = listOf(userMessage()))
+        state = ChatStreamingMerger.merge(
+            state,
+            ChatStreamingEvent.OutputStreamBegan(command = "npm test", cwd = "/tmp/project"),
+            ::makeId,
+            now,
+        ).state
+        state = ChatStreamingMerger.applyPendingPartial(
+            state = state,
+            partialThinking = "",
+            partialText = "",
+            partialOutputStreamDelta = "PASS suite\n",
+            makeId = ::makeId,
+            now = now,
+        ).state
+        val result = ChatStreamingMerger.merge(
+            state,
+            ChatStreamingEvent.OutputStreamEnded(
+                status = ChatOutputStreamStatus.COMPLETED,
+                exitCode = 0,
+                durationMs = 1200,
+            ),
+            ::makeId,
+            now,
+        )
+
+        val rows = result.state.messages.filter { it.kind == SidePanelMessageKind.OUTPUT_STREAM }
+        assertEquals(1, rows.size)
+        val detail = ChatOutputStreamDetail.decode(rows.first().detailJson, rows.first().isComplete)
+        assertEquals("npm test", rows.first().content)
+        assertEquals("/tmp/project", detail.cwd)
+        assertEquals("PASS suite\n", detail.outputTail)
+        assertEquals(ChatOutputStreamStatus.COMPLETED, detail.status)
+        assertEquals(0, detail.exitCode)
+        assertEquals(1200, detail.durationMs)
+        assertTrue(rows.first().isComplete)
+        assertEquals(1, result.finalizedMessages.size)
+    }
+
+    @Test
+    fun errorMidStream_finalizesOutputStreamAsFailed() {
+        var state = ChatStreamingState(messages = listOf(userMessage()))
+        state = ChatStreamingMerger.merge(
+            state,
+            ChatStreamingEvent.OutputStreamBegan(command = "npm test", cwd = "/tmp/project"),
+            ::makeId,
+            now,
+        ).state
+        state = ChatStreamingMerger.applyPendingPartial(
+            state = state,
+            partialThinking = "",
+            partialText = "",
+            partialOutputStreamDelta = "partial\n",
+            makeId = ::makeId,
+            now = now,
+        ).state
+        val result = ChatStreamingMerger.merge(
+            state,
+            ChatStreamingEvent.Error(ChatStreamError("Connection lost.")),
+            ::makeId,
+            now,
+        )
+
+        val row = result.state.messages.single { it.kind == SidePanelMessageKind.OUTPUT_STREAM }
+        val detail = ChatOutputStreamDetail.decode(row.detailJson, row.isComplete)
+        assertEquals("partial\n", detail.outputTail)
+        assertEquals(ChatOutputStreamStatus.FAILED, detail.status)
+        assertTrue(row.isComplete)
+        assertEquals(ChatStreamingStatus.Failed, result.state.streamingStatus)
     }
 }

@@ -40,4 +40,19 @@ class ChatStreamingCoalescerTest {
         coalescer.accumulate(ChatStreamingEvent.TextDelta("ab"))
         assertEquals(5, coalescer.pendingByteCount)
     }
+
+    @Test
+    fun accumulate_appendsOutputStreamDelta() {
+        val coalescer = ChatStreamingCoalescer()
+        assertTrue(coalescer.accumulate(ChatStreamingEvent.OutputStreamDelta("chunk")))
+        assertEquals("chunk", coalescer.accumulatedOutputStreamDelta)
+    }
+
+    @Test
+    fun consumeOutputStreamDelta_clearsBuffer() {
+        val coalescer = ChatStreamingCoalescer()
+        coalescer.accumulate(ChatStreamingEvent.OutputStreamDelta("partial"))
+        assertEquals("partial", coalescer.consumeOutputStreamDelta())
+        assertEquals("", coalescer.accumulatedOutputStreamDelta)
+    }
 }

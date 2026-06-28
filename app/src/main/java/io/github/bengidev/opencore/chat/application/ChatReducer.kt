@@ -68,6 +68,7 @@ internal object ChatReducer {
                 streamErrorMessage = null,
                 streamingThinkingId = null,
                 streamingAnswerId = null,
+                streamingOutputStreamId = null,
                 streamingRevision = 0
             )
         is ChatIntent.StreamingMerged -> {
