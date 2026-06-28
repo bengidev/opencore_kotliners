@@ -10,7 +10,9 @@ internal data class SidePanelMessage(
     val content: String,
     val createdAt: Instant,
     val kind: SidePanelMessageKind = SidePanelMessageKind.TEXT,
-    val isComplete: Boolean = true
+    val isComplete: Boolean = true,
+    /** JSON-encoded detail for rich message kinds such as output streams. */
+    val detailJson: String? = null,
 ) {
     val threadItemKey: String get() = "$id:$kind"
 }
