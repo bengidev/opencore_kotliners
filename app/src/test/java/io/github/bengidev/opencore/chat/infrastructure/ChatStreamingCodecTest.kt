@@ -69,4 +69,34 @@ class ChatStreamingCodecTest {
     fun mapDataPayload_emptyDeltaReturnsNull() {
         assertNull(ChatStreamingCodec.mapDataPayload("""{"choices":[{"delta":{}}]}"""))
     }
+
+    @Test
+    fun mapDataPayload_sidebandExecCommandEvents() {
+        val began = ChatStreamingCodec.mapDataPayload(
+            """{"type":"exec_command_begin","command":"npm test","cwd":"/tmp/project"}"""
+        )
+        assertEquals(
+            listOf(ChatStreamingEvent.OutputStreamBegan(command = "npm test", cwd = "/tmp/project")),
+            began,
+        )
+
+        val delta = ChatStreamingCodec.mapDataPayload(
+            """{"type":"exec_command_output_delta","chunk":"PASS suite\n"}"""
+        )
+        assertEquals(listOf(ChatStreamingEvent.OutputStreamDelta("PASS suite\n")), delta)
+    }
+
+    @Test
+    fun mapDataPayload_commandOutputContentParts() {
+        val payload =
+            """{"choices":[{"delta":{"content":[{"type":"exec_command_begin","command":"git status","cwd":"/repo"},{"type":"exec_command_output_delta","chunk":"clean\\n"}]}}]}"""
+        val events = ChatStreamingCodec.mapDataPayload(payload)
+        assertEquals(
+            listOf(
+                ChatStreamingEvent.OutputStreamBegan(command = "git status", cwd = "/repo"),
+                ChatStreamingEvent.OutputStreamDelta("clean\\n"),
+            ),
+            events,
+        )
+    }
 }

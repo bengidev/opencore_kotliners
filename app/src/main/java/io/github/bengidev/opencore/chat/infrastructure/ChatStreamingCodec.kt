@@ -5,6 +5,8 @@ import io.github.bengidev.opencore.chat.domain.ChatStreamingEvent
 
 internal object ChatStreamingCodec {
     fun mapDataPayload(payload: String): List<ChatStreamingEvent>? {
+        ProviderStreamOutputEventMapper.mapSidebandPayload(payload)?.let { return it }
+
         ChatCompletionsCodec.parseErrorMessage(payload)?.let { message ->
             return listOf(ChatStreamingEvent.Error(ChatStreamError(message)))
         }
@@ -15,9 +17,17 @@ internal object ChatStreamingCodec {
         if (!reasoning.isNullOrBlank() && reasoning.trim().isNotEmpty()) {
             events += ChatStreamingEvent.ThinkingDelta(reasoning)
         }
-        ChatStreamDeltaContentExtractor.extractContentText(payload)
-            ?.takeIf { it.isNotEmpty() }
-            ?.let { events += ChatStreamingEvent.TextDelta(it) }
+        val contentParts = ChatStreamDeltaContentExtractor.extractContentParts(payload)
+        if (contentParts.isNotEmpty()) {
+            events += ProviderStreamOutputEventMapper.mapContentParts(contentParts)
+            contentParts.mapNotNull { it.renderedText }.joinToString("")
+                .takeIf { it.isNotEmpty() }
+                ?.let { events += ChatStreamingEvent.TextDelta(it) }
+        } else {
+            ChatStreamDeltaContentExtractor.extractLegacyContentText(payload)
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { events += ChatStreamingEvent.TextDelta(it) }
+        }
         return events.takeIf { it.isNotEmpty() }
     }
 }
