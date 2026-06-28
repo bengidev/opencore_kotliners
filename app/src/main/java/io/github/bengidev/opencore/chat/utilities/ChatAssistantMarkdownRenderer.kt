@@ -65,12 +65,8 @@ internal object ChatAssistantMarkdownRenderer {
                 continue
             }
             if (!inFence) {
-                when (text[index]) {
-                    '`' -> inlineBackticks++
-                    else -> {
-                        if (inlineBackticks % 2 != 0) return true
-                        inlineBackticks = 0
-                    }
+                if (text[index] == '`') {
+                    inlineBackticks++
                 }
             }
             index++

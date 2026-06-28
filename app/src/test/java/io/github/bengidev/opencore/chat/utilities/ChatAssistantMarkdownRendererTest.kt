@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.toArgb
 import io.github.bengidev.opencore.onboarding.theme.DarkOpenCorePalette
 import io.github.bengidev.opencore.onboarding.theme.LightOpenCorePalette
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue

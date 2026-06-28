@@ -11,7 +11,7 @@ class ChatThreadLayoutPolicyTest {
     fun tailScrollIndex_targetsLastDisplayMessage() {
         val messages = listOf("oldest", "middle", "newest")
 
-        assertEquals(-1, ChatThreadLayoutPolicy.tailScrollIndex(emptyList()))
+        assertEquals(-1, ChatThreadLayoutPolicy.tailScrollIndex(emptyList<String>()))
         assertEquals(0, ChatThreadLayoutPolicy.tailScrollIndex(listOf("only")))
         assertEquals(2, ChatThreadLayoutPolicy.tailScrollIndex(messages))
     }
