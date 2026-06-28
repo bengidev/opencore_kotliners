@@ -23,4 +23,20 @@ class ChatStreamDeltaContentExtractorTest {
     fun extractContentText_missingContentReturnsNull() {
         assertNull(ChatStreamDeltaContentExtractor.extractContentText("""{"choices":[{"delta":{}}]}"""))
     }
+
+    @Test
+    fun extractContentParts_commandOutputBegin() {
+        val payload = """{"choices":[{"delta":{"content":[{"type":"output_stream_begin","command":"npm test","cwd":"/tmp"}]}}]}"""
+        val parts = ChatStreamDeltaContentExtractor.extractContentParts(payload)
+        assertEquals(1, parts.size)
+        assertEquals("npm test", parts.first().resolvedCommand)
+        assertEquals("/tmp", parts.first().cwd)
+    }
+
+    @Test
+    fun extractContentParts_commandArrayJoinsWithSpaces() {
+        val payload = """{"choices":[{"delta":{"content":[{"type":"output_stream_begin","command":["npm","test"]}]}}]}"""
+        val parts = ChatStreamDeltaContentExtractor.extractContentParts(payload)
+        assertEquals("npm test", parts.first().resolvedCommand)
+    }
 }

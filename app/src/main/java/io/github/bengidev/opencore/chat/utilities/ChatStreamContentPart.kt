@@ -30,17 +30,5 @@ internal data class ChatStreamContentPart(
             .firstOrNull { !it.isNullOrEmpty() }
 
     val resolvedStatus: io.github.bengidev.opencore.chat.domain.ChatOutputStreamStatus
-        get() {
-            val raw = status?.trim()?.lowercase()
-            return when (raw) {
-                "failed", "error", "failure" -> io.github.bengidev.opencore.chat.domain.ChatOutputStreamStatus.FAILED
-                "completed", "complete", "success", "succeeded", "ok" ->
-                    io.github.bengidev.opencore.chat.domain.ChatOutputStreamStatus.COMPLETED
-                else -> if (exitCode != null && exitCode != 0) {
-                    io.github.bengidev.opencore.chat.domain.ChatOutputStreamStatus.FAILED
-                } else {
-                    io.github.bengidev.opencore.chat.domain.ChatOutputStreamStatus.COMPLETED
-                }
-            }
-        }
+        get() = io.github.bengidev.opencore.chat.domain.ChatOutputStreamStatus.fromProvider(status, exitCode)
 }

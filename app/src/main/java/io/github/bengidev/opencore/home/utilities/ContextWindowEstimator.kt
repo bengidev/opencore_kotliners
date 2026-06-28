@@ -1,6 +1,6 @@
 package io.github.bengidev.opencore.home.utilities
 
-import io.github.bengidev.opencore.chat.domain.ChatOutputStreamDetail
+import io.github.bengidev.opencore.chat.infrastructure.ChatOutputStreamDetailCodec
 import io.github.bengidev.opencore.chat.utilities.ChatAssistantContentNormalizer
 import io.github.bengidev.opencore.home.models.ContextWindowUsage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
@@ -25,12 +25,8 @@ internal object ContextWindowEstimator {
 
     private fun messageText(message: SidePanelMessage): String = when (message.kind) {
         SidePanelMessageKind.OUTPUT_STREAM -> {
-            if (!message.isComplete) {
-                ""
-            } else {
-                val detail = ChatOutputStreamDetail.decode(message.detailJson, message.isComplete)
-                message.content + "\n" + detail.outputTail
-            }
+            val detail = ChatOutputStreamDetailCodec.decode(message.detailJson, message.isComplete)
+            message.content + "\n" + detail.outputTail
         }
         else -> ChatAssistantContentNormalizer.displayText(message.content)
     }

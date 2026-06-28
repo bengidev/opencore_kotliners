@@ -21,7 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
-import io.github.bengidev.opencore.chat.domain.ChatOutputStreamDetail
+import io.github.bengidev.opencore.chat.infrastructure.ChatOutputStreamDetailCodec
 import io.github.bengidev.opencore.chat.theme.ChatTheme
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import java.time.ZoneId
@@ -87,7 +87,7 @@ private fun OutputStreamRow(
     onDismissKeyboard: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val detail = ChatOutputStreamDetail.decode(message.detailJson, message.isComplete)
+    val detail = ChatOutputStreamDetailCodec.decode(message.detailJson, message.isComplete)
 
     Row(
         modifier = modifier

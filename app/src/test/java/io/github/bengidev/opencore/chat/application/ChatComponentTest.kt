@@ -3,7 +3,9 @@ package io.github.bengidev.opencore.chat.application
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
+import io.github.bengidev.opencore.chat.domain.ChatOutputStreamStatus
 import io.github.bengidev.opencore.chat.domain.ChatStreamingEvent
+import io.github.bengidev.opencore.chat.infrastructure.ChatOutputStreamDetailCodec
 import io.github.bengidev.opencore.chat.infrastructure.ChatStreamingClient
 import io.github.bengidev.opencore.chat.infrastructure.EchoChatStreamingClient
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
@@ -14,6 +16,7 @@ import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelHis
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -350,6 +353,48 @@ class ChatComponentTest {
             io.github.bengidev.opencore.chat.presenter.ChatThreadItemKeyPolicy.hasUniqueKeys(messages)
         )
     }
+
+    @Test
+    fun outputStreamDelta_beforeBegan_isNotDiscarded() = runTest(testDispatcher) {
+        val client = OutputStreamOrderingClient()
+        val component = ChatComponent(
+            componentContext = DefaultComponentContext(lifecycle = LifecycleRegistry()),
+            history = history,
+            streamingClient = client,
+        )
+
+        component.sendUserMessage("Run tests")
+        advanceUntilIdle()
+
+        val stream = component.state.value.messages.single { it.kind == SidePanelMessageKind.OUTPUT_STREAM }
+        val detail = ChatOutputStreamDetailCodec.decode(stream.detailJson, stream.isComplete)
+        assertEquals("early\n", detail.outputTail)
+        assertEquals("npm test", stream.content)
+    }
+
+    @Test
+    fun cancelStream_finalizesActiveOutputStreamAsFailed() = runTest(testDispatcher) {
+        val client = HangingOutputStreamClient()
+        val component = ChatComponent(
+            componentContext = DefaultComponentContext(lifecycle = LifecycleRegistry()),
+            history = history,
+            streamingClient = client,
+        )
+
+        component.sendUserMessage("Run")
+        advanceUntilIdle()
+        val conversationId = component.state.value.activeConversation!!.id
+        assertNotNull(component.state.value.streamingOutputStreamId)
+
+        component.startNewConversation()
+        advanceUntilIdle()
+
+        val stored = history.loadMessages(conversationId)
+        val stream = stored.single { it.kind == SidePanelMessageKind.OUTPUT_STREAM }
+        val detail = ChatOutputStreamDetailCodec.decode(stream.detailJson, stream.isComplete)
+        assertEquals(ChatOutputStreamStatus.FAILED, detail.status)
+        assertTrue(stream.isComplete)
+    }
 }
 
 private class RecordingChatStreamingClient : ChatStreamingClient {
@@ -362,6 +407,37 @@ private class RecordingChatStreamingClient : ChatStreamingClient {
     ): Flow<ChatStreamingEvent> {
         lastProviderSortBy = providerSortBy
         return flow {
+            emit(ChatStreamingEvent.TextDelta("ok"))
+            emit(ChatStreamingEvent.Done)
+        }
+    }
+}
+
+private class OutputStreamOrderingClient : ChatStreamingClient {
+    override fun stream(
+        messages: List<SidePanelMessage>,
+        providerSortBy: String?,
+        reasoningEffort: String?
+    ): Flow<ChatStreamingEvent> = flow {
+        emit(ChatStreamingEvent.OutputStreamDelta("early\n"))
+        emit(ChatStreamingEvent.OutputStreamBegan(command = "npm test", cwd = "/tmp"))
+        emit(ChatStreamingEvent.Done)
+    }
+}
+
+private class HangingOutputStreamClient : ChatStreamingClient {
+    private var streamCount = 0
+
+    override fun stream(
+        messages: List<SidePanelMessage>,
+        providerSortBy: String?,
+        reasoningEffort: String?
+    ): Flow<ChatStreamingEvent> = flow {
+        streamCount++
+        if (streamCount == 1) {
+            emit(ChatStreamingEvent.OutputStreamBegan(command = "sleep 30", cwd = null))
+            awaitCancellation()
+        } else {
             emit(ChatStreamingEvent.TextDelta("ok"))
             emit(ChatStreamingEvent.Done)
         }

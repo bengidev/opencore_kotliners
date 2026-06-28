@@ -1,5 +1,7 @@
 package io.github.bengidev.opencore.home.utilities
 
+import io.github.bengidev.opencore.chat.domain.ChatMessageRole
+import io.github.bengidev.opencore.chat.infrastructure.ChatOutputStreamDetailCodec
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
 import org.junit.Assert.assertEquals
@@ -122,5 +124,63 @@ class ContextWindowEstimatorTest {
 
         assertEquals(0, usage.tokenLimit)
         assertEquals(0.0, usage.fractionUsed, 0.0)
+    }
+
+    @Test
+    fun inProgressOutputStream_countsCommandAndOutputTail() {
+        val command = "npm test"
+        val outputTail = "PASS suite\n"
+        val detailJson = ChatOutputStreamDetailCodec.encode(
+            io.github.bengidev.opencore.chat.domain.ChatOutputStreamDetail(
+                outputTail = outputTail,
+            ),
+        )
+        val usage = ContextWindowEstimator.estimate(
+            messages = listOf(
+                SidePanelMessage(
+                    id = UUID.randomUUID(),
+                    role = ChatMessageRole.SYSTEM,
+                    content = command,
+                    createdAt = Instant.parse("2024-01-01T00:00:00Z"),
+                    kind = SidePanelMessageKind.OUTPUT_STREAM,
+                    isComplete = false,
+                    detailJson = detailJson,
+                ),
+            ),
+            draft = null,
+            contextLength = 100_000,
+        )
+
+        val expected = estimatedTokens("$command\n$outputTail")
+        assertEquals(expected, usage.tokensUsed)
+    }
+
+    @Test
+    fun completedOutputStream_countsCommandAndOutputTail() {
+        val command = "git status"
+        val outputTail = "clean\n"
+        val detailJson = ChatOutputStreamDetailCodec.encode(
+            io.github.bengidev.opencore.chat.domain.ChatOutputStreamDetail(
+                outputTail = outputTail,
+            ),
+        )
+        val usage = ContextWindowEstimator.estimate(
+            messages = listOf(
+                SidePanelMessage(
+                    id = UUID.randomUUID(),
+                    role = ChatMessageRole.SYSTEM,
+                    content = command,
+                    createdAt = Instant.parse("2024-01-01T00:00:00Z"),
+                    kind = SidePanelMessageKind.OUTPUT_STREAM,
+                    isComplete = true,
+                    detailJson = detailJson,
+                ),
+            ),
+            draft = null,
+            contextLength = 100_000,
+        )
+
+        val expected = estimatedTokens("$command\n$outputTail")
+        assertEquals(expected, usage.tokensUsed)
     }
 }

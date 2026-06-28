@@ -3,6 +3,7 @@ package io.github.bengidev.opencore.chat.application
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.domain.ChatOutputStreamDetail
 import io.github.bengidev.opencore.chat.domain.ChatOutputStreamStatus
+import io.github.bengidev.opencore.chat.infrastructure.ChatOutputStreamDetailCodec
 import io.github.bengidev.opencore.chat.domain.ChatStreamError
 import io.github.bengidev.opencore.chat.domain.ChatStreamingEvent
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
@@ -422,7 +423,7 @@ class ChatStreamingMergerTest {
 
         val rows = result.state.messages.filter { it.kind == SidePanelMessageKind.OUTPUT_STREAM }
         assertEquals(1, rows.size)
-        val detail = ChatOutputStreamDetail.decode(rows.first().detailJson, rows.first().isComplete)
+        val detail = ChatOutputStreamDetailCodec.decode(rows.first().detailJson, rows.first().isComplete)
         assertEquals("npm test", rows.first().content)
         assertEquals("/tmp/project", detail.cwd)
         assertEquals("PASS suite\n", detail.outputTail)
@@ -458,10 +459,89 @@ class ChatStreamingMergerTest {
         )
 
         val row = result.state.messages.single { it.kind == SidePanelMessageKind.OUTPUT_STREAM }
-        val detail = ChatOutputStreamDetail.decode(row.detailJson, row.isComplete)
+        val detail = ChatOutputStreamDetailCodec.decode(row.detailJson, row.isComplete)
         assertEquals("partial\n", detail.outputTail)
         assertEquals(ChatOutputStreamStatus.FAILED, detail.status)
         assertTrue(row.isComplete)
         assertEquals(ChatStreamingStatus.Failed, result.state.streamingStatus)
+    }
+
+    @Test
+    fun outputStreamDelta_appliesAfterBegin() {
+        var state = ChatStreamingState(messages = listOf(userMessage()))
+        state = ChatStreamingMerger.merge(
+            state,
+            ChatStreamingEvent.OutputStreamBegan(command = "npm test", cwd = "/tmp"),
+            ::makeId,
+            now,
+        ).state
+        state = ChatStreamingMerger.applyPendingPartial(
+            state = state,
+            partialThinking = "",
+            partialText = "",
+            partialOutputStreamDelta = "early output\n",
+            makeId = ::makeId,
+            now = now,
+        ).state
+        assertEquals("early output\n", outputStreamDetail(state).outputTail)
+    }
+
+    @Test
+    fun beginOutputStream_autoFinalizesPreviousStreamAsFailed() {
+        val firstStreamId = UUID.fromString("00000000-0000-0000-0000-000000000010")
+        var state = ChatStreamingState(messages = listOf(userMessage()))
+        state = ChatStreamingMerger.merge(
+            state,
+            ChatStreamingEvent.OutputStreamBegan(command = "first", cwd = null),
+            { firstStreamId },
+            now,
+        ).state
+        val result = ChatStreamingMerger.merge(
+            state,
+            ChatStreamingEvent.OutputStreamBegan(command = "second", cwd = null),
+            ::makeId,
+            now,
+        )
+
+        val streams = result.state.messages.filter { it.kind == SidePanelMessageKind.OUTPUT_STREAM }
+        assertEquals(2, streams.size)
+        val firstDetail = ChatOutputStreamDetailCodec.decode(streams[0].detailJson, streams[0].isComplete)
+        assertEquals(ChatOutputStreamStatus.FAILED, firstDetail.status)
+        assertTrue(streams[0].isComplete)
+        assertFalse(streams[1].isComplete)
+        assertEquals(1, result.finalizedMessages.size)
+    }
+
+    @Test
+    fun done_finalizesThinkingAnswerAndOutputStream() {
+        var state = ChatStreamingState(messages = listOf(userMessage()))
+        state = ChatStreamingMerger.merge(state, ChatStreamingEvent.ThinkingDelta("Think"), ::makeId, now).state
+        state = ChatStreamingMerger.merge(
+            state,
+            ChatStreamingEvent.OutputStreamBegan(command = "npm test", cwd = "/tmp"),
+            ::makeId,
+            now,
+        ).state
+        state = ChatStreamingMerger.applyPendingPartial(
+            state = state,
+            partialThinking = "Think",
+            partialText = "Answer",
+            partialOutputStreamDelta = "PASS\n",
+            makeId = ::makeId,
+            now = now,
+        ).state
+        val result = ChatStreamingMerger.merge(state, ChatStreamingEvent.Done, ::makeId, now)
+
+        assertEquals(ChatStreamingStatus.Done, result.state.streamingStatus)
+        assertEquals(3, result.finalizedMessages.size)
+        val stream = result.state.messages.single { it.kind == SidePanelMessageKind.OUTPUT_STREAM }
+        assertEquals("PASS\n", outputStreamDetail(result.state).outputTail)
+        assertTrue(stream.isComplete)
+        assertTrue(result.state.messages.all { it.isComplete })
+    }
+
+    private fun outputStreamDetail(state: ChatStreamingState): ChatOutputStreamDetail {
+        val row = state.messages.single { it.kind == SidePanelMessageKind.OUTPUT_STREAM }
+        return ChatOutputStreamDetailCodec.decode(row.detailJson, row.isComplete)
     }
 }

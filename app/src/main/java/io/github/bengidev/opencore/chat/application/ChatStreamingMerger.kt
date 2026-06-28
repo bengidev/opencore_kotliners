@@ -3,6 +3,7 @@ package io.github.bengidev.opencore.chat.application
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.domain.ChatOutputStreamDetail
 import io.github.bengidev.opencore.chat.domain.ChatOutputStreamStatus
+import io.github.bengidev.opencore.chat.infrastructure.ChatOutputStreamDetailCodec
 import io.github.bengidev.opencore.chat.domain.ChatStreamingEvent
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
@@ -131,9 +132,10 @@ internal object ChatStreamingMerger {
         var current = state
         var finalized = emptyList<SidePanelMessage>()
         if (current.streamingOutputStreamId != null) {
+            // Provider began a new stream without an explicit end for the previous one.
             val finalizeResult = finalizeActiveOutputStream(
                 current,
-                ChatOutputStreamStatus.COMPLETED,
+                ChatOutputStreamStatus.FAILED,
                 exitCode = null,
                 durationMs = null,
             )
@@ -150,7 +152,7 @@ internal object ChatStreamingMerger {
             createdAt = now,
             kind = SidePanelMessageKind.OUTPUT_STREAM,
             isComplete = false,
-            detailJson = ChatOutputStreamDetail.encode(detail),
+            detailJson = ChatOutputStreamDetailCodec.encode(detail),
         )
         return ChatStreamingMergeResult(
             state = current.copy(
@@ -171,10 +173,10 @@ internal object ChatStreamingMerger {
             if (message.id != outputStreamId || message.kind != SidePanelMessageKind.OUTPUT_STREAM) {
                 message
             } else {
-                val detail = ChatOutputStreamDetail.decode(message.detailJson, message.isComplete)
+                val detail = ChatOutputStreamDetailCodec.decode(message.detailJson, message.isComplete)
                     .appendOutput(delta)
                 message.copy(
-                    detailJson = ChatOutputStreamDetail.encode(detail),
+                    detailJson = ChatOutputStreamDetailCodec.encode(detail),
                     isComplete = false,
                 )
             }
@@ -211,14 +213,14 @@ internal object ChatStreamingMerger {
             )
         }
 
-        val currentDetail = ChatOutputStreamDetail.decode(existing.detailJson, existing.isComplete)
+        val currentDetail = ChatOutputStreamDetailCodec.decode(existing.detailJson, existing.isComplete)
         val updatedDetail = currentDetail.copy(
             status = status,
             exitCode = exitCode ?: currentDetail.exitCode,
             durationMs = durationMs ?: currentDetail.durationMs,
         )
         val finalizedMessage = existing.copy(
-            detailJson = ChatOutputStreamDetail.encode(updatedDetail),
+            detailJson = ChatOutputStreamDetailCodec.encode(updatedDetail),
             isComplete = true,
         )
         val messages = state.messages.toMutableList().also { it[index] = finalizedMessage }

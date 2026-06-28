@@ -176,7 +176,16 @@ internal class ChatComponent(
                     scheduleStreamingFlush()
                 }
             }
-            is ChatStreamingEvent.OutputStreamBegan,
+            is ChatStreamingEvent.OutputStreamBegan -> {
+                val mergeResult = ChatStreamingMerger.merge(
+                    state = _state.value.toStreamingState(),
+                    event = event,
+                    makeId = { UUID.randomUUID() },
+                    now = Instant.now()
+                )
+                commitStreamingMerge(mergeResult, conversationId, bumpStreamingRevision = true)
+                flushStreamingNow()
+            }
             is ChatStreamingEvent.OutputStreamEnded -> {
                 flushStreamingNow()
                 val mergeResult = ChatStreamingMerger.merge(
@@ -185,10 +194,7 @@ internal class ChatComponent(
                     makeId = { UUID.randomUUID() },
                     now = Instant.now()
                 )
-                dispatch(ChatIntent.StreamingMerged(mergeResult, bumpStreamingRevision = true))
-                mergeResult.finalizedMessages.forEach { message ->
-                    history.appendMessage(conversationId, message)
-                }
+                commitStreamingMerge(mergeResult, conversationId, bumpStreamingRevision = true)
             }
             ChatStreamingEvent.Done -> {
                 flushStreamingNow()
@@ -198,10 +204,7 @@ internal class ChatComponent(
                     makeId = { UUID.randomUUID() },
                     now = Instant.now()
                 )
-                dispatch(ChatIntent.StreamingMerged(mergeResult, bumpStreamingRevision = true))
-                mergeResult.finalizedMessages.forEach { message ->
-                    history.appendMessage(conversationId, message)
-                }
+                commitStreamingMerge(mergeResult, conversationId, bumpStreamingRevision = true)
                 resetStreamingBuffers()
             }
             is ChatStreamingEvent.Error -> {
@@ -212,13 +215,35 @@ internal class ChatComponent(
                     makeId = { UUID.randomUUID() },
                     now = Instant.now()
                 )
-                dispatch(ChatIntent.StreamingMerged(mergeResult, bumpStreamingRevision = true))
-                mergeResult.finalizedMessages.forEach { message ->
-                    history.appendMessage(conversationId, message)
-                }
+                commitStreamingMerge(mergeResult, conversationId, bumpStreamingRevision = true)
                 resetStreamingBuffers()
             }
         }
+    }
+
+    private fun applyStreamingMerge(
+        mergeResult: ChatStreamingMergeResult,
+        bumpStreamingRevision: Boolean,
+    ) {
+        dispatch(ChatIntent.StreamingMerged(mergeResult, bumpStreamingRevision = bumpStreamingRevision))
+    }
+
+    private suspend fun persistFinalizedMessages(
+        conversationId: UUID,
+        mergeResult: ChatStreamingMergeResult,
+    ) {
+        mergeResult.finalizedMessages.forEach { message ->
+            history.appendMessage(conversationId, message)
+        }
+    }
+
+    private suspend fun commitStreamingMerge(
+        mergeResult: ChatStreamingMergeResult,
+        conversationId: UUID,
+        bumpStreamingRevision: Boolean,
+    ) {
+        applyStreamingMerge(mergeResult, bumpStreamingRevision)
+        persistFinalizedMessages(conversationId, mergeResult)
     }
 
     private fun scheduleStreamingFlush() {
@@ -274,11 +299,9 @@ internal class ChatComponent(
                 makeId = { UUID.randomUUID() },
                 now = Instant.now()
             )
-            dispatch(ChatIntent.StreamingMerged(mergeResult, bumpStreamingRevision = false))
+            applyStreamingMerge(mergeResult, bumpStreamingRevision = false)
             scope.launch {
-                mergeResult.finalizedMessages.forEach { message ->
-                    history.appendMessage(conversationId, message)
-                }
+                persistFinalizedMessages(conversationId, mergeResult)
             }
         }
         cancelStreamingFlush()
