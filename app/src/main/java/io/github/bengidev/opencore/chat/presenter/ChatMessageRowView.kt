@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
+import io.github.bengidev.opencore.chat.infrastructure.ChatOutputStreamDetailCodec
 import io.github.bengidev.opencore.chat.theme.ChatTheme
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import java.time.ZoneId
@@ -42,6 +43,7 @@ internal fun ChatMessageRowView(
 ) {
     when {
         message.kind == SidePanelMessageKind.THINKING -> ThinkingRow(message, onDismissKeyboard, modifier)
+        message.kind == SidePanelMessageKind.OUTPUT_STREAM -> OutputStreamRow(message, onDismissKeyboard, modifier)
         message.role == ChatMessageRole.USER -> UserRow(message, onDismissKeyboard, modifier)
         message.role == ChatMessageRole.ASSISTANT -> AssistantRow(
             message = message,
@@ -74,6 +76,32 @@ private fun ThinkingRow(
             modifier = Modifier
                 .weight(1f, fill = false)
                 .widthIn(max = 540.dp)
+        )
+        Spacer(modifier = Modifier.widthIn(min = OppositeSideMinWidthDp.dp))
+    }
+}
+
+@Composable
+private fun OutputStreamRow(
+    message: SidePanelMessage,
+    onDismissKeyboard: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val detail = ChatOutputStreamDetailCodec.decode(message.detailJson, message.isComplete)
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .dismissKeyboardOnTap(onDismissKeyboard)
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.Start,
+    ) {
+        ChatOutputStreamCardView(
+            message = message,
+            detail = detail,
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .widthIn(max = 540.dp),
         )
         Spacer(modifier = Modifier.widthIn(min = OppositeSideMinWidthDp.dp))
     }

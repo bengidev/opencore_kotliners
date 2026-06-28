@@ -4,7 +4,8 @@ package io.github.bengidev.opencore.sidepanel.domain
 internal enum class SidePanelMessageKind {
     TEXT,
     THINKING,
-    SYSTEM;
+    SYSTEM,
+    OUTPUT_STREAM;
 
     val wireValue: String
         get() = name.lowercase()

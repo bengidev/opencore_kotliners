@@ -68,6 +68,34 @@ class ChatCompletionsCodecTest {
     }
 
     @Test
+    fun encodeRequest_omitsOutputStreamRows() {
+        val body = ChatCompletionsCodec.encodeRequest(
+            modelId = "openrouter/free",
+            messages = listOf(
+                SidePanelMessage(
+                    id = UUID.randomUUID(),
+                    role = ChatMessageRole.USER,
+                    content = "hello",
+                    createdAt = Instant.now()
+                ),
+                SidePanelMessage(
+                    id = UUID.randomUUID(),
+                    role = ChatMessageRole.SYSTEM,
+                    content = "npm test",
+                    createdAt = Instant.now(),
+                    kind = SidePanelMessageKind.OUTPUT_STREAM,
+                    isComplete = true,
+                    detailJson = """{"status":"completed","outputTail":"PASS"}""",
+                ),
+            ),
+        )
+
+        assertTrue(body.contains(""""content":"hello""""))
+        assertFalse(body.contains("npm test"))
+        assertFalse(body.contains("PASS"))
+    }
+
+    @Test
     fun encodeRequest_withStream_includesStreamFlag() {
         val body = ChatCompletionsCodec.encodeRequest(
             modelId = "openrouter/free",

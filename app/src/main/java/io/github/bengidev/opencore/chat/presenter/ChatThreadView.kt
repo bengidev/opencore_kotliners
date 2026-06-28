@@ -83,7 +83,8 @@ internal fun ChatThreadView(
         val listState = rememberLazyListState()
         val pendingByteCount = maxOf(
             state.currentPartialText.encodeToByteArray().size,
-            state.currentPartialThinking.encodeToByteArray().size
+            state.currentPartialThinking.encodeToByteArray().size,
+            state.streamingOutputStreamId?.let { 1 } ?: 0,
         )
         val displayMessages = ChatThreadLayoutPolicy.displayOrder(state.messages)
         val bottomTargetIndex = ChatThreadLayoutPolicy.tailScrollIndex(displayMessages)

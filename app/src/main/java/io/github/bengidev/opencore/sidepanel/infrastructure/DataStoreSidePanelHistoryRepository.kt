@@ -194,6 +194,9 @@ internal class DataStoreSidePanelHistoryRepository(
                             .put("createdAt", message.createdAt.toString())
                             .put("kind", message.kind.wireValue)
                             .put("isComplete", message.isComplete)
+                            .apply {
+                                message.detailJson?.let { put("detailJson", it) }
+                            }
                     )
                 }
                 messagesObject.put(conversationId.toString(), messageArray)
@@ -236,7 +239,8 @@ internal class DataStoreSidePanelHistoryRepository(
                             content = item.getString("content"),
                             createdAt = Instant.parse(item.getString("createdAt")),
                             kind = SidePanelMessageKind.fromWire(item.optString("kind")),
-                            isComplete = item.optBoolean("isComplete", true)
+                            isComplete = item.optBoolean("isComplete", true),
+                            detailJson = item.optString("detailJson").takeIf { it.isNotEmpty() },
                         )
                     }
                     messages[UUID.fromString(conversationId)] = bucket.dedupeByMessageId().toMutableList()

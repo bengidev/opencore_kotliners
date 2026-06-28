@@ -18,6 +18,7 @@ internal data class ChatState(
     val currentPartialThinking: String = "",
     val streamingThinkingId: UUID? = null,
     val streamingAnswerId: UUID? = null,
+    val streamingOutputStreamId: UUID? = null,
     /** Bumped when batched streaming content is applied to `messages` (scroll anchor). */
     val streamingRevision: Int = 0
 ) {
@@ -45,6 +46,7 @@ internal data class ChatState(
         currentPartialThinking = currentPartialThinking,
         streamingThinkingId = streamingThinkingId,
         streamingAnswerId = streamingAnswerId,
+        streamingOutputStreamId = streamingOutputStreamId,
         streamingStatus = streamingStatus,
         streamErrorMessage = streamErrorMessage
     )
@@ -60,6 +62,7 @@ internal data class ChatState(
             currentPartialThinking = result.state.currentPartialThinking,
             streamingThinkingId = result.state.streamingThinkingId,
             streamingAnswerId = result.state.streamingAnswerId,
+            streamingOutputStreamId = result.state.streamingOutputStreamId,
             streamingStatus = result.state.streamingStatus,
             streamErrorMessage = result.state.streamErrorMessage,
             isSending = isSending,
@@ -93,6 +96,7 @@ internal fun ChatState.clearedStreamingFields(): ChatState = copy(
     currentPartialThinking = "",
     streamingThinkingId = null,
     streamingAnswerId = null,
+    streamingOutputStreamId = null,
     streamErrorMessage = null,
     streamingStatus = ChatStreamingStatus.Idle,
     isSending = false,

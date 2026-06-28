@@ -13,6 +13,7 @@ internal object ChatCompletionsCodec {
     ): String = buildString {
         val wireMessages = messages.filter { message ->
             message.kind != SidePanelMessageKind.THINKING &&
+                message.kind != SidePanelMessageKind.OUTPUT_STREAM &&
                 (message.isComplete || message.role != ChatMessageRole.ASSISTANT)
         }
         append("""{"model":""")
