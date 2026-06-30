@@ -5,6 +5,7 @@ import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import androidx.compose.ui.graphics.toArgb
+import io.github.bengidev.opencore.chat.utilities.ChatAssistantMarkdownPreprocessor
 import io.github.bengidev.opencore.onboarding.theme.OpenCorePalette
 import org.commonmark.parser.Parser
 
@@ -17,14 +18,15 @@ internal object ChatAssistantMarkdownRenderer {
     private val parser = Parser.builder().build()
 
     fun spanned(markdown: String, palette: OpenCorePalette): Spanned {
-        val canCache = !shouldUsePlainFallback(markdown)
+        val normalized = ChatAssistantMarkdownPreprocessor.normalize(markdown)
+        val canCache = !shouldUsePlainFallback(normalized)
         if (canCache) {
-            cache.get(markdown, palette.isDark)?.let { return it }
+            cache.get(normalized, palette.isDark)?.let { return it }
         }
 
-        val rendered = render(markdown, palette)
+        val rendered = render(normalized, palette)
         if (canCache) {
-            cache.put(markdown, palette.isDark, rendered)
+            cache.put(normalized, palette.isDark, rendered)
         }
         return rendered
     }
