@@ -6,6 +6,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import io.github.bengidev.opencore.chat.infrastructure.ChatTextMessageDetailCodec
+import io.github.bengidev.opencore.chat.utilities.ChatAttachmentStore
 import io.github.bengidev.opencore.shared.persistence.PersistenceConversationHistoryStoring
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
@@ -76,6 +78,12 @@ internal class DataStoreSidePanelHistoryRepository(
 
     override suspend fun deleteConversation(conversationId: UUID) {
         mutate {
+            val localPaths = messages[conversationId].orEmpty().flatMap { message ->
+                ChatTextMessageDetailCodec.decode(message.detailJson)
+                    .attachments
+                    .map { it.localPath }
+            }
+            ChatAttachmentStore.removeAll(localPaths)
             conversations.remove(conversationId)
             messages.remove(conversationId)
         }

@@ -63,10 +63,10 @@ internal class HomeComponent(
     }
     fun onAttachmentTapped() = dispatch(HomeIntent.AttachmentTapped)
     fun onMicrophoneTapped() = dispatch(HomeIntent.MicrophoneTapped)
-    fun onSendTapped() {
+    fun onSendTapped(draftAttachments: List<ChatMessageAttachment> = emptyList()) {
         val current = _state.value
         if (!current.canSendBase) return
-        if (current.draftMessage.isBlank() && contextDraftAttachments.isEmpty()) return
+        if (current.draftMessage.isBlank() && draftAttachments.isEmpty()) return
         onSendMessage?.invoke(
             current.draftMessage.trim(),
             current.activeProviderSortBy,

@@ -6,6 +6,7 @@ import io.github.bengidev.opencore.chat.domain.ChatMessageAttachment
 import io.github.bengidev.opencore.chat.domain.ChatMessageAttachmentKind
 import io.github.bengidev.opencore.chat.utilities.ChatAttachmentSizeLimits
 import io.github.bengidev.opencore.chat.utilities.ChatAttachmentStore
+import io.github.bengidev.opencore.chat.utilities.readBytesUpTo
 import io.github.bengidev.opencore.chat.utilities.ChatModelInputBuilder
 import io.github.bengidev.opencore.chat.utilities.ChatPlainTextFileReader
 import io.github.bengidev.opencore.vision.domain.VisionMediaKind
@@ -37,7 +38,7 @@ internal class VisionFlowController(
         clearError()
         return runCatching {
             context.contentResolver.openInputStream(uri)?.use { stream ->
-                val data = stream.readBytes()
+                val data = stream.readBytesUpTo(ChatAttachmentSizeLimits.MAX_IMPORT_BYTES)
                 attachImportedData(data, filename, mimeType)
             }
         }.getOrElse { error ->

@@ -16,8 +16,17 @@ internal object ChatAttachmentStore {
     }
 
     fun save(context: Context, copyingFrom: File, suggestedFilename: String): File {
-        val data = copyingFrom.readBytes()
-        return save(context, data, suggestedFilename)
+        val byteCount = copyingFrom.length()
+        ChatAttachmentSizeLimits.validateImportSize(byteCount.toInt())
+        val directory = attachmentsDirectory(context)
+        val filename = uniqueFilename(suggestedFilename)
+        val destination = File(directory, filename)
+        copyingFrom.inputStream().use { input ->
+            destination.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+        return destination
     }
 
     fun remove(localPath: String) {

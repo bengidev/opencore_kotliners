@@ -149,8 +149,6 @@ internal object ChatTextMessageDetailCodec {
             appendQuoted(it)
         }
         attachment.fileTextContent?.let {
-            append(",\"fileContent\":")
-            appendQuoted(it)
             append(",\"fileTextContent\":")
             appendQuoted(it)
         }

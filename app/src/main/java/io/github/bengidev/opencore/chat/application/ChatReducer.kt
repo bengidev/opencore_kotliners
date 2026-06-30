@@ -1,5 +1,6 @@
 package io.github.bengidev.opencore.chat.application
 
+import io.github.bengidev.opencore.chat.domain.ChatMessageAttachment
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.chat.utilities.ChatAttachmentStore
 import io.github.bengidev.opencore.sidepanel.domain.dedupeByThreadItemKey
@@ -25,21 +26,18 @@ internal object ChatReducer {
             activeConversation = null,
             messages = emptyList(),
             isLoadingMessages = false,
-            draftAttachments = emptyList(),
-        )
+        ).alsoClearDraftAttachmentFiles(state.draftAttachments)
         is ChatIntent.ConversationOpened -> if (intent.loadMessages) {
             state.clearedStreamingFields().copy(
                 activeConversation = intent.conversation,
                 messages = emptyList(),
                 isLoadingMessages = true,
-                draftAttachments = emptyList(),
-            )
+            ).alsoClearDraftAttachmentFiles(state.draftAttachments)
         } else {
             state.clearedStreamingFields().copy(
                 activeConversation = intent.conversation,
                 isLoadingMessages = false,
-                draftAttachments = emptyList(),
-            )
+            ).alsoClearDraftAttachmentFiles(state.draftAttachments)
         }
         is ChatIntent.MessagesLoaded -> {
             if (state.activeConversation?.id != intent.conversationId) {
@@ -74,8 +72,7 @@ internal object ChatReducer {
                     activeConversation = null,
                     messages = emptyList(),
                     isLoadingMessages = false,
-                    draftAttachments = emptyList(),
-                )
+                ).alsoClearDraftAttachmentFiles(state.draftAttachments)
             }
         }
         ChatIntent.StreamingTurnStarted -> state
@@ -107,5 +104,12 @@ internal object ChatReducer {
             .withoutIncompleteAssistantRows()
             .clearedStreamingFields()
         is ChatIntent.SendPreparationFailed -> state.copy(streamErrorMessage = intent.message)
+    }
+
+    private fun ChatState.alsoClearDraftAttachmentFiles(
+        attachments: List<ChatMessageAttachment>,
+    ): ChatState {
+        ChatAttachmentStore.removeAll(attachments.map { it.localPath })
+        return copy(draftAttachments = emptyList())
     }
 }

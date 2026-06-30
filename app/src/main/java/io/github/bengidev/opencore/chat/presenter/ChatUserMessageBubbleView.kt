@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,7 +59,9 @@ internal fun ChatUserMessageBubbleView(
             when (attachment.kind) {
                 ChatMessageAttachmentKind.IMAGE -> {
                     attachment.thumbnailJpegData?.let { data ->
-                        val bitmap = BitmapFactory.decodeByteArray(data, 0, data.size)
+                        val bitmap = remember(attachment.id, data) {
+                            BitmapFactory.decodeByteArray(data, 0, data.size)
+                        }
                         if (bitmap != null) {
                             Image(
                                 bitmap = bitmap.asImageBitmap(),

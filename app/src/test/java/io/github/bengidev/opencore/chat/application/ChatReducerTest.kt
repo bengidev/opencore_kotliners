@@ -78,6 +78,23 @@ class ChatReducerTest {
     }
 
     @Test
+    fun newConversation_deletesDraftAttachmentFiles() {
+        val tempFile = kotlin.io.path.createTempFile(suffix = ".jpg").toFile()
+        tempFile.writeBytes(byteArrayOf(1, 2, 3))
+        val attachment = ChatMessageAttachment(
+            kind = ChatMessageAttachmentKind.IMAGE,
+            filename = "photo.jpg",
+            localPath = tempFile.absolutePath,
+        )
+        val initial = ChatState(draftAttachments = listOf(attachment))
+
+        val result = ChatReducer.reduce(initial, ChatIntent.NewConversation)
+
+        assertTrue(result.draftAttachments.isEmpty())
+        assertFalse(tempFile.exists())
+    }
+
+    @Test
     fun conversationOpened_clearsMessagesAndSetsLoading() {
         val target = conversation("Resume me")
         val result = ChatReducer.reduce(

@@ -10,10 +10,9 @@ internal object ChatMultimodalWireLogic {
     fun hasVisualMedia(attachments: List<ChatMessageAttachment>): Boolean =
         attachments.any { it.kind == ChatMessageAttachmentKind.IMAGE || it.kind == ChatMessageAttachmentKind.VIDEO }
 
-    fun hasPersistedVisualWire(attachments: List<ChatMessageAttachment>): Boolean =
+    fun hasPersistedImageWire(attachments: List<ChatMessageAttachment>): Boolean =
         attachments.any {
-            (it.kind == ChatMessageAttachmentKind.IMAGE && it.wireImageDataUrl != null) ||
-                (it.kind == ChatMessageAttachmentKind.VIDEO && it.wireVideoDataUrl != null)
+            it.kind == ChatMessageAttachmentKind.IMAGE && it.wireImageDataUrl != null
         }
 
     fun prepareAttachmentsForSend(
@@ -22,38 +21,25 @@ internal object ChatMultimodalWireLogic {
     ): List<ChatMessageAttachment> {
         if (!hasVisualMedia(attachments)) return attachments
 
+        buildVisualContentParts(
+            modelText = modelText,
+            attachments = attachments,
+            preferPersistedImageWire = false,
+        )
+
         val prepared = attachments.toMutableList()
-        val parts = mutableListOf<ProviderChatContentPart>()
-
-        val trimmedModelText = modelText.trim()
-        if (trimmedModelText.isNotEmpty()) {
-            parts += ProviderChatContentPart.text(trimmedModelText)
-        }
-
         prepared.forEachIndexed { index, attachment ->
             when (attachment.kind) {
                 ChatMessageAttachmentKind.IMAGE -> {
                     val dataUrl = imageDataUrl(attachment)
                     prepared[index] = attachment.withWirePayloads(imageDataUrl = dataUrl)
-                    parts += ProviderChatContentPart.imageUrl(dataUrl)
                 }
                 ChatMessageAttachmentKind.VIDEO -> {
-                    val dataUrl = videoDataUrl(attachment)
-                    prepared[index] = attachment.withWirePayloads(videoDataUrl = dataUrl)
-                    parts += ProviderChatContentPart.videoUrl(dataUrl)
+                    videoDataUrl(attachment)
                 }
                 ChatMessageAttachmentKind.FILE, ChatMessageAttachmentKind.AUDIO -> Unit
             }
         }
-
-        val visualPartCount = parts.count { it.type == "image_url" || it.type == "video_url" }
-        val expectedVisualCount = attachments.count {
-            it.kind == ChatMessageAttachmentKind.IMAGE || it.kind == ChatMessageAttachmentKind.VIDEO
-        }
-        if (visualPartCount != expectedVisualCount || parts.isEmpty()) {
-            throw ChatAttachmentError.VisualEncodingFailed("attachment")
-        }
-
         return prepared
     }
 
@@ -61,58 +47,13 @@ internal object ChatMultimodalWireLogic {
         modelText: String,
         attachments: List<ChatMessageAttachment>,
     ): List<ProviderChatContentPart>? {
-        if (hasPersistedVisualWire(attachments)) {
-            return makeContentPartsFromPersisted(modelText, attachments)
-        }
-        if (!hasVisualMedia(attachments)) return null
+        if (!hasVisualMedia(attachments) && !hasPersistedImageWire(attachments)) return null
 
-        val parts = mutableListOf<ProviderChatContentPart>()
-        val trimmedModelText = modelText.trim()
-        if (trimmedModelText.isNotEmpty()) {
-            parts += ProviderChatContentPart.text(trimmedModelText)
-        }
-
-        attachments.filter { it.kind == ChatMessageAttachmentKind.IMAGE }.forEach { attachment ->
-            parts += ProviderChatContentPart.imageUrl(imageDataUrl(attachment))
-        }
-        attachments.filter { it.kind == ChatMessageAttachmentKind.VIDEO }.forEach { attachment ->
-            parts += ProviderChatContentPart.videoUrl(videoDataUrl(attachment))
-        }
-
-        val visualPartCount = parts.count { it.type == "image_url" || it.type == "video_url" }
-        val expectedVisualCount = attachments.count {
-            it.kind == ChatMessageAttachmentKind.IMAGE || it.kind == ChatMessageAttachmentKind.VIDEO
-        }
-        if (visualPartCount != expectedVisualCount) {
-            throw ChatAttachmentError.VisualEncodingFailed("attachment")
-        }
-
-        return parts.takeIf { it.isNotEmpty() }
-    }
-
-    fun makeContentPartsFromPersisted(
-        modelText: String,
-        attachments: List<ChatMessageAttachment>,
-    ): List<ProviderChatContentPart>? {
-        if (!hasVisualMedia(attachments)) return null
-
-        val parts = mutableListOf<ProviderChatContentPart>()
-        val trimmedModelText = modelText.trim()
-        if (trimmedModelText.isNotEmpty()) {
-            parts += ProviderChatContentPart.text(trimmedModelText)
-        }
-
-        attachments.filter { it.kind == ChatMessageAttachmentKind.IMAGE }.forEach { attachment ->
-            val dataUrl = attachment.wireImageDataUrl
-                ?: throw ChatAttachmentError.VisualEncodingFailed(attachment.filename)
-            parts += ProviderChatContentPart.imageUrl(dataUrl)
-        }
-        attachments.filter { it.kind == ChatMessageAttachmentKind.VIDEO }.forEach { attachment ->
-            val dataUrl = attachment.wireVideoDataUrl
-                ?: throw ChatAttachmentError.VisualEncodingFailed(attachment.filename)
-            parts += ProviderChatContentPart.videoUrl(dataUrl)
-        }
-
+        val parts = buildVisualContentParts(
+            modelText = modelText,
+            attachments = attachments,
+            preferPersistedImageWire = hasPersistedImageWire(attachments),
+        )
         return parts.takeIf { it.isNotEmpty() }
     }
 
@@ -122,11 +63,41 @@ internal object ChatMultimodalWireLogic {
                 ChatMessageAttachmentKind.IMAGE ->
                     attachment.wireImageDataUrl?.length ?: fileByteCount(attachment.localPath) * 4 / 3
                 ChatMessageAttachmentKind.VIDEO ->
-                    attachment.wireVideoDataUrl?.length ?: fileByteCount(attachment.localPath) * 4 / 3
+                    fileByteCount(attachment.localPath) * 4 / 3
                 ChatMessageAttachmentKind.FILE, ChatMessageAttachmentKind.AUDIO -> 0
             }
             maxOf((payloadLength + 3) / 4, 0)
         }
+
+    private fun buildVisualContentParts(
+        modelText: String,
+        attachments: List<ChatMessageAttachment>,
+        preferPersistedImageWire: Boolean,
+    ): List<ProviderChatContentPart> {
+        val parts = mutableListOf<ProviderChatContentPart>()
+        val trimmedModelText = modelText.trim()
+        if (trimmedModelText.isNotEmpty()) {
+            parts += ProviderChatContentPart.text(trimmedModelText)
+        }
+
+        attachments.forEach { attachment ->
+            when (attachment.kind) {
+                ChatMessageAttachmentKind.IMAGE -> {
+                    val dataUrl = if (preferPersistedImageWire) {
+                        attachment.wireImageDataUrl ?: imageDataUrl(attachment)
+                    } else {
+                        imageDataUrl(attachment)
+                    }
+                    parts += ProviderChatContentPart.imageUrl(dataUrl)
+                }
+                ChatMessageAttachmentKind.VIDEO -> {
+                    parts += ProviderChatContentPart.videoUrl(videoDataUrl(attachment))
+                }
+                ChatMessageAttachmentKind.FILE, ChatMessageAttachmentKind.AUDIO -> Unit
+            }
+        }
+        return parts
+    }
 
     private fun imageDataUrl(attachment: ChatMessageAttachment): String {
         attachment.wireImageDataUrl?.let { return it }
@@ -135,7 +106,6 @@ internal object ChatMultimodalWireLogic {
     }
 
     private fun videoDataUrl(attachment: ChatMessageAttachment): String {
-        attachment.wireVideoDataUrl?.let { return it }
         val byteCount = fileByteCount(attachment.localPath)
         ChatAttachmentSizeLimits.validateVideoWireSize(byteCount)
         return ChatMultimodalVideoPayloadLogic.dataUrlFromFile(attachment.localPath)

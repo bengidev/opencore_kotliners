@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import io.github.bengidev.opencore.chat.application.ChatComponent
 import io.github.bengidev.opencore.chat.domain.ChatMessageAttachment
@@ -34,6 +35,7 @@ import io.github.bengidev.opencore.sidepanel.application.SidePanelComponent
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
 import io.github.bengidev.opencore.speech.application.SpeechFlowController
 import io.github.bengidev.opencore.vision.application.VisionFlowController
+import io.github.bengidev.opencore.vision.utilities.ContentUriMetadata
 import kotlinx.coroutines.launch
 
 @Composable
@@ -50,6 +52,7 @@ internal fun HomeScreen(
     val speechState by speechController.state.collectAsState()
     val visionState by visionController.state.collectAsState()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val voicePlaybackController = remember(scope) { ChatVoiceNotePlaybackController(scope) }
 
     DisposableEffect(voicePlaybackController) {
@@ -72,7 +75,12 @@ internal fun HomeScreen(
     ) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
-            val attachment = visionController.attachUri(uri, filename = "photo.jpg", mimeType = "image/*")
+            val resolved = ContentUriMetadata.resolve(context, uri)
+            val attachment = visionController.attachUri(
+                uri = uri,
+                filename = resolved.filename,
+                mimeType = resolved.mimeType,
+            )
             attachment?.let { addImportedAttachment(it, selectedModel, state.selectedModelTitle, chatComponent) { msg ->
                 capabilityWarningMessage = msg
             } }
@@ -84,8 +92,12 @@ internal fun HomeScreen(
     ) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
-            val mimeType = null
-            val attachment = visionController.attachUri(uri, filename = "attachment", mimeType = mimeType)
+            val resolved = ContentUriMetadata.resolve(context, uri)
+            val attachment = visionController.attachUri(
+                uri = uri,
+                filename = resolved.filename,
+                mimeType = resolved.mimeType,
+            )
             attachment?.let { addImportedAttachment(it, selectedModel, state.selectedModelTitle, chatComponent) { msg ->
                 capabilityWarningMessage = msg
             } }
@@ -154,20 +166,7 @@ internal fun HomeScreen(
                 onAttachmentTapped = { isAttachmentMenuVisible = true },
                 onRemoveAttachment = chatComponent::removeDraftAttachment,
                 onVisionErrorDismissed = visionController::clearError,
-                onStartVoiceInput = {
-                    when (
-                        val decision = HomeComposerModelCapabilityLogic.validateDraft(
-                            attachments = draftAttachments,
-                            model = selectedModel,
-                            modelName = state.selectedModelTitle,
-                        )
-                    ) {
-                        HomeComposerModelCapabilityLogic.VisualAttachmentDecision.Allowed ->
-                            speechController.startListening()
-                        is HomeComposerModelCapabilityLogic.VisualAttachmentDecision.Blocked ->
-                            capabilityWarningMessage = decision.message
-                    }
-                },
+                onStartVoiceInput = { speechController.startListening() },
                 onStopVoiceInput = {
                     scope.launch {
                         val attachment = speechController.stopListening()
@@ -195,7 +194,7 @@ internal fun HomeScreen(
                     ) {
                         HomeComposerModelCapabilityLogic.VisualAttachmentDecision.Allowed -> {
                             visionController.dismissProcessingPresentation()
-                            component.onSendTapped()
+                            component.onSendTapped(draftAttachments)
                         }
                         is HomeComposerModelCapabilityLogic.VisualAttachmentDecision.Blocked ->
                             capabilityWarningMessage = decision.message

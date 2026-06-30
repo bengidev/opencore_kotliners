@@ -4,6 +4,7 @@ import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.infrastructure.ChatJsonStringField
 import io.github.bengidev.opencore.chat.infrastructure.attachments
 import io.github.bengidev.opencore.chat.infrastructure.providerContent
+import io.github.bengidev.opencore.chat.utilities.ChatAttachmentError
 import io.github.bengidev.opencore.chat.utilities.ChatMultimodalWireLogic
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
@@ -61,11 +62,16 @@ internal object ProviderWireTypes {
     private fun StringBuilder.encodeMessageContent(message: SidePanelMessage) {
         val modelText = message.providerContent()
         val attachments = message.attachments()
-        val parts = runCatching {
+        val parts = try {
             ChatMultimodalWireLogic.makeContentParts(modelText, attachments)
-        }.getOrNull()
+        } catch (error: ChatAttachmentError.VisualEncodingFailed) {
+            throw error
+        }
 
         if (parts.isNullOrEmpty()) {
+            if (ChatMultimodalWireLogic.hasVisualMedia(attachments)) {
+                throw ChatAttachmentError.VisualEncodingFailed("attachment")
+            }
             appendQuoted(modelText)
             return
         }
