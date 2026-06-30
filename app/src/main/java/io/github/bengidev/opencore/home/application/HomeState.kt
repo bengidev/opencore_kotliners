@@ -35,6 +35,12 @@ internal data class HomeState(
             !isLoadingModels &&
             availableModels.any { it.id == selectedModelId }
 
+    val canSendBase: Boolean
+        get() = selectedModelId != null &&
+            hasApiKey &&
+            !isLoadingModels &&
+            availableModels.any { it.id == selectedModelId }
+
     val showMissingApiKeyHint: Boolean
         get() = hasLoadedCredentials && !hasApiKey
 

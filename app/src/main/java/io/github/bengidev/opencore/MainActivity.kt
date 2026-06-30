@@ -1,9 +1,13 @@
 package io.github.bengidev.opencore
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -11,9 +15,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.core.content.ContextCompat
 import io.github.bengidev.opencore.chat.ChatFacade
 import io.github.bengidev.opencore.chat.application.ChatComponent
 import io.github.bengidev.opencore.home.HomeFacade
@@ -27,8 +33,13 @@ import io.github.bengidev.opencore.sidepanel.application.SidePanelComponent
 import io.github.bengidev.opencore.sidepanel.infrastructure.DataStoreSidePanelPreferenceStore
 import io.github.bengidev.opencore.shared.credential.CredentialEncryptedStore
 import io.github.bengidev.opencore.sidepanel.infrastructure.DataStoreSidePanelHistoryRepository
+import io.github.bengidev.opencore.speech.SpeechFacade
+import io.github.bengidev.opencore.speech.application.SpeechFlowController
+import io.github.bengidev.opencore.vision.VisionFacade
+import io.github.bengidev.opencore.vision.application.VisionFlowController
 import io.github.bengidev.opencore.ui.decompose.rememberComponentContext
 import io.github.bengidev.opencore.ui.theme.OpenCoreTheme
+import kotlinx.coroutines.CompletableDeferred
 
 class MainActivity : ComponentActivity() {
 
@@ -40,6 +51,8 @@ class MainActivity : ComponentActivity() {
         val homeFacade = HomeFacade()
         val sidePanelFacade = SidePanelFacade()
         val chatFacade = ChatFacade()
+        val speechFacade = SpeechFacade()
+        val visionFacade = VisionFacade()
 
         setContent {
             var darkTheme by rememberSaveable { mutableStateOf(false) }
@@ -65,6 +78,8 @@ class MainActivity : ComponentActivity() {
                         facade = homeFacade,
                         sidePanelFacade = sidePanelFacade,
                         chatFacade = chatFacade,
+                        speechFacade = speechFacade,
+                        visionFacade = visionFacade,
                         activity = this@MainActivity,
                         darkTheme = darkTheme
                     )
@@ -103,10 +118,42 @@ private fun HomeRoute(
     facade: HomeFacade,
     sidePanelFacade: SidePanelFacade,
     chatFacade: ChatFacade,
+    speechFacade: SpeechFacade,
+    visionFacade: VisionFacade,
     activity: ComponentActivity,
     darkTheme: Boolean
 ) {
     val componentContext = rememberComponentContext()
+    val coroutineScope = rememberCoroutineScope()
+    var pendingPermission by remember { mutableStateOf<CompletableDeferred<Boolean>?>(null) }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        pendingPermission?.complete(granted)
+        pendingPermission = null
+    }
+    val speechController: SpeechFlowController = remember(activity, coroutineScope) {
+        speechFacade.createController(
+            context = activity,
+            scope = coroutineScope,
+            permissionRequester = {
+                if (
+                    ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) ==
+                    PackageManager.PERMISSION_GRANTED
+                ) {
+                    true
+                } else {
+                    val deferred = CompletableDeferred<Boolean>()
+                    pendingPermission = deferred
+                    permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    deferred.await()
+                }
+            },
+        )
+    }
+    val visionController: VisionFlowController = remember(activity) {
+        visionFacade.createController(context = activity)
+    }
     val history = remember(activity) { DataStoreSidePanelHistoryRepository(activity) }
     val preferenceStore = remember(activity) { DataStoreSidePanelPreferenceStore(activity) }
     val credentialStore = remember(activity) { CredentialEncryptedStore(activity) }
@@ -160,6 +207,8 @@ private fun HomeRoute(
         component = homeComponent,
         chatComponent = chatComponent,
         sidePanelComponent = sidePanelComponent,
+        speechController = speechController,
+        visionController = visionController,
         darkTheme = darkTheme
     )
 }

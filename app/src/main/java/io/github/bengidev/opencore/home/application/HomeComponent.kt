@@ -5,6 +5,7 @@ import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import com.arkivanov.essenty.lifecycle.doOnDestroy
+import io.github.bengidev.opencore.chat.domain.ChatMessageAttachment
 import io.github.bengidev.opencore.home.utilities.ContextWindowTracker
 import io.github.bengidev.opencore.home.infrastructure.HomeModelCatalogClient
 import io.github.bengidev.opencore.home.models.HomeComposerSpeedMode
@@ -39,6 +40,7 @@ internal class HomeComponent(
     private var catalogLoadGeneration = 0
     private val contextWindowTracker = ContextWindowTracker()
     private var contextMessages: List<SidePanelMessage> = emptyList()
+    private var contextDraftAttachments: List<ChatMessageAttachment> = emptyList()
 
     init {
         lifecycle.doOnDestroy { scope.cancel() }
@@ -63,10 +65,13 @@ internal class HomeComponent(
     fun onMicrophoneTapped() = dispatch(HomeIntent.MicrophoneTapped)
     fun onSendTapped() {
         val current = _state.value
-        val message = current.draftMessage.trim()
-        if (message.isNotEmpty() && current.canSend) {
-            onSendMessage?.invoke(message, current.activeProviderSortBy, current.activeReasoningEffort)
-        }
+        if (!current.canSendBase) return
+        if (current.draftMessage.isBlank() && contextDraftAttachments.isEmpty()) return
+        onSendMessage?.invoke(
+            current.draftMessage.trim(),
+            current.activeProviderSortBy,
+            current.activeReasoningEffort,
+        )
         dispatch(HomeIntent.SendTapped)
     }
     fun onModelSelectorTapped() {
@@ -101,8 +106,12 @@ internal class HomeComponent(
         }
     }
 
-    fun refreshContextUsage(messages: List<SidePanelMessage>) {
+    fun refreshContextUsage(
+        messages: List<SidePanelMessage>,
+        draftAttachments: List<ChatMessageAttachment> = emptyList(),
+    ) {
         contextMessages = messages
+        contextDraftAttachments = draftAttachments
         refreshStoredContextUsage()
     }
 
@@ -174,7 +183,8 @@ internal class HomeComponent(
         contextWindowTracker.refresh(
             messages = contextMessages,
             draft = current.draftMessage,
-            contextLength = contextLength
+            draftAttachments = contextDraftAttachments,
+            contextLength = contextLength,
         )
         dispatch(HomeIntent.ContextUsageUpdated(contextWindowTracker.usage))
     }

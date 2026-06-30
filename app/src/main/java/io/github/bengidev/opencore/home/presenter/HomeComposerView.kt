@@ -1,5 +1,10 @@
 package io.github.bengidev.opencore.home.presenter
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,7 +30,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.KeyOff
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -53,15 +58,32 @@ import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.home.application.HomeState
 import io.github.bengidev.opencore.home.presenter.components.homeComposerGlass
 import io.github.bengidev.opencore.home.theme.HomeTheme
+import androidx.compose.material.icons.filled.Mic
+import io.github.bengidev.opencore.chat.domain.ChatMessageAttachment
+import io.github.bengidev.opencore.chat.presenter.ChatComposerAttachmentsStripView
+import io.github.bengidev.opencore.vision.application.VisionFlowState
+import io.github.bengidev.opencore.vision.presenter.VisionProcessingIndicatorView
+import io.github.bengidev.opencore.speech.application.SpeechFlowState
+import io.github.bengidev.opencore.speech.presenter.SpeechRecordingIndicatorView
 
 @Composable
 internal fun HomeComposerView(
     state: HomeState,
+    speechState: SpeechFlowState,
+    visionState: VisionFlowState,
+    draftAttachments: List<ChatMessageAttachment>,
+    composerText: String,
+    canSend: Boolean,
     isSending: Boolean = false,
     isLoadingMessages: Boolean = false,
     onDraftMessageChanged: (String) -> Unit,
     onAttachmentTapped: () -> Unit,
-    onMicrophoneTapped: () -> Unit,
+    onRemoveAttachment: (java.util.UUID) -> Unit,
+    onVisionErrorDismissed: () -> Unit,
+    onStartVoiceInput: () -> Unit,
+    onStopVoiceInput: () -> Unit,
+    onCancelVoiceInput: () -> Unit,
+    onSpeechErrorDismissed: () -> Unit,
     onSendTapped: () -> Unit,
     onConfigureApiKeyTapped: () -> Unit,
     onModelSelectorTapped: () -> Unit,
@@ -75,13 +97,21 @@ internal fun HomeComposerView(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         HomeComposerPromptPanel(
-            draftMessage = state.draftMessage,
-            canSend = state.canSend && !isSending && !isLoadingMessages,
+            composerText = composerText,
+            canSend = canSend && !isSending && !isLoadingMessages && !speechState.isListening,
             showMissingApiKeyHint = state.showMissingApiKeyHint,
+            speechState = speechState,
+            visionState = visionState,
+            draftAttachments = draftAttachments,
             onConfigureApiKeyTapped = onConfigureApiKeyTapped,
             onDraftMessageChanged = onDraftMessageChanged,
             onAttachmentTapped = onAttachmentTapped,
-            onMicrophoneTapped = onMicrophoneTapped,
+            onRemoveAttachment = onRemoveAttachment,
+            onVisionErrorDismissed = onVisionErrorDismissed,
+            onStartVoiceInput = onStartVoiceInput,
+            onStopVoiceInput = onStopVoiceInput,
+            onCancelVoiceInput = onCancelVoiceInput,
+            onSpeechErrorDismissed = onSpeechErrorDismissed,
             onSendTapped = onSendTapped
         )
 
@@ -97,13 +127,21 @@ internal fun HomeComposerView(
 
 @Composable
 private fun HomeComposerPromptPanel(
-    draftMessage: String,
+    composerText: String,
     canSend: Boolean,
     showMissingApiKeyHint: Boolean,
+    speechState: SpeechFlowState,
+    visionState: VisionFlowState,
+    draftAttachments: List<ChatMessageAttachment>,
     onConfigureApiKeyTapped: () -> Unit,
     onDraftMessageChanged: (String) -> Unit,
     onAttachmentTapped: () -> Unit,
-    onMicrophoneTapped: () -> Unit,
+    onRemoveAttachment: (java.util.UUID) -> Unit,
+    onVisionErrorDismissed: () -> Unit,
+    onStartVoiceInput: () -> Unit,
+    onStopVoiceInput: () -> Unit,
+    onCancelVoiceInput: () -> Unit,
+    onSpeechErrorDismissed: () -> Unit,
     onSendTapped: () -> Unit
 ) {
     val palette = HomeTheme.palette
@@ -121,9 +159,46 @@ private fun HomeComposerPromptPanel(
             MissingApiKeyHint(onClick = onConfigureApiKeyTapped)
         }
 
+        speechState.errorMessage?.let { message ->
+            SpeechInputErrorHint(message = message, onDismiss = onSpeechErrorDismissed)
+        }
+
+        visionState.errorMessage?.let { message ->
+            SpeechInputErrorHint(message = message, onDismiss = onVisionErrorDismissed)
+        }
+
+        AnimatedVisibility(
+            visible = visionState.isProcessing,
+            enter = fadeIn() + slideInVertically { -it / 2 },
+            exit = fadeOut() + slideOutVertically { -it / 2 },
+        ) {
+            VisionProcessingIndicatorView(statusMessage = visionState.statusMessage)
+        }
+
+        if (draftAttachments.isNotEmpty()) {
+            ChatComposerAttachmentsStripView(
+                attachments = draftAttachments,
+                onRemove = onRemoveAttachment,
+            )
+        }
+
+        AnimatedVisibility(
+            visible = speechState.isListening,
+            enter = fadeIn() + slideInVertically { -it / 2 },
+            exit = fadeOut() + slideOutVertically { -it / 2 },
+        ) {
+            SpeechRecordingIndicatorView(
+                elapsedDurationSeconds = speechState.elapsedDurationSeconds,
+                audioLevels = speechState.audioLevels,
+                isVoiceActive = speechState.isVoiceActive,
+                onCancel = onCancelVoiceInput,
+            )
+        }
+
         BasicTextField(
-            value = draftMessage,
+            value = composerText,
             onValueChange = onDraftMessageChanged,
+            enabled = !speechState.isListening,
             textStyle = typography.composerBody.copy(color = palette.textPrimary),
             cursorBrush = SolidColor(palette.accentPrimary),
             modifier = Modifier
@@ -131,7 +206,7 @@ private fun HomeComposerPromptPanel(
                 .height(50.dp),
             decorationBox = { innerTextField ->
                 Box {
-                    if (draftMessage.isEmpty()) {
+                    if (composerText.isEmpty()) {
                         Text(
                             text = "Ask anything... @files, \$skills, /commands",
                             style = typography.composerBody,
@@ -156,15 +231,92 @@ private fun HomeComposerPromptPanel(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            HomeComposerIconButton(
-                imageVector = Icons.Default.Mic,
-                contentDescription = "Start voice input",
-                onClick = onMicrophoneTapped
-            )
+            if (speechState.isListening) {
+                HomeComposerStopRecordingButton(onClick = onStopVoiceInput)
+            } else {
+                HomeComposerIconButton(
+                    imageVector = Icons.Default.Mic,
+                    contentDescription = "Start voice input",
+                    onClick = onStartVoiceInput
+                )
+            }
 
             HomeComposerSendButton(
                 canSend = canSend,
                 onClick = onSendTapped
+            )
+        }
+    }
+}
+
+@Composable
+private fun SpeechInputErrorHint(
+    message: String,
+    onDismiss: () -> Unit,
+) {
+    val palette = HomeTheme.palette
+    val shape = RoundedCornerShape(14.dp)
+    val fill = palette.surfaceSubtle.copy(alpha = if (palette.isDark) 0.5f else 0.8f)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(fill)
+            .semantics {
+                role = Role.Button
+                contentDescription = message
+            }
+            .clickable(onClick = onDismiss)
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Default.MicOff,
+            contentDescription = null,
+            tint = palette.textSecondary,
+            modifier = Modifier.size(15.dp),
+        )
+        Text(
+            text = message,
+            style = HomeTheme.typography.chipLabel,
+            color = palette.textSecondary,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun HomeComposerStopRecordingButton(onClick: () -> Unit) {
+    val palette = HomeTheme.palette
+    val interactionSource = remember { MutableInteractionSource() }
+
+    Box(
+        modifier = Modifier
+            .size(30.dp)
+            .semantics { contentDescription = "Stop voice input" }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(30.dp)
+                .clip(CircleShape)
+                .background(palette.surfaceSubtle.copy(alpha = if (palette.isDark) 0.55f else 0.9f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .clip(RoundedCornerShape(2.5.dp))
+                    .background(androidx.compose.ui.graphics.Color.Red.copy(alpha = 0.92f)),
             )
         }
     }
