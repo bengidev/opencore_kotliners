@@ -45,6 +45,7 @@ private const val HISTORY_RESTORE_SCROLL_DELAY_MS = 50L
 @Composable
 internal fun ChatThreadView(
     state: ChatState,
+    voicePlaybackController: ChatVoiceNotePlaybackController,
     onDismissKeyboard: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -153,6 +154,7 @@ internal fun ChatThreadView(
                         message = message,
                         isLastAssistantMessage = message.id == lastAssistantTextId,
                         isStreamingAssistant = isStreamingAssistant,
+                        voicePlaybackController = voicePlaybackController,
                         onDismissKeyboard = onDismissKeyboard
                     )
                 }

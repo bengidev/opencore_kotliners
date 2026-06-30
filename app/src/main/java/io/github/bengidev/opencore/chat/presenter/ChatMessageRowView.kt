@@ -19,6 +19,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.bengidev.opencore.chat.infrastructure.attachments
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.infrastructure.ChatOutputStreamDetailCodec
@@ -38,13 +39,14 @@ internal fun ChatMessageRowView(
     message: SidePanelMessage,
     isLastAssistantMessage: Boolean,
     isStreamingAssistant: Boolean = false,
+    voicePlaybackController: ChatVoiceNotePlaybackController,
     onDismissKeyboard: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     when {
         message.kind == SidePanelMessageKind.THINKING -> ThinkingRow(message, onDismissKeyboard, modifier)
         message.kind == SidePanelMessageKind.OUTPUT_STREAM -> OutputStreamRow(message, onDismissKeyboard, modifier)
-        message.role == ChatMessageRole.USER -> UserRow(message, onDismissKeyboard, modifier)
+        message.role == ChatMessageRole.USER -> UserRow(message, voicePlaybackController, onDismissKeyboard, modifier)
         message.role == ChatMessageRole.ASSISTANT -> AssistantRow(
             message = message,
             isLastAssistantMessage = isLastAssistantMessage,
@@ -110,11 +112,13 @@ private fun OutputStreamRow(
 @Composable
 private fun UserRow(
     message: SidePanelMessage,
+    voicePlaybackController: ChatVoiceNotePlaybackController,
     onDismissKeyboard: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val palette = ChatTheme.palette
     val typography = ChatTheme.typography
+    val attachments = message.attachments()
 
     Row(
         modifier = modifier
@@ -126,17 +130,14 @@ private fun UserRow(
     ) {
         Spacer(modifier = Modifier.widthIn(min = OppositeSideMinWidthDp.dp))
         Column(horizontalAlignment = Alignment.End) {
-            Text(
-                text = message.content,
-                style = typography.userMessageBody,
-                color = palette.userBubbleText,
-                modifier = Modifier
-                    .clip(UserBubbleCorner)
-                    .background(palette.userBubble)
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-                    .widthIn(max = 320.dp)
-                    .testTag("chat-message-bubble-user")
-            )
+            if (attachments.isNotEmpty() || message.content.isNotEmpty()) {
+                ChatUserMessageBubbleView(
+                    visibleText = message.content,
+                    attachments = attachments,
+                    playbackController = voicePlaybackController,
+                    modifier = Modifier.testTag("chat-message-bubble-user"),
+                )
+            }
             Text(
                 text = formatTime(message),
                 style = typography.messageMeta,
