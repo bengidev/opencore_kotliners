@@ -1,0 +1,59 @@
+package io.github.bengidev.opencore.home.utilities
+
+import io.github.bengidev.opencore.chat.domain.ChatMessageAttachment
+import io.github.bengidev.opencore.chat.domain.ChatMessageAttachmentKind
+import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class HomeComposerModelCapabilityLogicTest {
+    private val visionModel = SidePanelModel(
+        id = "gpt-4o",
+        displayTitle = "GPT-4o",
+        supportsImageInput = true,
+    )
+
+    private val textModel = SidePanelModel(
+        id = "llama",
+        displayTitle = "Llama",
+    )
+
+    @Test
+    fun validateDraft_blocksImageOnTextOnlyModel() {
+        val attachments = listOf(
+            ChatMessageAttachment(
+                kind = ChatMessageAttachmentKind.IMAGE,
+                filename = "photo.jpg",
+                localPath = "/tmp/photo.jpg",
+            ),
+        )
+
+        val decision = HomeComposerModelCapabilityLogic.validateDraft(
+            attachments = attachments,
+            model = textModel,
+            modelName = textModel.displayTitle,
+        )
+
+        assertTrue(decision is HomeComposerModelCapabilityLogic.VisualAttachmentDecision.Blocked)
+    }
+
+    @Test
+    fun validateDraft_allowsImageOnVisionModel() {
+        val attachments = listOf(
+            ChatMessageAttachment(
+                kind = ChatMessageAttachmentKind.IMAGE,
+                filename = "photo.jpg",
+                localPath = "/tmp/photo.jpg",
+            ),
+        )
+
+        val decision = HomeComposerModelCapabilityLogic.validateDraft(
+            attachments = attachments,
+            model = visionModel,
+            modelName = visionModel.displayTitle,
+        )
+
+        assertEquals(HomeComposerModelCapabilityLogic.VisualAttachmentDecision.Allowed, decision)
+    }
+}
