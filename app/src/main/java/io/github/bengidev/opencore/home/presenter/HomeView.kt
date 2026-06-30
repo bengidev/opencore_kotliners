@@ -25,6 +25,10 @@ import io.github.bengidev.opencore.chat.presenter.ChatView
 import io.github.bengidev.opencore.home.application.HomeState
 import io.github.bengidev.opencore.home.models.HomeComposerSpeedMode
 import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
+import io.github.bengidev.opencore.chat.domain.ChatMessageAttachment
+import io.github.bengidev.opencore.chat.presenter.ChatVoiceNotePlaybackController
+import io.github.bengidev.opencore.speech.application.SpeechFlowState
+import io.github.bengidev.opencore.vision.application.VisionFlowState
 import io.github.bengidev.opencore.home.theme.HomeTheme
 
 private val ComposerBottomPadding = 10.dp
@@ -33,11 +37,22 @@ private val ComposerBottomPadding = 10.dp
 internal fun HomeView(
     state: HomeState,
     chatState: ChatState,
+    speechState: SpeechFlowState,
+    visionState: VisionFlowState,
+    draftAttachments: List<ChatMessageAttachment>,
+    composerText: String,
+    canSend: Boolean,
+    voicePlaybackController: ChatVoiceNotePlaybackController,
     onDraftMessageChanged: (String) -> Unit,
     onSidebarTapped: () -> Unit,
     onNewConversationTapped: () -> Unit,
     onAttachmentTapped: () -> Unit,
-    onMicrophoneTapped: () -> Unit,
+    onRemoveAttachment: (java.util.UUID) -> Unit,
+    onVisionErrorDismissed: () -> Unit,
+    onStartVoiceInput: () -> Unit,
+    onStopVoiceInput: () -> Unit,
+    onCancelVoiceInput: () -> Unit,
+    onSpeechErrorDismissed: () -> Unit,
     onSendTapped: () -> Unit,
     onConfigureApiKeyTapped: () -> Unit,
     onModelSelectorTapped: () -> Unit,
@@ -73,6 +88,11 @@ internal fun HomeView(
             }
             HomeComposerView(
                 state = state,
+                speechState = speechState,
+                visionState = visionState,
+                draftAttachments = draftAttachments,
+                composerText = composerText,
+                canSend = canSend,
                 isSending = chatState.isSending,
                 isLoadingMessages = chatState.isLoadingMessages,
                 onDraftMessageChanged = onDraftMessageChanged,
@@ -80,10 +100,21 @@ internal fun HomeView(
                     dismissKeyboard()
                     onAttachmentTapped()
                 },
-                onMicrophoneTapped = {
+                onRemoveAttachment = onRemoveAttachment,
+                onVisionErrorDismissed = onVisionErrorDismissed,
+                onStartVoiceInput = {
                     dismissKeyboard()
-                    onMicrophoneTapped()
+                    onStartVoiceInput()
                 },
+                onStopVoiceInput = {
+                    dismissKeyboard()
+                    onStopVoiceInput()
+                },
+                onCancelVoiceInput = {
+                    dismissKeyboard()
+                    onCancelVoiceInput()
+                },
+                onSpeechErrorDismissed = onSpeechErrorDismissed,
                 onSendTapped = {
                     dismissKeyboard()
                     onSendTapped()
@@ -133,6 +164,7 @@ internal fun HomeView(
             ) {
                 ChatView(
                     state = chatState,
+                    voicePlaybackController = voicePlaybackController,
                     onDismissKeyboard = dismissKeyboard,
                     onRetry = onChatRetryTapped,
                     onDismiss = onChatErrorDismissed,

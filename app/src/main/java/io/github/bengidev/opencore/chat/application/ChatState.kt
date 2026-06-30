@@ -1,5 +1,6 @@
 package io.github.bengidev.opencore.chat.application
 
+import io.github.bengidev.opencore.chat.domain.ChatMessageAttachment
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
@@ -10,6 +11,7 @@ import java.util.UUID
 internal data class ChatState(
     val activeConversation: SidePanelConversation? = null,
     val messages: List<SidePanelMessage> = emptyList(),
+    val draftAttachments: List<ChatMessageAttachment> = emptyList(),
     val isLoadingMessages: Boolean = false,
     val isSending: Boolean = false,
     val streamingStatus: ChatStreamingStatus = ChatStreamingStatus.Idle,
@@ -71,6 +73,12 @@ internal data class ChatState(
 }
 
 internal sealed interface ChatIntent {
+    data class DraftAttachmentAdded(val attachment: ChatMessageAttachment) : ChatIntent
+    data class DraftAttachmentRemoved(val id: java.util.UUID) : ChatIntent
+  /** Clears draft attachments and deletes their files from disk (composer discard). */
+    data object DraftAttachmentsCleared : ChatIntent
+    /** Clears draft attachments after send; sent messages keep durable file paths. */
+    data object DraftAttachmentsCommitted : ChatIntent
     data object NewConversation : ChatIntent
     data class ConversationOpened(
         val conversation: SidePanelConversation,
@@ -86,6 +94,7 @@ internal sealed interface ChatIntent {
         val bumpStreamingRevision: Boolean = false
     ) : ChatIntent
     data object StreamingErrorDismissed : ChatIntent
+    data class SendPreparationFailed(val message: String) : ChatIntent
 }
 
 internal fun ChatState.withoutIncompleteAssistantRows(): ChatState =

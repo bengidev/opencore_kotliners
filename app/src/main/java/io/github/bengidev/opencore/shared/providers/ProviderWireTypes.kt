@@ -2,6 +2,10 @@ package io.github.bengidev.opencore.shared.providers
 
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.infrastructure.ChatJsonStringField
+import io.github.bengidev.opencore.chat.infrastructure.attachments
+import io.github.bengidev.opencore.chat.infrastructure.providerContent
+import io.github.bengidev.opencore.chat.utilities.ChatAttachmentError
+import io.github.bengidev.opencore.chat.utilities.ChatMultimodalWireLogic
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
 
@@ -10,7 +14,7 @@ internal object ProviderWireTypes {
         request: ProviderChatRequest,
         reasoningWireStyle: ProviderReasoningWireStyle,
         supportsProviderRouting: Boolean,
-        stream: Boolean = true
+        stream: Boolean = true,
     ): String = buildString {
         val wireMessages = request.messages.filter { message ->
             message.kind != SidePanelMessageKind.THINKING &&
@@ -24,7 +28,7 @@ internal object ProviderWireTypes {
             append("""{"role":""")
             appendQuoted(message.role)
             append(""","content":""")
-            appendQuoted(message.content)
+            encodeMessageContent(message)
             append('}')
         }
         append(']')
@@ -53,6 +57,50 @@ internal object ProviderWireTypes {
             append(""","partition":"none"}}""")
         }
         append('}')
+    }
+
+    private fun StringBuilder.encodeMessageContent(message: SidePanelMessage) {
+        val modelText = message.providerContent()
+        val attachments = message.attachments()
+        val parts = try {
+            ChatMultimodalWireLogic.makeContentParts(modelText, attachments)
+        } catch (error: ChatAttachmentError.VisualEncodingFailed) {
+            throw error
+        }
+
+        if (parts.isNullOrEmpty()) {
+            if (ChatMultimodalWireLogic.hasVisualMedia(attachments)) {
+                throw ChatAttachmentError.VisualEncodingFailed("attachment")
+            }
+            appendQuoted(modelText)
+            return
+        }
+
+        append('[')
+        parts.forEachIndexed { index, part ->
+            if (index > 0) append(',')
+            append('{')
+            append("\"type\":")
+            appendQuoted(part.type)
+            when (part.type) {
+                "text" -> {
+                    append(",\"text\":")
+                    appendQuoted(part.text.orEmpty())
+                }
+                "image_url" -> {
+                    append(",\"image_url\":{\"url\":")
+                    appendQuoted(part.imageUrl.orEmpty())
+                    append('}')
+                }
+                "video_url" -> {
+                    append(",\"video_url\":{\"url\":")
+                    appendQuoted(part.videoUrl.orEmpty())
+                    append('}')
+                }
+            }
+            append('}')
+        }
+        append(']')
     }
 
     fun parseErrorMessage(responseBody: String): String? {

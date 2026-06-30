@@ -5,6 +5,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import io.github.bengidev.opencore.chat.domain.ChatMessageAttachment
+import io.github.bengidev.opencore.chat.domain.ChatMessageAttachmentKind
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
@@ -29,6 +31,41 @@ class ChatReducerTest {
     )
 
     @Test
+    fun draftAttachmentsCommitted_clearsDraftsWithoutDeletingFiles() {
+        val tempFile = kotlin.io.path.createTempFile(suffix = ".wav").toFile()
+        tempFile.writeBytes(byteArrayOf(1, 2, 3))
+        val attachment = ChatMessageAttachment(
+            kind = ChatMessageAttachmentKind.AUDIO,
+            filename = "Voice note",
+            localPath = tempFile.absolutePath,
+        )
+        val state = ChatState(draftAttachments = listOf(attachment))
+
+        val result = ChatReducer.reduce(state, ChatIntent.DraftAttachmentsCommitted)
+
+        assertTrue(result.draftAttachments.isEmpty())
+        assertTrue(tempFile.exists())
+        tempFile.delete()
+    }
+
+    @Test
+    fun draftAttachmentsCleared_deletesDraftFilesFromDisk() {
+        val tempFile = kotlin.io.path.createTempFile(suffix = ".wav").toFile()
+        tempFile.writeBytes(byteArrayOf(1, 2, 3))
+        val attachment = ChatMessageAttachment(
+            kind = ChatMessageAttachmentKind.AUDIO,
+            filename = "Voice note",
+            localPath = tempFile.absolutePath,
+        )
+        val state = ChatState(draftAttachments = listOf(attachment))
+
+        val result = ChatReducer.reduce(state, ChatIntent.DraftAttachmentsCleared)
+
+        assertTrue(result.draftAttachments.isEmpty())
+        assertFalse(tempFile.exists())
+    }
+
+    @Test
     fun newConversation_clearsActiveThread() {
         val initial = ChatState(
             activeConversation = conversation(),
@@ -38,6 +75,23 @@ class ChatReducerTest {
         assertNull(result.activeConversation)
         assertTrue(result.messages.isEmpty())
         assertFalse(result.isThreadActive)
+    }
+
+    @Test
+    fun newConversation_deletesDraftAttachmentFiles() {
+        val tempFile = kotlin.io.path.createTempFile(suffix = ".jpg").toFile()
+        tempFile.writeBytes(byteArrayOf(1, 2, 3))
+        val attachment = ChatMessageAttachment(
+            kind = ChatMessageAttachmentKind.IMAGE,
+            filename = "photo.jpg",
+            localPath = tempFile.absolutePath,
+        )
+        val initial = ChatState(draftAttachments = listOf(attachment))
+
+        val result = ChatReducer.reduce(initial, ChatIntent.NewConversation)
+
+        assertTrue(result.draftAttachments.isEmpty())
+        assertFalse(tempFile.exists())
     }
 
     @Test

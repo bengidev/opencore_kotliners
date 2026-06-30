@@ -6,7 +6,7 @@ import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
 internal object HomeReducer {
     fun reduce(state: HomeState, intent: HomeIntent): HomeState = when (intent) {
         is HomeIntent.DraftMessageChanged -> state.copy(draftMessage = intent.value)
-        HomeIntent.SendTapped -> if (state.canSend) {
+        HomeIntent.SendTapped -> if (state.canSendBase) {
             state.copy(draftMessage = "", isContextUsagePresented = false)
         } else {
             state

@@ -58,7 +58,9 @@ internal object ProviderCatalogParser {
             contextLength = contextLength,
             supportedReasoningEfforts = supportedReasoningEfforts,
             reasoningMandatory = reasoningMandatory,
-            supportsSpeedModes = supportsSpeedModes
+            supportsSpeedModes = supportsSpeedModes,
+            supportsImageInput = modalitySupportsImage(modality),
+            supportsVideoInput = modalitySupportsVideo(modality),
         )
     }
 
@@ -204,6 +206,12 @@ internal object ProviderCatalogParser {
 
     private fun isZeroPrice(value: String): Boolean =
         value.toBigDecimalOrNull()?.compareTo(BigDecimal.ZERO) == 0 || value == "0"
+
+    private fun modalitySupportsImage(modality: String?): Boolean =
+        modality?.contains("image", ignoreCase = true) == true
+
+    private fun modalitySupportsVideo(modality: String?): Boolean =
+        modality?.contains("video", ignoreCase = true) == true
 
     private fun findMatchingBrace(json: String, openIndex: Int): Int? {
         var depth = 0

@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.bengidev.opencore.chat.application.ChatState
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
+import androidx.compose.runtime.rememberCoroutineScope
 import io.github.bengidev.opencore.home.theme.OpenCoreHomeTheme
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
@@ -37,9 +38,12 @@ class ChatThreadViewTest {
         )
 
         composeRule.setContent {
+            val scope = rememberCoroutineScope()
+            val playbackController = ChatVoiceNotePlaybackController(scope)
             OpenCoreHomeTheme(darkTheme = false) {
                 ChatThreadView(
                     state = state,
+                    voicePlaybackController = playbackController,
                     modifier = Modifier
                         .fillMaxHeight()
                         .height(480.dp),

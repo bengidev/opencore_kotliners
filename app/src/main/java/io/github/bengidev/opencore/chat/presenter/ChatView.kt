@@ -24,6 +24,7 @@ import io.github.bengidev.opencore.chat.theme.OpenCoreChatTheme
 @Composable
 internal fun ChatView(
     state: ChatState,
+    voicePlaybackController: ChatVoiceNotePlaybackController,
     onDismissKeyboard: () -> Unit,
     onRetry: () -> Unit = {},
     onDismiss: () -> Unit = {},
@@ -64,6 +65,7 @@ internal fun ChatView(
 
             ChatThreadView(
                 state = state,
+                voicePlaybackController = voicePlaybackController,
                 onDismissKeyboard = onDismissKeyboard,
                 modifier = Modifier
                     .weight(1f)

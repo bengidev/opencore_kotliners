@@ -12,6 +12,8 @@ Onboarding flow state is owned by `OnboardingComponent` and mutated through expl
 ├── onboarding/       # First-run product tour
 ├── sidepanel/        # Conversation browser + settings (self-contained internal module)
 ├── chat/             # Live message stream, send/receive, active conversation (ChatView — thread + error banner)
+├── speech/           # On-device speech-to-text for composer input
+├── vision/           # Composer media intake (photos, videos, plain-text files)
 └── home/             # Welcome hero + composer chatbox (wires Chat + SidePanel)
 ```
 
@@ -43,6 +45,17 @@ app/src/main/java/io/github/bengidev/opencore/
 │   ├── presenter/
 │   ├── utilities/
 │   └── theme/
+├── speech/
+│   ├── application/
+│   ├── domain/
+│   ├── infrastructure/
+│   ├── presenter/
+│   └── utilities/
+├── vision/
+│   ├── application/
+│   ├── domain/
+│   ├── utilities/
+│   └── presenter/
 └── sidepanel/
     ├── domain/
     ├── application/
