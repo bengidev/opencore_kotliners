@@ -5,10 +5,14 @@ import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import com.arkivanov.essenty.lifecycle.doOnDestroy
+import io.github.bengidev.opencore.chat.domain.ChatMessageAttachment
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.domain.ChatOutputStreamStatus
 import io.github.bengidev.opencore.chat.domain.ChatStreamingEvent
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
+import io.github.bengidev.opencore.chat.infrastructure.ChatTextMessageDetailCodec
+import io.github.bengidev.opencore.chat.utilities.ChatModelInputBuilder
+import io.github.bengidev.opencore.chat.utilities.ChatMultimodalWireLogic
 import io.github.bengidev.opencore.chat.infrastructure.ChatStreamingClient
 import io.github.bengidev.opencore.sidepanel.domain.ConversationTitlePolicy
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
@@ -95,22 +99,53 @@ internal class ChatComponent(
         dispatch(ChatIntent.StreamingErrorDismissed)
     }
 
-    fun sendUserMessage(rawText: String, providerSortBy: String? = null, reasoningEffort: String? = null) {
-        val text = rawText.trim()
-        val current = _state.value
-        if (text.isEmpty() || current.isSending || current.isLoadingMessages) return
+    fun addDraftAttachment(attachment: ChatMessageAttachment) {
+        dispatch(ChatIntent.DraftAttachmentAdded(attachment))
+    }
 
+    fun removeDraftAttachment(id: UUID) {
+        dispatch(ChatIntent.DraftAttachmentRemoved(id))
+    }
+
+    fun clearDraftAttachments() {
+        dispatch(ChatIntent.DraftAttachmentsCleared)
+    }
+
+    fun sendUserMessage(rawText: String, providerSortBy: String? = null, reasoningEffort: String? = null) {
+        val visibleText = rawText.trim()
+        val attachments = _state.value.draftAttachments
+        val current = _state.value
+        if ((visibleText.isEmpty() && attachments.isEmpty()) || current.isSending || current.isLoadingMessages) return
+
+        val modelContent = ChatModelInputBuilder.modelContent(visibleText, attachments)
+        val preparedAttachments = try {
+            ChatMultimodalWireLogic.prepareAttachmentsForSend(
+                attachments = attachments,
+                modelText = modelContent,
+            )
+        } catch (error: Exception) {
+            dispatch(ChatIntent.SendPreparationFailed(error.message ?: "Could not prepare attachments for sending."))
+            return
+        }
+
+        val detailJson = ChatTextMessageDetailCodec.encode(
+            attachments = preparedAttachments,
+            modelContent = modelContent.takeIf { it.isNotBlank() },
+        )
         val userMessage = SidePanelMessage(
             id = UUID.randomUUID(),
             role = ChatMessageRole.USER,
-            content = text,
-            createdAt = Instant.now()
+            content = visibleText,
+            createdAt = Instant.now(),
+            detailJson = detailJson,
         )
+        dispatch(ChatIntent.DraftAttachmentsCommitted)
         val activeConversation = current.activeConversation
         if (activeConversation != null) {
             appendUserTurn(
                 conversationId = activeConversation.id,
-                userMessageText = text,
+                userMessageText = visibleText,
+                attachments = attachments,
                 userMessage = userMessage,
                 providerSortBy = providerSortBy,
                 reasoningEffort = reasoningEffort,
@@ -119,7 +154,8 @@ internal class ChatComponent(
         }
 
         beginNewConversationTurn(
-            userMessageText = text,
+            userMessageText = visibleText,
+            attachments = attachments,
             userMessage = userMessage,
             providerSortBy = providerSortBy,
             reasoningEffort = reasoningEffort,
@@ -312,23 +348,25 @@ internal class ChatComponent(
     private fun appendUserTurn(
         conversationId: UUID,
         userMessageText: String,
+        attachments: List<ChatMessageAttachment>,
         userMessage: SidePanelMessage,
         providerSortBy: String?,
         reasoningEffort: String?,
     ) {
         dispatch(ChatIntent.UserMessageAppended(userMessage))
-        syncConversationTitle(conversationId, userMessageText)
+        syncConversationTitle(conversationId, userMessageText, attachments)
         launchPersistAndStream(conversationId, userMessage, providerSortBy, reasoningEffort)
     }
 
     private fun beginNewConversationTurn(
         userMessageText: String,
+        attachments: List<ChatMessageAttachment>,
         userMessage: SidePanelMessage,
         providerSortBy: String?,
         reasoningEffort: String?,
     ) {
         val conversation = SidePanelConversation(
-            title = ConversationTitlePolicy.fromUserMessage(userMessageText),
+            title = ConversationTitlePolicy.fromUserMessage(userMessageText, attachments).ifBlank { "New chat" },
             updatedAt = Instant.now(),
         )
         dispatch(ChatIntent.ConversationOpened(conversation, loadMessages = false))
@@ -355,8 +393,12 @@ internal class ChatComponent(
         }
     }
 
-    private fun syncConversationTitle(conversationId: UUID, userMessageText: String) {
-        val newTitle = ConversationTitlePolicy.fromUserMessage(userMessageText)
+    private fun syncConversationTitle(
+        conversationId: UUID,
+        userMessageText: String,
+        attachments: List<ChatMessageAttachment>,
+    ) {
+        val newTitle = ConversationTitlePolicy.fromUserMessage(userMessageText, attachments)
         if (newTitle.isEmpty()) return
         val currentTitle = _state.value.activeConversation?.title ?: return
         if (currentTitle == newTitle) return

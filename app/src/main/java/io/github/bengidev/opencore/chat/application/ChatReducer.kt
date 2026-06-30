@@ -1,25 +1,44 @@
 package io.github.bengidev.opencore.chat.application
 
 import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
+import io.github.bengidev.opencore.chat.utilities.ChatAttachmentStore
 import io.github.bengidev.opencore.sidepanel.domain.dedupeByThreadItemKey
 
 internal object ChatReducer {
     fun reduce(state: ChatState, intent: ChatIntent): ChatState = when (intent) {
+        is ChatIntent.DraftAttachmentAdded -> state.copy(
+            draftAttachments = state.draftAttachments + intent.attachment,
+        )
+        is ChatIntent.DraftAttachmentRemoved -> {
+            state.draftAttachments.firstOrNull { it.id == intent.id }?.let { attachment ->
+                ChatAttachmentStore.remove(attachment.localPath)
+            }
+            state.copy(draftAttachments = state.draftAttachments.filterNot { it.id == intent.id })
+        }
+        ChatIntent.DraftAttachmentsCleared -> {
+            ChatAttachmentStore.removeAll(state.draftAttachments.map { it.localPath })
+            state.copy(draftAttachments = emptyList())
+        }
+        ChatIntent.DraftAttachmentsCommitted ->
+            state.copy(draftAttachments = emptyList())
         ChatIntent.NewConversation -> state.clearedStreamingFields().copy(
             activeConversation = null,
             messages = emptyList(),
-            isLoadingMessages = false
+            isLoadingMessages = false,
+            draftAttachments = emptyList(),
         )
         is ChatIntent.ConversationOpened -> if (intent.loadMessages) {
             state.clearedStreamingFields().copy(
                 activeConversation = intent.conversation,
                 messages = emptyList(),
-                isLoadingMessages = true
+                isLoadingMessages = true,
+                draftAttachments = emptyList(),
             )
         } else {
             state.clearedStreamingFields().copy(
                 activeConversation = intent.conversation,
-                isLoadingMessages = false
+                isLoadingMessages = false,
+                draftAttachments = emptyList(),
             )
         }
         is ChatIntent.MessagesLoaded -> {
@@ -54,7 +73,8 @@ internal object ChatReducer {
                 state.clearedStreamingFields().copy(
                     activeConversation = null,
                     messages = emptyList(),
-                    isLoadingMessages = false
+                    isLoadingMessages = false,
+                    draftAttachments = emptyList(),
                 )
             }
         }
@@ -86,5 +106,6 @@ internal object ChatReducer {
         ChatIntent.StreamingErrorDismissed -> state
             .withoutIncompleteAssistantRows()
             .clearedStreamingFields()
+        is ChatIntent.SendPreparationFailed -> state.copy(streamErrorMessage = intent.message)
     }
 }
