@@ -10,5 +10,7 @@ Feature packages live inside `:app` as internal modules (package boundaries + `i
 | `app/.../home/` | [app/src/main/java/io/github/bengidev/opencore/home/CONTEXT.md](app/src/main/java/io/github/bengidev/opencore/home/CONTEXT.md) |
 | `app/.../sidepanel/` | [app/src/main/java/io/github/bengidev/opencore/sidepanel/CONTEXT.md](app/src/main/java/io/github/bengidev/opencore/sidepanel/CONTEXT.md) |
 | `app/.../chat/` | [app/src/main/java/io/github/bengidev/opencore/chat/CONTEXT.md](app/src/main/java/io/github/bengidev/opencore/chat/CONTEXT.md) |
+| `app/.../speech/` | Speech-to-text dictation for the composer |
+| `app/.../vision/` | Composer media intake (photos, videos, files) |
 
 App-scoped ADRs: [app/docs/adr/](app/docs/adr/) (when present).
