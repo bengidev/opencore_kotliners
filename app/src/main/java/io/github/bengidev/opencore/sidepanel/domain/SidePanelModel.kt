@@ -7,7 +7,9 @@ internal data class SidePanelModel(
     val contextLength: Int? = null,
     val supportedReasoningEfforts: List<String> = emptyList(),
     val reasoningMandatory: Boolean = false,
-    val supportsSpeedModes: Boolean = false
+    val supportsSpeedModes: Boolean = false,
+    val supportsImageInput: Boolean = false,
+    val supportsVideoInput: Boolean = false,
 ) {
     val supportsReasoning: Boolean
         get() = supportedReasoningEfforts.isNotEmpty()
