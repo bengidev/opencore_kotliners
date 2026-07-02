@@ -62,13 +62,15 @@ internal fun HomeScreen(
     var isAttachmentMenuVisible by remember { mutableStateOf(false) }
     var capabilityWarningMessage by remember { mutableStateOf<String?>(null) }
 
-    val composerText = speechController.displayedDraft(base = state.draftMessage)
+    val composerText = state.draftMessage
     val draftAttachments = chatState.draftAttachments
     val selectedModel = state.selectedModelId?.let { id ->
         state.availableModels.firstOrNull { it.id == id }
     }
     val canSend = state.canSendBase &&
-        (state.draftMessage.isNotBlank() || draftAttachments.isNotEmpty())
+        (state.draftMessage.isNotBlank() || draftAttachments.isNotEmpty()) &&
+        !speechState.isListening &&
+        !speechState.isTranscribing
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -102,6 +104,16 @@ internal fun HomeScreen(
                 capabilityWarningMessage = msg
             } }
         }
+    }
+
+    LaunchedEffect(speechState.pendingCapture) {
+        val capture = speechState.pendingCapture ?: return@LaunchedEffect
+        applyVoiceCapture(
+            capture = capture,
+            existingDraft = state.draftMessage,
+            onDraftChanged = component::onDraftMessageChanged,
+        )
+        speechController.clearPendingCapture()
     }
 
     LaunchedEffect(
@@ -168,17 +180,7 @@ internal fun HomeScreen(
                 onVisionErrorDismissed = visionController::clearError,
                 onStartVoiceInput = { speechController.startListening() },
                 onStopVoiceInput = {
-                    scope.launch {
-                        val attachment = speechController.stopListening()
-                        if (attachment != null) {
-                            addImportedAttachment(
-                                attachment,
-                                selectedModel,
-                                state.selectedModelTitle,
-                                chatComponent,
-                            ) { msg -> capabilityWarningMessage = msg }
-                        }
-                    }
+                    scope.launch { speechController.stopListening() }
                 },
                 onCancelVoiceInput = {
                     scope.launch { speechController.cancelListening() }
@@ -220,6 +222,23 @@ internal fun HomeScreen(
             )
         }
     }
+}
+
+private fun applyVoiceCapture(
+    capture: io.github.bengidev.opencore.speech.domain.SpeechCaptureResult,
+    existingDraft: String,
+    onDraftChanged: (String) -> Unit,
+) {
+    val transcript = capture.composerText.trim()
+    if (transcript.isEmpty()) return
+    val existing = existingDraft.trim()
+    onDraftChanged(
+        if (existing.isEmpty()) {
+            transcript
+        } else {
+            SpeechFlowController.mergedDraft(existing, transcript)
+        },
+    )
 }
 
 private fun addImportedAttachment(
