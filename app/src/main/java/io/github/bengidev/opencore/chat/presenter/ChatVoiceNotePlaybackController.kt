@@ -31,7 +31,11 @@ internal class ChatVoiceNotePlaybackController(
     private val _playbackCurrentTime = MutableStateFlow(0.0)
     val playbackCurrentTime: StateFlow<Double> = _playbackCurrentTime.asStateFlow()
 
+    private val _lastErrorMessage = MutableStateFlow<String?>(null)
+    val lastErrorMessage: StateFlow<String?> = _lastErrorMessage.asStateFlow()
+
     private var player: MediaPlayer? = null
+    private var activeAttachmentId: UUID? = null
     private var activeDurationSeconds: Double = 0.0
     private var progressJob: Job? = null
 
@@ -81,6 +85,7 @@ internal class ChatVoiceNotePlaybackController(
         player?.stop()
         player?.release()
         player = null
+        activeAttachmentId = null
         activeDurationSeconds = 0.0
         _playbackCurrentTime.value = 0.0
         _playbackState.value = PlaybackState.Idle
@@ -91,8 +96,12 @@ internal class ChatVoiceNotePlaybackController(
     }
 
     private fun startPlayback(attachment: ChatMessageAttachment) {
+        _lastErrorMessage.value = null
         val audioFile = File(attachment.localPath)
-        if (!audioFile.exists() || audioFile.length() <= 0L) return
+        if (!audioFile.exists() || audioFile.length() <= 0L) {
+            _lastErrorMessage.value = "Voice note is no longer available."
+            return
+        }
 
         val mediaPlayer = MediaPlayer()
         runCatching {
@@ -104,12 +113,28 @@ internal class ChatVoiceNotePlaybackController(
             )
             mediaPlayer.setDataSource(attachment.localPath)
             mediaPlayer.prepare()
-            activeDurationSeconds = resolvedDuration(
+            val resolvedDuration = resolvedDuration(
                 attachment = attachment,
                 playerDurationSeconds = mediaPlayer.duration / 1000.0,
             )
+            if (resolvedDuration <= 0.0) {
+                mediaPlayer.release()
+                _lastErrorMessage.value = "Voice note could not be played."
+                return
+            }
+            activeDurationSeconds = resolvedDuration
+            activeAttachmentId = attachment.id
             mediaPlayer.setOnCompletionListener { completedPlayer ->
                 scope.launch { handlePlaybackCompleted(completedPlayer) }
+            }
+            mediaPlayer.setOnErrorListener { completedPlayer, _, _ ->
+                scope.launch {
+                    if (player === completedPlayer) {
+                        _lastErrorMessage.value = "Voice note could not be played."
+                        stop()
+                    }
+                }
+                true
             }
             player = mediaPlayer
             _playbackCurrentTime.value = 0.0
@@ -119,6 +144,7 @@ internal class ChatVoiceNotePlaybackController(
             startProgressUpdates()
         }.onFailure {
             mediaPlayer.release()
+            _lastErrorMessage.value = "Voice note could not be played."
             stop()
         }
     }

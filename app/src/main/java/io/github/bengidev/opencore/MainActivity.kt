@@ -40,6 +40,7 @@ import io.github.bengidev.opencore.vision.application.VisionFlowController
 import io.github.bengidev.opencore.ui.decompose.rememberComponentContext
 import io.github.bengidev.opencore.ui.theme.OpenCoreTheme
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -124,7 +125,7 @@ private fun HomeRoute(
     darkTheme: Boolean
 ) {
     val componentContext = rememberComponentContext()
-    val coroutineScope = rememberCoroutineScope()
+    val scope = rememberCoroutineScope()
     var pendingPermission by remember { mutableStateOf<CompletableDeferred<Boolean>?>(null) }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -132,10 +133,13 @@ private fun HomeRoute(
         pendingPermission?.complete(granted)
         pendingPermission = null
     }
-    val speechController: SpeechFlowController = remember(activity, coroutineScope) {
+    val history = remember(activity) { DataStoreSidePanelHistoryRepository(activity) }
+    val preferenceStore = remember(activity) { DataStoreSidePanelPreferenceStore(activity) }
+    val credentialStore = remember(activity) { CredentialEncryptedStore(activity) }
+    val speechController: SpeechFlowController = remember(activity, scope, credentialStore, preferenceStore) {
         speechFacade.createController(
             context = activity,
-            scope = coroutineScope,
+            scope = scope,
             permissionRequester = {
                 if (
                     ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) ==
@@ -149,14 +153,13 @@ private fun HomeRoute(
                     deferred.await()
                 }
             },
+            credentialStore = credentialStore,
+            preferenceProvider = { preferenceStore.preference() },
         )
     }
     val visionController: VisionFlowController = remember(activity) {
         visionFacade.createController(context = activity)
     }
-    val history = remember(activity) { DataStoreSidePanelHistoryRepository(activity) }
-    val preferenceStore = remember(activity) { DataStoreSidePanelPreferenceStore(activity) }
-    val credentialStore = remember(activity) { CredentialEncryptedStore(activity) }
     val sidePanelComponent: SidePanelComponent = remember(componentContext, history, preferenceStore, credentialStore) {
         sidePanelFacade.createComponent(
             context = activity,
@@ -182,8 +185,17 @@ private fun HomeRoute(
             onSendMessage = { message, providerSortBy, reasoningEffort ->
                 chatComponent.sendUserMessage(message, providerSortBy, reasoningEffort)
             },
-            onNewConversation = chatComponent::startNewConversation
+            onNewConversation = {
+                scope.launch {
+                    speechController.cancelListening()
+                    chatComponent.startNewConversation()
+                }
+            },
         )
+    }
+
+    LaunchedEffect(history) {
+        history.pruneExpiredVoiceAttachments()
     }
 
     LaunchedEffect(chatComponent, sidePanelComponent, homeComponent) {
@@ -196,7 +208,12 @@ private fun HomeRoute(
         chatComponent.onConversationTitleChanged = { id, title ->
             sidePanelComponent.session.syncConversationTitle(id, title)
         }
-        sidePanelComponent.onOpenConversation = chatComponent::openConversation
+        sidePanelComponent.onOpenConversation = { conversation ->
+            scope.launch {
+                speechController.cancelListening()
+                chatComponent.openConversation(conversation)
+            }
+        }
         sidePanelComponent.onActiveConversationRenamed = chatComponent::onActiveConversationRenamed
         sidePanelComponent.onActiveConversationDeleted = chatComponent::onActiveConversationDeleted
         sidePanelComponent.onProviderChanged = { homeComponent.onProviderChanged() }

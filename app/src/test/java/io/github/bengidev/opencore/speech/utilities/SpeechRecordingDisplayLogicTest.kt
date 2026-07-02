@@ -63,6 +63,12 @@ class SpeechRecordingDisplayLogicTest {
     }
 
     @Test
+    fun composerBarCountScalesWithWidth() {
+        assertEquals(16, SpeechRecordingDisplayLogic.composerBarCount(forWidthDp = 48f))
+        assertTrue(SpeechRecordingDisplayLogic.composerBarCount(forWidthDp = 240f) > 16)
+    }
+
+    @Test
     fun appendWaveformSample() {
         val capacity = 3
         val first = SpeechRecordingDisplayLogic.appendWaveformSample(0.1f, emptyList(), capacity)

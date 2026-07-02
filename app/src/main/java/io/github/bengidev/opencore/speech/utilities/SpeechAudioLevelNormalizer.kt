@@ -38,4 +38,16 @@ internal object SpeechAudioLevelNormalizer {
     val rms = sqrt(sumSquares / samples)
     return (rms / PCM_REFERENCE_AMPLITUDE).toFloat().coerceIn(0f, 1f)
   }
+
+  fun fromPcmSamples(buffer: ShortArray, sampleCount: Int): Float {
+    if (sampleCount <= 0) return 0f
+
+    var sumSquares = 0.0
+    for (index in 0 until sampleCount) {
+      val sample = buffer[index].toDouble()
+      sumSquares += sample * sample
+    }
+    val rms = sqrt(sumSquares / sampleCount)
+    return (rms / PCM_REFERENCE_AMPLITUDE).toFloat().coerceIn(0f, 1f)
+  }
 }

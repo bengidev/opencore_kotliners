@@ -7,7 +7,9 @@ internal data class ProviderDescriptor(
     val defaultHeaders: Map<String, String> = emptyMap(),
     val credentialPlaceholder: String,
     val credentialLabel: String,
-    val credentialPrompt: String
+    val credentialPrompt: String,
+    /** Whether `/audio/transcriptions` is supported for post-capture STT. */
+    val supportsAudioTranscription: Boolean = false,
 ) {
     val chatCompletionsUrl: String
         get() = "$baseUrl/chat/completions"
@@ -26,7 +28,8 @@ internal data class ProviderDescriptor(
             ),
             credentialPlaceholder = "sk-or-v1-...",
             credentialLabel = "OPENROUTER_API_KEY",
-            credentialPrompt = "Create a key at openrouter.ai/keys and paste it here. Requests send Authorization: Bearer <OPENROUTER_API_KEY> per the OpenRouter quickstart. Stored securely on this device."
+            credentialPrompt = "Create a key at openrouter.ai/keys and paste it here. Requests send Authorization: Bearer <OPENROUTER_API_KEY> per the OpenRouter quickstart. Stored securely on this device.",
+            supportsAudioTranscription = true,
         )
 
         val openCode = ProviderDescriptor(

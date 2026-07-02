@@ -46,6 +46,7 @@ internal fun ChatReasoningCardView(
     content: String,
     isComplete: Boolean,
     isStreaming: Boolean,
+    onCollapsed: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val palette = ChatTheme.palette
@@ -59,6 +60,7 @@ internal fun ChatReasoningCardView(
         if (!isStreaming && showsBody && !didAutoCollapse) {
             didAutoCollapse = true
             isExpanded = false
+            onCollapsed()
         }
     }
 

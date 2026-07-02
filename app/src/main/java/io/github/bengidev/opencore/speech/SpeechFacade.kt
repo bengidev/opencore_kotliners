@@ -1,8 +1,9 @@
 package io.github.bengidev.opencore.speech
 
 import android.content.Context
+import io.github.bengidev.opencore.shared.credential.CredentialStoring
+import io.github.bengidev.opencore.sidepanel.domain.SidePanelProviderPreference
 import io.github.bengidev.opencore.speech.application.SpeechFlowController
-import io.github.bengidev.opencore.speech.infrastructure.SpeechSystemRecognitionEngine
 import io.github.bengidev.opencore.speech.utilities.SpeechRecognitionClient
 import kotlinx.coroutines.CoroutineScope
 import java.util.Locale
@@ -12,15 +13,21 @@ internal class SpeechFacade {
         context: Context,
         scope: CoroutineScope,
         permissionRequester: suspend () -> Boolean,
+        credentialStore: CredentialStoring,
+        preferenceProvider: suspend () -> SidePanelProviderPreference,
         locale: Locale = Locale.getDefault(),
     ): SpeechFlowController {
-        val recognition = SpeechRecognitionClient.live {
-            SpeechSystemRecognitionEngine(
-                context = context,
-                locale = locale,
-                permissionRequester = permissionRequester,
-            )
-        }
-        return SpeechFlowController(recognition = recognition, scope = scope, context = context)
+        val recognitionFactory = SpeechRecognitionClient.live(
+            context = context,
+            scope = scope,
+            locale = locale,
+            permissionRequester = permissionRequester,
+            credentialStore = credentialStore,
+            preferenceProvider = preferenceProvider,
+        )
+        return SpeechFlowController(
+            recognitionFactory = recognitionFactory,
+            scope = scope,
+        )
     }
 }

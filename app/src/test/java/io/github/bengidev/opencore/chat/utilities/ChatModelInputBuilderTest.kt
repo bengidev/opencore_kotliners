@@ -32,6 +32,33 @@ class ChatModelInputBuilderTest {
     }
 
     @Test
+    fun modelContent_usesPlainSpeechTranscriptWithoutWrapper() {
+        val attachment = ChatMessageAttachment(
+            kind = ChatMessageAttachmentKind.AUDIO,
+            filename = "Voice note",
+            localPath = "/tmp/voice.wav",
+            speechTranscript = "Hello there",
+        )
+
+        assertEquals("Hello there", ChatModelInputBuilder.modelContent("", listOf(attachment)))
+    }
+
+    @Test
+    fun modelContent_avoidsDuplicateSpeechTranscriptInVisibleText() {
+        val attachment = ChatMessageAttachment(
+            kind = ChatMessageAttachmentKind.AUDIO,
+            filename = "Voice note",
+            localPath = "/tmp/voice.wav",
+            speechTranscript = "Hello there",
+        )
+
+        assertEquals(
+            "Hello there",
+            ChatModelInputBuilder.modelContent("Hello there", listOf(attachment)),
+        )
+    }
+
+    @Test
     fun modelContent_usesVisibleTextOnlyWhenNoHiddenSections() {
         assertEquals("only text", ChatModelInputBuilder.modelContent("only text", emptyList()))
     }

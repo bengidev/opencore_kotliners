@@ -11,6 +11,14 @@ internal object ConversationTitlePolicy {
         if (trimmed.isNotEmpty()) {
             return trimmed.take(MAX_LENGTH)
         }
-        return attachments.firstOrNull()?.filename?.take(MAX_LENGTH).orEmpty()
+        val voiceTranscript = attachments
+            .mapNotNull { it.speechTranscript?.trim() }
+            .firstOrNull { it.isNotEmpty() }
+            ?: return attachments.firstOrNull()?.filename?.take(MAX_LENGTH).orEmpty()
+        return if (voiceTranscript.length <= 40) {
+            voiceTranscript
+        } else {
+            voiceTranscript.take(40) + "…"
+        }
     }
 }

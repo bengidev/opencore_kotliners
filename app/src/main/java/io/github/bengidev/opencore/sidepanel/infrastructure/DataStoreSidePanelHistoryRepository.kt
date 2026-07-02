@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import io.github.bengidev.opencore.chat.infrastructure.ChatTextMessageDetailCodec
 import io.github.bengidev.opencore.chat.utilities.ChatAttachmentStore
+import io.github.bengidev.opencore.chat.utilities.ChatVoiceAttachmentRetention
 import io.github.bengidev.opencore.shared.persistence.PersistenceConversationHistoryStoring
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
@@ -52,6 +53,15 @@ internal class DataStoreSidePanelHistoryRepository(
 
     override suspend fun loadMessages(conversationId: UUID): List<SidePanelMessage> {
         ensureLoaded()
+        val cutoff = ChatVoiceAttachmentRetention.expirationCutoff()
+        val bucket = messages[conversationId].orEmpty()
+        val (updated, removedPaths) = ChatVoiceAttachmentRetention.expireVoiceAttachments(bucket, cutoff)
+        if (removedPaths.isNotEmpty()) {
+            mutate {
+                messages[conversationId] = updated.toMutableList()
+            }
+            ChatAttachmentStore.removeAll(removedPaths)
+        }
         return messages[conversationId].orEmpty()
     }
 
@@ -122,6 +132,24 @@ internal class DataStoreSidePanelHistoryRepository(
     override suspend fun listGroups(): List<String> {
         ensureLoaded()
         return conversations.values.mapNotNull { it.groupName }.distinct().sorted()
+    }
+
+    suspend fun pruneExpiredVoiceAttachments() {
+        ensureLoaded()
+        val cutoff = ChatVoiceAttachmentRetention.expirationCutoff()
+        val removedPaths = mutableListOf<String>()
+        mutate {
+            messages.forEach { (conversationId, bucket) ->
+                val (updated, paths) = ChatVoiceAttachmentRetention.expireVoiceAttachments(bucket, cutoff)
+                if (paths.isNotEmpty()) {
+                    messages[conversationId] = updated.toMutableList()
+                    removedPaths += paths
+                }
+            }
+        }
+        if (removedPaths.isNotEmpty()) {
+            ChatAttachmentStore.removeAll(removedPaths)
+        }
     }
 
     private suspend fun ensureLoaded() {

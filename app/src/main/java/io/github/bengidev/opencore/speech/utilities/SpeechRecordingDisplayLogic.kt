@@ -6,9 +6,11 @@ import kotlin.math.sqrt
 /** Pure display rules for the speech recording indicator — timer, waveform, and voice activity. */
 internal object SpeechRecordingDisplayLogic {
     const val DEFAULT_VOICE_ACTIVITY_THRESHOLD: Float = 0.015f
-    const val WAVEFORM_SAMPLE_CAPACITY: Int = 24
+    const val WAVEFORM_SAMPLE_CAPACITY: Int = 240
     const val DEFAULT_BAR_COUNT: Int = 16
     const val PLAYBACK_BAR_COUNT: Int = 32
+    const val COMPOSER_IDEAL_BAR_WIDTH_DP: Float = 2.5f
+    const val COMPOSER_BAR_SPACING_DP: Float = 2f
 
     private const val IDLE_BAR_HEIGHT: Float = 0.12f
     private const val MAX_BAR_HEIGHT: Float = 1.0f
@@ -52,6 +54,12 @@ internal object SpeechRecordingDisplayLogic {
         }
 
         return samples.map { level -> normalizedBarHeight(level = level) }
+    }
+
+    fun composerBarCount(forWidthDp: Float): Int {
+        val slotWidth = COMPOSER_IDEAL_BAR_WIDTH_DP + COMPOSER_BAR_SPACING_DP
+        if (slotWidth <= 0f) return DEFAULT_BAR_COUNT
+        return maxOf(DEFAULT_BAR_COUNT, ((maxOf(forWidthDp, 0f) + COMPOSER_BAR_SPACING_DP) / slotWidth).toInt())
     }
 
     /** Interpolates stored samples into a denser bar layout for in-chat playback. */

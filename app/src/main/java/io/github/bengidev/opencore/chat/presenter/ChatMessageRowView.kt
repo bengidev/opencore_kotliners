@@ -41,10 +41,16 @@ internal fun ChatMessageRowView(
     isStreamingAssistant: Boolean = false,
     voicePlaybackController: ChatVoiceNotePlaybackController,
     onDismissKeyboard: () -> Unit,
+    onReasoningCollapsed: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     when {
-        message.kind == SidePanelMessageKind.THINKING -> ThinkingRow(message, onDismissKeyboard, modifier)
+        message.kind == SidePanelMessageKind.THINKING -> ThinkingRow(
+            message,
+            onDismissKeyboard,
+            onReasoningCollapsed,
+            modifier,
+        )
         message.kind == SidePanelMessageKind.OUTPUT_STREAM -> OutputStreamRow(message, onDismissKeyboard, modifier)
         message.role == ChatMessageRole.USER -> UserRow(message, voicePlaybackController, onDismissKeyboard, modifier)
         message.role == ChatMessageRole.ASSISTANT -> AssistantRow(
@@ -62,6 +68,7 @@ internal fun ChatMessageRowView(
 private fun ThinkingRow(
     message: SidePanelMessage,
     onDismissKeyboard: () -> Unit,
+    onReasoningCollapsed: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -75,6 +82,7 @@ private fun ThinkingRow(
             content = message.content,
             isComplete = message.isComplete,
             isStreaming = !message.isComplete,
+            onCollapsed = onReasoningCollapsed,
             modifier = Modifier
                 .weight(1f, fill = false)
                 .widthIn(max = 540.dp)

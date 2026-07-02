@@ -64,7 +64,7 @@ import io.github.bengidev.opencore.chat.presenter.ChatComposerAttachmentsStripVi
 import io.github.bengidev.opencore.vision.application.VisionFlowState
 import io.github.bengidev.opencore.vision.presenter.VisionProcessingIndicatorView
 import io.github.bengidev.opencore.speech.application.SpeechFlowState
-import io.github.bengidev.opencore.speech.presenter.SpeechRecordingIndicatorView
+import io.github.bengidev.opencore.speech.presenter.SpeechRecordingComposerView
 
 @Composable
 internal fun HomeComposerView(
@@ -98,7 +98,8 @@ internal fun HomeComposerView(
     ) {
         HomeComposerPromptPanel(
             composerText = composerText,
-            canSend = canSend && !isSending && !isLoadingMessages && !speechState.isListening,
+            canSend = canSend && !isSending && !isLoadingMessages &&
+                !speechState.isListening && !speechState.isTranscribing,
             showMissingApiKeyHint = state.showMissingApiKeyHint,
             speechState = speechState,
             visionState = visionState,
@@ -146,6 +147,7 @@ private fun HomeComposerPromptPanel(
 ) {
     val palette = HomeTheme.palette
     val typography = HomeTheme.typography
+    val isSpeechComposerActive = speechState.isListening || speechState.isTranscribing
 
     Column(
         modifier = Modifier
@@ -175,48 +177,53 @@ private fun HomeComposerPromptPanel(
             VisionProcessingIndicatorView(statusMessage = visionState.statusMessage)
         }
 
-        if (draftAttachments.isNotEmpty()) {
+        if (draftAttachments.isNotEmpty() && !isSpeechComposerActive) {
             ChatComposerAttachmentsStripView(
                 attachments = draftAttachments,
                 onRemove = onRemoveAttachment,
             )
         }
 
-        AnimatedVisibility(
-            visible = speechState.isListening,
-            enter = fadeIn() + slideInVertically { -it / 2 },
-            exit = fadeOut() + slideOutVertically { -it / 2 },
-        ) {
-            SpeechRecordingIndicatorView(
-                elapsedDurationSeconds = speechState.elapsedDurationSeconds,
-                audioLevels = speechState.audioLevels,
+        if (isSpeechComposerActive) {
+            SpeechRecordingComposerView(
+                elapsedDurationSeconds = if (speechState.isTranscribing) {
+                    speechState.transcribingDurationSeconds
+                } else {
+                    speechState.elapsedDurationSeconds
+                },
+                audioLevels = if (speechState.isTranscribing) {
+                    speechState.transcribingWaveformSamples
+                } else {
+                    speechState.audioLevels
+                },
                 isVoiceActive = speechState.isVoiceActive,
+                isTranscribing = speechState.isTranscribing,
                 onCancel = onCancelVoiceInput,
             )
-        }
-
-        BasicTextField(
-            value = composerText,
-            onValueChange = onDraftMessageChanged,
-            enabled = !speechState.isListening,
-            textStyle = typography.composerBody.copy(color = palette.textPrimary),
-            cursorBrush = SolidColor(palette.accentPrimary),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            decorationBox = { innerTextField ->
-                Box {
-                    if (composerText.isEmpty()) {
-                        Text(
-                            text = "Ask anything... @files, \$skills, /commands",
-                            style = typography.composerBody,
-                            color = palette.textTertiary
-                        )
+        } else {
+            BasicTextField(
+                value = composerText,
+                onValueChange = onDraftMessageChanged,
+                enabled = !visionState.isProcessing,
+                textStyle = typography.composerBody.copy(color = palette.textPrimary),
+                cursorBrush = SolidColor(palette.accentPrimary),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                decorationBox = { innerTextField ->
+                    Box {
+                        if (composerText.isEmpty()) {
+                            Text(
+                                text = "Ask anything... @files, \$skills, /commands",
+                                style = typography.composerBody,
+                                color = palette.textTertiary
+                            )
+                        }
+                        innerTextField()
                     }
-                    innerTextField()
                 }
-            }
-        )
+            )
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -231,7 +238,7 @@ private fun HomeComposerPromptPanel(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            if (speechState.isListening) {
+            if (speechState.isListening || speechState.isTranscribing) {
                 HomeComposerStopRecordingButton(onClick = onStopVoiceInput)
             } else {
                 HomeComposerIconButton(
