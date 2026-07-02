@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import io.github.bengidev.opencore.chat.infrastructure.ChatTextMessageDetailCodec
 import io.github.bengidev.opencore.chat.utilities.ChatAttachmentStore
+import io.github.bengidev.opencore.chat.utilities.ChatVoiceAttachmentRetention
 import io.github.bengidev.opencore.shared.persistence.PersistenceConversationHistoryStoring
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
@@ -52,6 +53,15 @@ internal class DataStoreSidePanelHistoryRepository(
 
     override suspend fun loadMessages(conversationId: UUID): List<SidePanelMessage> {
         ensureLoaded()
+        val cutoff = ChatVoiceAttachmentRetention.expirationCutoff()
+        val bucket = messages[conversationId].orEmpty()
+        val (updated, removedPaths) = ChatVoiceAttachmentRetention.expireVoiceAttachments(bucket, cutoff)
+        if (removedPaths.isNotEmpty()) {
+            mutate {
+                messages[conversationId] = updated.toMutableList()
+            }
+            ChatAttachmentStore.removeAll(removedPaths)
+        }
         return messages[conversationId].orEmpty()
     }
 
