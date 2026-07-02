@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -96,6 +97,14 @@ internal fun ChatThreadView(
         val imeVisible = WindowInsets.isImeVisible
         val imeBottomPx = WindowInsets.ime.getBottom(LocalDensity.current)
         var previousMessageCount by remember { mutableIntStateOf(0) }
+        var scrollToBottomRequest by remember { mutableLongStateOf(0L) }
+
+        LaunchedEffect(scrollToBottomRequest) {
+            if (scrollToBottomRequest == 0L) return@LaunchedEffect
+            delay(HISTORY_RESTORE_SCROLL_DELAY_MS)
+            withFrameNanos { }
+            scrollThreadToBottom(listState, bottomTargetIndex, animate = true)
+        }
 
         LaunchedEffect(
             state.messages.size,
@@ -155,7 +164,8 @@ internal fun ChatThreadView(
                         isLastAssistantMessage = message.id == lastAssistantTextId,
                         isStreamingAssistant = isStreamingAssistant,
                         voicePlaybackController = voicePlaybackController,
-                        onDismissKeyboard = onDismissKeyboard
+                        onDismissKeyboard = onDismissKeyboard,
+                        onReasoningCollapsed = { scrollToBottomRequest++ },
                     )
                 }
             }
