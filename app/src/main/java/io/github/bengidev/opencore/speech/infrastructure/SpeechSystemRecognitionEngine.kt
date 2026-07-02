@@ -16,6 +16,7 @@ import io.github.bengidev.opencore.speech.domain.SpeechRecognitionEvent
 import io.github.bengidev.opencore.speech.utilities.SpeechRecognizerLocaleResolver
 import io.github.bengidev.opencore.speech.utilities.SpeechAudioLevelNormalizer
 import io.github.bengidev.opencore.speech.utilities.SpeechRecognitionFallbackLogic
+import io.github.bengidev.opencore.speech.utilities.SpeechTranscriptAccumulator
 import io.github.bengidev.opencore.speech.domain.SpeechRecognitionResult
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.awaitClose
@@ -36,8 +37,11 @@ internal class SpeechSystemRecognitionEngine(
     private val mainHandler = Handler(Looper.getMainLooper())
     private var speechRecognizer: SpeechRecognizer? = null
     private var latestTranscript: String = ""
+    private var committedTranscript: String = ""
+    private var currentSegmentText: String = ""
     private var preferOnDevice: Boolean = true
     private var isListening: Boolean = false
+    private var isIntentionalStop: Boolean = false
     private var pendingFinalResults: CompletableDeferred<Unit>? = null
     private val pcmBufferRecorder = SpeechPcmBufferRecorder(context)
 
@@ -63,6 +67,8 @@ internal class SpeechSystemRecognitionEngine(
         mutex.withLock {
             tearDownRecognizer()
             latestTranscript = ""
+            committedTranscript = ""
+            currentSegmentText = ""
             preferOnDevice = shouldPreferOnDeviceRecognition()
 
             if (!canAttemptRecognition()) {
@@ -121,27 +127,34 @@ internal class SpeechSystemRecognitionEngine(
 
     suspend fun stop(): SpeechRecognitionResult? = mutex.withLock {
         isListening = false
+        isIntentionalStop = true
 
-        val recognizer = speechRecognizer
-        if (recognizer != null) {
-            val finalResults = CompletableDeferred<Unit>()
-            pendingFinalResults = finalResults
-            runOnMainThread { recognizer.stopListening() }
-            withTimeoutOrNull(FINAL_RESULTS_TIMEOUT_MS) { finalResults.await() }
-            pendingFinalResults = null
+        try {
+            val recognizer = speechRecognizer
+            if (recognizer != null) {
+                val finalResults = CompletableDeferred<Unit>()
+                pendingFinalResults = finalResults
+                runOnMainThread { recognizer.stopListening() }
+                withTimeoutOrNull(FINAL_RESULTS_TIMEOUT_MS) { finalResults.await() }
+                pendingFinalResults = null
+            }
+
+            val transcript = latestTranscript.trim()
+            val (pcmFile, pcmDuration) = pcmBufferRecorder.finish()
+            releaseRecognizer()
+
+            latestTranscript = ""
+            committedTranscript = ""
+            currentSegmentText = ""
+            if (transcript.isBlank() && pcmFile == null) return@withLock null
+            SpeechRecognitionResult(
+                transcript = transcript,
+                audioFilePath = pcmFile?.absolutePath,
+                durationSeconds = pcmDuration,
+            )
+        } finally {
+            isIntentionalStop = false
         }
-
-        val transcript = latestTranscript.trim()
-        val (pcmFile, pcmDuration) = pcmBufferRecorder.finish()
-        releaseRecognizer()
-
-        latestTranscript = ""
-        if (transcript.isBlank() && pcmFile == null) return@withLock null
-        SpeechRecognitionResult(
-            transcript = transcript,
-            audioFilePath = pcmFile?.absolutePath,
-            durationSeconds = pcmDuration,
-        )
     }
 
     private fun canAttemptRecognition(): Boolean {
@@ -187,6 +200,10 @@ internal class SpeechSystemRecognitionEngine(
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, locale.toLanguageTag())
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            // Keep each session alive longer so continuous dictation restarts less often.
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 5_000)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 4_000)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 2_000)
             if (preferOnDevice) {
                 putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
             }
@@ -201,6 +218,7 @@ internal class SpeechSystemRecognitionEngine(
         private var hasSignaledReady = false
         private var lastAudioLevelEmittedAtMs = 0L
         private var lastBufferLevelAtMs = 0L
+        private var lastRestartAtMs = 0L
 
         override fun onReadyForSpeech(params: Bundle?) {
             if (!hasSignaledReady) {
@@ -230,7 +248,13 @@ internal class SpeechSystemRecognitionEngine(
         override fun onError(error: Int) {
             signalFinalResults()
 
-            if (isListening && (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT)) {
+            val isBenignEnd =
+                error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT
+            if (isIntentionalStop && isBenignEnd) {
+                return
+            }
+
+            if (isListening && isBenignEnd) {
                 restartIfStillListening(resolvedLocale)
                 return
             }
@@ -262,21 +286,27 @@ internal class SpeechSystemRecognitionEngine(
         override fun onResults(results: Bundle?) {
             val text = results?.bestText().orEmpty()
             if (text.isNotBlank()) {
-                latestTranscript = text
-                onEvent(SpeechRecognitionEvent.Final(text))
+                committedTranscript = SpeechTranscriptAccumulator.commitSegment(committedTranscript, text)
+                currentSegmentText = ""
+                latestTranscript = committedTranscript
+                onEvent(SpeechRecognitionEvent.Final(latestTranscript))
             }
             signalFinalResults()
 
             if (!isListening) return
+            if (text.isBlank() && latestTranscript.isNotBlank()) return
             restartIfStillListening(resolvedLocale)
         }
 
         override fun onPartialResults(partialResults: Bundle?) {
             val text = partialResults?.bestText().orEmpty()
-            if (text.isNotBlank()) {
-                latestTranscript = text
-                onEvent(SpeechRecognitionEvent.Partial(text))
-            }
+            if (text.isBlank()) return
+            currentSegmentText = text
+            latestTranscript = SpeechTranscriptAccumulator.displayTranscript(
+                committed = committedTranscript,
+                currentSegment = currentSegmentText,
+            )
+            onEvent(SpeechRecognitionEvent.Partial(latestTranscript))
         }
 
         override fun onEvent(eventType: Int, params: Bundle?) = Unit
@@ -294,7 +324,20 @@ internal class SpeechSystemRecognitionEngine(
                 onComplete()
                 return
             }
+
+            val now = System.currentTimeMillis()
+            val elapsedSinceRestart = now - lastRestartAtMs
+            if (elapsedSinceRestart < MIN_RESTART_INTERVAL_MS) {
+                mainHandler.postDelayed(
+                    { restartIfStillListening(resolvedLocale) },
+                    MIN_RESTART_INTERVAL_MS - elapsedSinceRestart,
+                )
+                return
+            }
+            lastRestartAtMs = now
+
             runOnMainThread {
+                if (!isListening || speechRecognizer !== recognizer) return@runOnMainThread
                 recognizer.startListening(recognitionIntent(resolvedLocale, preferOnDevice))
             }
         }
@@ -405,6 +448,7 @@ private enum class SpeechSystemRecognitionError(val message: String) {
     RecognizerUnavailable("Speech recognition is temporarily unavailable."),
 }
 
-private const val AUDIO_LEVEL_EMIT_INTERVAL_MS = 33L
-private const val AUDIO_LEVEL_BUFFER_PRIORITY_MS = 50L
+private const val AUDIO_LEVEL_EMIT_INTERVAL_MS = 50L
+private const val AUDIO_LEVEL_BUFFER_PRIORITY_MS = 33L
 private const val FINAL_RESULTS_TIMEOUT_MS = 1_500L
+private const val MIN_RESTART_INTERVAL_MS = 400L
