@@ -198,7 +198,7 @@ private fun HomeComposerPromptPanel(
                 },
                 isVoiceActive = speechState.isVoiceActive,
                 isTranscribing = speechState.isTranscribing,
-                onCancel = if (speechState.isTranscribing) null else onCancelVoiceInput,
+                onCancel = onCancelVoiceInput,
             )
         } else {
             BasicTextField(

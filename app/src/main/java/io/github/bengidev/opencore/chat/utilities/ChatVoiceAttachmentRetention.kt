@@ -18,10 +18,10 @@ internal object ChatVoiceAttachmentRetention {
         messages: List<SidePanelMessage>,
         cutoff: Instant,
     ): Pair<List<SidePanelMessage>, List<String>> {
-        var removedPaths = emptyList<String>()
+        val removedPaths = mutableListOf<String>()
         val updated = messages.map { message ->
             val (updatedMessage, paths) = expireVoiceAttachments(message, cutoff)
-            removedPaths = removedPaths + paths
+            removedPaths += paths
             updatedMessage
         }
         return updated to removedPaths
@@ -36,7 +36,7 @@ internal object ChatVoiceAttachmentRetention {
         val detail = ChatTextMessageDetailCodec.decode(message.detailJson)
         if (detail.attachments.isEmpty()) return message to emptyList()
 
-        var removedPaths = emptyList<String>()
+        val removedPaths = mutableListOf<String>()
         val keptAttachments = mutableListOf<ChatMessageAttachment>()
         var promotedTranscript: String? = null
 
@@ -45,7 +45,7 @@ internal object ChatVoiceAttachmentRetention {
                 attachment.kind == ChatMessageAttachmentKind.AUDIO &&
                 !attachment.speechTranscript.isNullOrBlank()
             ) {
-                removedPaths = removedPaths + attachment.localPath
+                removedPaths += attachment.localPath
                 val transcript = attachment.speechTranscript.trim()
                 if (message.content.trim().isEmpty() && transcript.isNotEmpty()) {
                     promotedTranscript = transcript

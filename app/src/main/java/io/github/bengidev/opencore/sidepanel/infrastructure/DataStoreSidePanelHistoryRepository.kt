@@ -134,6 +134,24 @@ internal class DataStoreSidePanelHistoryRepository(
         return conversations.values.mapNotNull { it.groupName }.distinct().sorted()
     }
 
+    suspend fun pruneExpiredVoiceAttachments() {
+        ensureLoaded()
+        val cutoff = ChatVoiceAttachmentRetention.expirationCutoff()
+        val removedPaths = mutableListOf<String>()
+        mutate {
+            messages.forEach { (conversationId, bucket) ->
+                val (updated, paths) = ChatVoiceAttachmentRetention.expireVoiceAttachments(bucket, cutoff)
+                if (paths.isNotEmpty()) {
+                    messages[conversationId] = updated.toMutableList()
+                    removedPaths += paths
+                }
+            }
+        }
+        if (removedPaths.isNotEmpty()) {
+            ChatAttachmentStore.removeAll(removedPaths)
+        }
+    }
+
     private suspend fun ensureLoaded() {
         if (loaded) return
         mutex.withLock {

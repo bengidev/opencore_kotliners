@@ -1,6 +1,5 @@
 package io.github.bengidev.opencore.speech.application
 
-import android.content.Context
 import io.github.bengidev.opencore.speech.domain.SpeechAuthorizationStatus
 import io.github.bengidev.opencore.speech.domain.SpeechCaptureResult
 import io.github.bengidev.opencore.speech.domain.SpeechRecognitionEvent
@@ -8,6 +7,7 @@ import io.github.bengidev.opencore.speech.domain.SpeechRecognitionResult
 import io.github.bengidev.opencore.speech.utilities.SpeechRecognitionClient
 import io.github.bengidev.opencore.speech.utilities.SpeechRecordingDisplayLogic
 import io.github.bengidev.opencore.speech.utilities.SpeechRecordingLimits
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -16,59 +16,53 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 
 /** Owns composer speech-to-text lifecycle — permissions, listening state, and transcript delivery. */
 internal class SpeechFlowController(
     private val recognitionFactory: suspend () -> SpeechRecognitionClient,
     private val scope: CoroutineScope,
-    private val context: Context,
     private val autoStopThresholdSeconds: Double = SpeechRecordingLimits.autoStopThresholdSeconds,
-    private val microphoneAuthorizationStatus: () -> SpeechAuthorizationStatus = {
-        SpeechAuthorizationStatus.AUTHORIZED
-    },
-    private val requestMicrophoneAuthorization: suspend () -> SpeechAuthorizationStatus = {
-        SpeechAuthorizationStatus.AUTHORIZED
-    },
 ) {
     private val _state = MutableStateFlow(SpeechFlowState())
     val state: StateFlow<SpeechFlowState> = _state.asStateFlow()
 
+    private val sessionMutex = Mutex()
     private var recognitionJob: Job? = null
     private var durationJob: Job? = null
     private var startJob: Job? = null
+    private var stopJob: Job? = null
     private var recognitionSessionId: ULong = 0uL
+    private var captureGeneration: ULong = 0uL
     private var autoStopTriggered = false
-    private var isStopping = false
     private var sessionRecognition: SpeechRecognitionClient? = null
+    private var recordingStartedAtNanos: Long = 0L
+    private var voiceCaptureHandler: ((SpeechCaptureResult) -> Unit)? = null
+
+    fun setVoiceCaptureHandler(handler: ((SpeechCaptureResult) -> Unit)?) {
+        voiceCaptureHandler = handler
+    }
 
     fun clearError() {
         _state.update { it.copy(errorMessage = null) }
     }
-
-    fun clearPendingCapture() {
-        _state.update { it.copy(pendingCapture = null) }
-    }
-
-    /** Composer draft stays user-typed only; live transcript is not mirrored into the text field. */
-    fun displayedDraft(base: String): String = base
 
     fun startListening() {
         startJob?.let { job ->
             if (job.isActive) return
         }
 
-        if (recognitionJob != null) return
+        if (recognitionJob != null || stopJob?.isActive == true) return
 
-        val job = scope.launch {
+        startJob = scope.launch {
             performStartListening()
         }
-        startJob = job
     }
 
     private suspend fun performStartListening() {
         clearError()
-        clearPendingCapture()
 
         val recognition = recognitionFactory()
         sessionRecognition = recognition
@@ -84,18 +78,9 @@ internal class SpeechFlowController(
             return
         }
 
-        var microphoneStatus = microphoneAuthorizationStatus()
-        if (microphoneStatus == SpeechAuthorizationStatus.NOT_DETERMINED) {
-            microphoneStatus = requestMicrophoneAuthorization()
-        }
+        if (recognitionJob != null || stopJob?.isActive == true) return
 
-        if (microphoneStatus != SpeechAuthorizationStatus.AUTHORIZED) {
-            resetListeningPresentation()
-            _state.update { it.copy(errorMessage = PERMISSION_DENIED_MESSAGE) }
-            return
-        }
-
-        if (recognitionJob != null) return
+        captureGeneration += 1uL
 
         _state.update {
             it.copy(
@@ -108,6 +93,7 @@ internal class SpeechFlowController(
             )
         }
         autoStopTriggered = false
+        recordingStartedAtNanos = System.nanoTime()
 
         recognitionSessionId += 1uL
         val sessionId = recognitionSessionId
@@ -126,7 +112,7 @@ internal class SpeechFlowController(
                             _state.update { it.copy(partialTranscript = event.text) }
                         }
                         is SpeechRecognitionEvent.Failed -> {
-                            if (isStopping || _state.value.isTranscribing) return@collect
+                            if (_state.value.isTranscribing || stopJob?.isActive == true) return@collect
                             recognitionJob?.cancel()
                             recognitionJob = null
                             _state.update { it.copy(errorMessage = event.message) }
@@ -135,6 +121,18 @@ internal class SpeechFlowController(
                         }
                         is SpeechRecognitionEvent.AudioLevel -> applyAudioLevel(event.level)
                     }
+                }
+            } catch (_: CancellationException) {
+                // Session replaced or cancelled.
+            } catch (error: Throwable) {
+                if (recognitionSessionId == sessionId && !_state.value.isTranscribing) {
+                    _state.update {
+                        it.copy(
+                            errorMessage = error.message?.takeIf { message -> message.isNotBlank() }
+                                ?: "Voice recording could not be started.",
+                        )
+                    }
+                    resetListeningPresentation()
                 }
             } finally {
                 if (recognitionSessionId == sessionId) {
@@ -148,17 +146,27 @@ internal class SpeechFlowController(
     suspend fun stopListening(): SpeechCaptureResult? {
         startJob?.join()
 
-        if (isStopping) return null
+        if (stopJob?.isActive == true) return null
         val current = _state.value
         if (!current.isListening && !current.isTranscribing && recognitionJob == null) {
             return null
         }
 
-        isStopping = true
+        val generation = captureGeneration
+        var capture: SpeechCaptureResult? = null
+        stopJob = scope.launch {
+            capture = runStopListening(generation)
+        }
+        stopJob?.join()
+        stopJob = null
+        return capture
+    }
+
+    private suspend fun runStopListening(generation: ULong): SpeechCaptureResult? {
         try {
-            val waveformSamples = current.audioLevels
-            val duration = current.elapsedDurationSeconds
-            val capturedPartial = current.partialTranscript.trim()
+            val waveformSamples = _state.value.audioLevels
+            val duration = currentElapsedDurationSeconds()
+            val capturedPartial = _state.value.partialTranscript.trim()
             _state.update {
                 it.copy(
                     transcribingWaveformSamples = waveformSamples,
@@ -169,6 +177,11 @@ internal class SpeechFlowController(
             }
 
             val result = finishListening()
+            if (generation != captureGeneration) {
+                discardRecordedAudio(result)
+                return null
+            }
+
             _state.update {
                 it.copy(
                     isTranscribing = false,
@@ -183,6 +196,8 @@ internal class SpeechFlowController(
                 durationSeconds = duration,
             )
             discardRecordedAudio(enrichedResult)
+
+            if (generation != captureGeneration) return null
 
             enrichedResult?.failureMessage?.let { failureMessage ->
                 val transcript = enrichedResult.transcript.trim()
@@ -200,22 +215,34 @@ internal class SpeechFlowController(
                 return null
             }
 
-            val capture = SpeechCaptureResult(composerText = transcript)
-            _state.update { it.copy(errorMessage = null, pendingCapture = capture) }
-            return capture
+            if (generation != captureGeneration) return null
+
+            val completed = SpeechCaptureResult(composerText = transcript)
+            _state.update { it.copy(errorMessage = null) }
+            voiceCaptureHandler?.invoke(completed)
+            return completed
+        } catch (_: CancellationException) {
+            resetListeningPresentation()
+            return null
         } finally {
-            isStopping = false
             sessionRecognition = null
         }
     }
 
     suspend fun cancelListening() {
-        startJob?.join()
-        val result = finishListening()
-        discardRecordedAudio(result)
-        resetListeningPresentation()
-        clearPendingCapture()
-        sessionRecognition = null
+        sessionMutex.withLock {
+            captureGeneration += 1uL
+            stopJob?.cancel()
+            stopJob?.join()
+            stopJob = null
+            startJob?.cancel()
+            startJob?.join()
+            startJob = null
+            val result = finishListening()
+            discardRecordedAudio(result)
+            resetListeningPresentation()
+            sessionRecognition = null
+        }
     }
 
     private suspend fun finishListening(): SpeechRecognitionResult? {
@@ -226,6 +253,7 @@ internal class SpeechFlowController(
         recognitionJob?.join()
         recognitionJob = null
         resetListeningPresentation(clearTranscribing = false)
+        recordingStartedAtNanos = 0L
         return result
     }
 
@@ -256,20 +284,27 @@ internal class SpeechFlowController(
             )
         }
         autoStopTriggered = false
+        recordingStartedAtNanos = 0L
     }
 
     private fun startDurationTimer() {
         durationJob?.cancel()
-        var elapsedSeconds = 0.0
         durationJob = scope.launch {
             while (true) {
                 delay(100)
                 if (!_state.value.isListening) return@launch
-                elapsedSeconds += 0.1
-                _state.update { it.copy(elapsedDurationSeconds = elapsedSeconds) }
+                _state.update {
+                    it.copy(elapsedDurationSeconds = currentElapsedDurationSeconds())
+                }
                 handleAutoStopIfNeeded()
             }
         }
+    }
+
+    private fun currentElapsedDurationSeconds(): Double {
+        val startedAt = recordingStartedAtNanos
+        if (startedAt <= 0L) return _state.value.elapsedDurationSeconds
+        return (System.nanoTime() - startedAt) / 1_000_000_000.0
     }
 
     private fun handleAutoStopIfNeeded() {
@@ -326,14 +361,6 @@ internal class SpeechFlowController(
         fun discardRecordedAudio(result: SpeechRecognitionResult?) {
             val path = result?.audioFilePath ?: return
             runCatching { File(path).delete() }
-        }
-
-        fun mergedDraft(existing: String, transcript: String): String {
-            val trimmedTranscript = transcript.trim()
-            if (trimmedTranscript.isEmpty()) return existing
-            if (existing.isEmpty()) return trimmedTranscript
-            if (existing.endsWith(' ')) return existing + trimmedTranscript
-            return "$existing $trimmedTranscript"
         }
     }
 }

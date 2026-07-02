@@ -14,7 +14,7 @@ internal object SpeechRemoteTranscriptionContextResolver {
         val preference = preferenceProvider()
         val adapter = ProviderRegistry.resolve(preference.providerId)
         val descriptor = adapter.descriptor
-        if (credentialStore.secret(descriptor.id).isNullOrBlank()) {
+        if (credentialStore.secret(descriptor.id).isNullOrBlank() || !descriptor.supportsAudioTranscription) {
             null
         } else {
             SpeechRemoteTranscriptionContext(

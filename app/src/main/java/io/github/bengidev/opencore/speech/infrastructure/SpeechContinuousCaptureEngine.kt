@@ -75,7 +75,10 @@ internal class SpeechContinuousCaptureEngine(
                 AudioFormat.ENCODING_PCM_16BIT,
             )
             if (minBufferSize <= 0) {
-                close(IllegalStateException("Audio capture is unavailable on this device."))
+                trySend(
+                    SpeechRecognitionEvent.Failed("Audio capture is unavailable on this device."),
+                )
+                close()
                 return@callbackFlow
             }
 
@@ -88,7 +91,10 @@ internal class SpeechContinuousCaptureEngine(
             )
             if (record.state != AudioRecord.STATE_INITIALIZED) {
                 record.release()
-                close(IllegalStateException("Microphone could not be initialized."))
+                trySend(
+                    SpeechRecognitionEvent.Failed("Microphone could not be initialized."),
+                )
+                close()
                 return@callbackFlow
             }
 

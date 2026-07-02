@@ -1,7 +1,5 @@
 package io.github.bengidev.opencore.speech.application
 
-import io.github.bengidev.opencore.speech.domain.SpeechCaptureResult
-
 internal data class SpeechFlowState(
     val isListening: Boolean = false,
     val isTranscribing: Boolean = false,
@@ -13,6 +11,4 @@ internal data class SpeechFlowState(
     val elapsedDurationSeconds: Double = 0.0,
     val audioLevels: List<Float> = emptyList(),
     val isVoiceActive: Boolean = false,
-    /** Delivered when a capture completes for the composer to consume. */
-    val pendingCapture: SpeechCaptureResult? = null,
 )

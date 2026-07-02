@@ -34,6 +34,8 @@ import io.github.bengidev.opencore.sidepanel.SidePanelScreen
 import io.github.bengidev.opencore.sidepanel.application.SidePanelComponent
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
 import io.github.bengidev.opencore.speech.application.SpeechFlowController
+import io.github.bengidev.opencore.speech.domain.SpeechCaptureResult
+import io.github.bengidev.opencore.speech.utilities.SpeechComposerDraftMerger
 import io.github.bengidev.opencore.vision.application.VisionFlowController
 import io.github.bengidev.opencore.vision.utilities.ContentUriMetadata
 import kotlinx.coroutines.launch
@@ -106,14 +108,17 @@ internal fun HomeScreen(
         }
     }
 
-    LaunchedEffect(speechState.pendingCapture) {
-        val capture = speechState.pendingCapture ?: return@LaunchedEffect
-        applyVoiceCapture(
-            capture = capture,
-            existingDraft = state.draftMessage,
-            onDraftChanged = component::onDraftMessageChanged,
-        )
-        speechController.clearPendingCapture()
+    DisposableEffect(speechController, state.draftMessage) {
+        speechController.setVoiceCaptureHandler { capture ->
+            applyVoiceCapture(
+                capture = capture,
+                existingDraft = state.draftMessage,
+                onDraftChanged = component::onDraftMessageChanged,
+            )
+        }
+        onDispose {
+            speechController.setVoiceCaptureHandler(null)
+        }
     }
 
     LaunchedEffect(
@@ -225,7 +230,7 @@ internal fun HomeScreen(
 }
 
 private fun applyVoiceCapture(
-    capture: io.github.bengidev.opencore.speech.domain.SpeechCaptureResult,
+    capture: SpeechCaptureResult,
     existingDraft: String,
     onDraftChanged: (String) -> Unit,
 ) {
@@ -236,7 +241,7 @@ private fun applyVoiceCapture(
         if (existing.isEmpty()) {
             transcript
         } else {
-            SpeechFlowController.mergedDraft(existing, transcript)
+            SpeechComposerDraftMerger.merged(existing, transcript)
         },
     )
 }

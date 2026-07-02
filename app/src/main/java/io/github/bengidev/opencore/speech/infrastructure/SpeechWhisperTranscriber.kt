@@ -6,11 +6,13 @@ import io.github.bengidev.opencore.speech.domain.SpeechRecognitionResult
 import io.github.bengidev.opencore.speech.domain.SpeechRemoteTranscriptionContext
 import io.github.bengidev.opencore.speech.utilities.SpeechWhisperUploadPreparer
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.DataOutputStream
 import java.io.File
 import java.net.HttpURLConnection
+import java.net.SocketTimeoutException
 import java.net.URL
 import java.util.UUID
 
@@ -27,6 +29,9 @@ internal class SpeechWhisperTranscriber(
         audioFilePath: String,
         durationSeconds: Double,
     ): SpeechRecognitionResult? = withContext(Dispatchers.IO) {
+        var activeConnection: HttpURLConnection? = null
+        coroutineContext[Job]?.invokeOnCompletion { activeConnection?.disconnect() }
+
         val audioFile = File(audioFilePath)
         val context = contextResolver()
             ?: return@withContext missingCredentialResult(audioFile, durationSeconds)
@@ -45,7 +50,14 @@ internal class SpeechWhisperTranscriber(
         }
 
         try {
-            when (val outcome = uploadForTranscription(preparedUpload, apiKey, context)) {
+            when (
+                val outcome = uploadForTranscription(
+                    preparedUpload = preparedUpload,
+                    apiKey = apiKey,
+                    context = context,
+                    registerConnection = { activeConnection = it },
+                )
+            ) {
                 is TranscriptionOutcome.Success -> SpeechRecognitionResult(
                     transcript = outcome.transcript,
                     audioFilePath = audioFilePath,
@@ -79,11 +91,12 @@ internal class SpeechWhisperTranscriber(
         preparedUpload: SpeechWhisperUploadPreparer.PreparedUpload,
         apiKey: String,
         context: SpeechRemoteTranscriptionContext,
+        registerConnection: (HttpURLConnection) -> Unit,
     ): TranscriptionOutcome {
         return if (context.providerId == OPENROUTER_PROVIDER_ID) {
-            uploadOpenRouterJson(preparedUpload, apiKey, context)
+            uploadOpenRouterJson(preparedUpload, apiKey, context, registerConnection)
         } else {
-            uploadOpenAiMultipart(preparedUpload, apiKey, context)
+            uploadOpenAiMultipart(preparedUpload, apiKey, context, registerConnection)
         }
     }
 
@@ -91,6 +104,7 @@ internal class SpeechWhisperTranscriber(
         preparedUpload: SpeechWhisperUploadPreparer.PreparedUpload,
         apiKey: String,
         context: SpeechRemoteTranscriptionContext,
+        registerConnection: (HttpURLConnection) -> Unit,
     ): TranscriptionOutcome {
         val audioData = preparedUpload.file.readBytes()
         if (audioData.isEmpty()) {
@@ -114,13 +128,14 @@ internal class SpeechWhisperTranscriber(
             setFixedLengthStreamingMode(body.size)
         }
 
-        return executeTranscriptionRequest(connection, body)
+        return executeTranscriptionRequest(connection, body, registerConnection)
     }
 
     private fun uploadOpenAiMultipart(
         preparedUpload: SpeechWhisperUploadPreparer.PreparedUpload,
         apiKey: String,
         context: SpeechRemoteTranscriptionContext,
+        registerConnection: (HttpURLConnection) -> Unit,
     ): TranscriptionOutcome {
         val audioData = preparedUpload.file.readBytes()
         if (audioData.isEmpty()) {
@@ -141,7 +156,7 @@ internal class SpeechWhisperTranscriber(
             setFixedLengthStreamingMode(body.size)
         }
 
-        return executeTranscriptionRequest(connection, body)
+        return executeTranscriptionRequest(connection, body, registerConnection)
     }
 
     private fun openConnection(
@@ -151,6 +166,8 @@ internal class SpeechWhisperTranscriber(
         requestMethod = "POST"
         doOutput = true
         useCaches = false
+        connectTimeout = CONNECT_TIMEOUT_MS
+        readTimeout = READ_TIMEOUT_MS
         setRequestProperty("Authorization", "Bearer $apiKey")
         setRequestProperty("Accept", "application/json")
         context.defaultHeaders.forEach { (key, value) ->
@@ -161,7 +178,9 @@ internal class SpeechWhisperTranscriber(
     private fun executeTranscriptionRequest(
         connection: HttpURLConnection,
         body: ByteArray,
+        registerConnection: (HttpURLConnection) -> Unit,
     ): TranscriptionOutcome {
+        registerConnection(connection)
         return try {
             connection.outputStream.use { output ->
                 output.write(body)
@@ -188,6 +207,8 @@ internal class SpeechWhisperTranscriber(
             } else {
                 TranscriptionOutcome.Success(transcript)
             }
+        } catch (error: SocketTimeoutException) {
+            TranscriptionOutcome.Failure("Voice transcription timed out. Try again.")
         } catch (error: Exception) {
             TranscriptionOutcome.Failure(
                 message = error.message?.takeIf { it.isNotBlank() }
@@ -268,5 +289,7 @@ internal class SpeechWhisperTranscriber(
 
     companion object {
         private const val OPENROUTER_PROVIDER_ID = "openrouter"
+        private const val CONNECT_TIMEOUT_MS = 30_000
+        private const val READ_TIMEOUT_MS = 60_000
     }
 }

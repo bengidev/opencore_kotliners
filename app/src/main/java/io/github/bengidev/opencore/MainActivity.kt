@@ -194,6 +194,10 @@ private fun HomeRoute(
         )
     }
 
+    LaunchedEffect(history) {
+        history.pruneExpiredVoiceAttachments()
+    }
+
     LaunchedEffect(chatComponent, sidePanelComponent, homeComponent) {
         chatComponent.onActiveConversationChanged = { id ->
             sidePanelComponent.session.setActiveConversationId(id)

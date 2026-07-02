@@ -37,15 +37,16 @@ internal interface SpeechRecognitionClient {
             credentialStore: CredentialStoring,
             preferenceProvider: suspend () -> SidePanelProviderPreference,
         ): suspend () -> SpeechRecognitionClient {
+            val whisperTranscriber = SpeechWhisperTranscriber(
+                credentialStore = credentialStore,
+                contextResolver = SpeechRemoteTranscriptionContextResolver.make(
+                    credentialStore = credentialStore,
+                    preferenceProvider = preferenceProvider,
+                ),
+            )
             val captureClient = CaptureRecognitionClient(
                 engine = SpeechContinuousCaptureEngine(context),
-                whisperTranscriber = SpeechWhisperTranscriber(
-                    credentialStore = credentialStore,
-                    contextResolver = SpeechRemoteTranscriptionContextResolver.make(
-                        credentialStore = credentialStore,
-                        preferenceProvider = preferenceProvider,
-                    ),
-                ),
+                whisperTranscriber = whisperTranscriber,
                 scope = scope,
                 permissionRequester = permissionRequester,
             )
@@ -56,10 +57,12 @@ internal interface SpeechRecognitionClient {
                     permissionRequester = permissionRequester,
                 )
             }
-            val whisperTranscriber = captureClient.whisperTranscriberForSelection()
-            return {
-                if (whisperTranscriber.hasCredential()) captureClient else systemClient
-            }
+            val selector = SpeechRecognitionStrategySelector(
+                captureClient = captureClient,
+                systemClient = systemClient,
+                remoteTranscriptionAvailable = { whisperTranscriber.hasCredential() },
+            )
+            return { selector.select() }
         }
     }
 }
@@ -70,8 +73,6 @@ private class CaptureRecognitionClient(
     private val scope: CoroutineScope,
     private val permissionRequester: suspend () -> Boolean,
 ) : SpeechRecognitionClient {
-    fun whisperTranscriberForSelection(): SpeechWhisperTranscriber = whisperTranscriber
-
     override fun authorizationStatus(): SpeechAuthorizationStatus = engine.authorizationStatus()
 
     override suspend fun requestAuthorization(): SpeechAuthorizationStatus =
