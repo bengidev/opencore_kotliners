@@ -46,6 +46,7 @@ internal fun ChatUserMessageBubbleView(
     val typography = ChatTheme.typography
     val playbackState by playbackController.playbackState.collectAsState()
     val playbackCurrentTime by playbackController.playbackCurrentTime.collectAsState()
+    val playbackError by playbackController.lastErrorMessage.collectAsState()
 
     Column(
         modifier = modifier
@@ -116,35 +117,44 @@ internal fun ChatUserMessageBubbleView(
                     val waveformHeights = SpeechRecordingDisplayLogic.playbackWaveformBarHeights(
                         levels = attachment.waveformSamples,
                     )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable { playbackController.toggle(attachment) }
-                            .padding(vertical = 4.dp),
-                    ) {
-                        Icon(
-                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isPlaying) "Pause voice note" else "Play voice note",
-                            tint = palette.userBubbleText,
-                            modifier = Modifier.size(22.dp),
-                        )
-                        ChatWaveformBarsView(
-                            heights = waveformHeights,
-                            progress = progress,
-                            showsPlaybackProgress = isPlaybackActive,
-                            activeColor = palette.userBubbleText,
-                            idleColor = palette.userBubbleText.copy(alpha = 0.35f),
-                            unplayedColor = palette.userBubbleText.copy(alpha = 0.22f),
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            text = SpeechRecordingDisplayLogic.formatElapsedDuration(displayed),
-                            style = typography.messageMeta,
-                            color = palette.userBubbleText.copy(alpha = 0.85f),
-                        )
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { playbackController.toggle(attachment) }
+                                .padding(vertical = 4.dp),
+                        ) {
+                            Icon(
+                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (isPlaying) "Pause voice note" else "Play voice note",
+                                tint = palette.userBubbleText,
+                                modifier = Modifier.size(22.dp),
+                            )
+                            ChatWaveformBarsView(
+                                heights = waveformHeights,
+                                progress = progress,
+                                showsPlaybackProgress = isPlaybackActive,
+                                activeColor = palette.userBubbleText,
+                                idleColor = palette.userBubbleText.copy(alpha = 0.35f),
+                                unplayedColor = palette.userBubbleText.copy(alpha = 0.22f),
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(
+                                text = SpeechRecordingDisplayLogic.formatElapsedDuration(displayed),
+                                style = typography.messageMeta,
+                                color = palette.userBubbleText.copy(alpha = 0.85f),
+                            )
+                        }
+                        playbackError?.let { message ->
+                            Text(
+                                text = message,
+                                style = typography.messageMeta,
+                                color = palette.userBubbleText.copy(alpha = 0.7f),
+                            )
+                        }
                     }
                 }
             }

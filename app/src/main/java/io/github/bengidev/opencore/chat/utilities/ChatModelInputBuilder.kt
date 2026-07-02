@@ -18,18 +18,27 @@ internal object ChatModelInputBuilder {
             }
         }
 
-        val speechTranscripts = attachments.mapNotNull { it.speechTranscript?.trim() }.filter { it.isNotEmpty() }
-        if (speechTranscripts.isNotEmpty()) {
-            sections += "[Voice transcript]\n${speechTranscripts.joinToString("\n\n")}"
+        val trimmedVisible = visibleText.trim()
+        val speechTranscripts = attachments
+            .mapNotNull { it.speechTranscript?.trim() }
+            .filter { it.isNotEmpty() }
+
+        for (transcript in speechTranscripts) {
+            if (sectionExists(transcript, sections)) continue
+            if (trimmedVisible.isEmpty() || !trimmedVisible.contains(transcript, ignoreCase = true)) {
+                sections += transcript
+            }
         }
 
-        val trimmedVisible = visibleText.trim()
         if (trimmedVisible.isNotEmpty()) {
             sections += trimmedVisible
         }
 
         return sections
     }
+
+    private fun sectionExists(candidate: String, sections: List<String>): Boolean =
+        sections.any { it.equals(candidate, ignoreCase = true) }
 
     fun attachmentKind(filename: String, mimeType: String?) =
         ChatAttachmentKindResolver.attachmentKind(filename, mimeType)
