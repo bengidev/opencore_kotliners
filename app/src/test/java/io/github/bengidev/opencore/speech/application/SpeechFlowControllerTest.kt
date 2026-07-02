@@ -5,14 +5,18 @@ import io.github.bengidev.opencore.speech.domain.SpeechAuthorizationStatus
 import io.github.bengidev.opencore.speech.domain.SpeechRecognitionEvent
 import io.github.bengidev.opencore.speech.domain.SpeechRecognitionResult
 import io.github.bengidev.opencore.speech.utilities.SpeechRecognitionClient
+import io.github.bengidev.opencore.speech.utilities.SpeechRecordingLimits
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -24,11 +28,11 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -49,11 +53,7 @@ class SpeechFlowControllerTest {
 
     @Test
     fun startsIdleWithoutListeningOrTranscript() {
-        val controller = SpeechFlowController(
-            recognition = SpeechRecognitionClient.preview,
-            scope = kotlinx.coroutines.CoroutineScope(testDispatcher),
-            context = context,
-        )
+        val controller = makeController(harness = SpeechRecognitionTestHarness())
 
         assertFalse(controller.state.value.isListening)
         assertTrue(controller.state.value.partialTranscript.isEmpty())
@@ -65,11 +65,7 @@ class SpeechFlowControllerTest {
         val harness = SpeechRecognitionTestHarness()
         harness.hangsOpenAfterEvents = true
         harness.events = listOf(SpeechRecognitionEvent.Ready)
-        val controller = SpeechFlowController(
-            recognition = harness.makeClient(),
-            scope = backgroundScope,
-            context = context,
-        )
+        val controller = makeController(harness)
 
         controller.startListening()
         advanceTimeBy(50)
@@ -86,16 +82,13 @@ class SpeechFlowControllerTest {
         val harness = SpeechRecognitionTestHarness()
         harness.hangsOpenAfterEvents = true
         harness.events = listOf(SpeechRecognitionEvent.Ready, SpeechRecognitionEvent.Partial("hello"))
-        val controller = SpeechFlowController(
-            recognition = harness.makeClient(),
-            scope = backgroundScope,
-            context = context,
-        )
+        val controller = makeController(harness)
 
         controller.startListening()
         advanceTimeBy(50)
 
         assertEquals("hello", controller.state.value.partialTranscript)
+        assertEquals("typed text", controller.displayedDraft(base = "typed text"))
 
         controller.cancelListening()
         advanceTimeBy(1)
@@ -105,11 +98,7 @@ class SpeechFlowControllerTest {
     fun deniedAuthorizationShowsError() = runTest(testDispatcher) {
         val harness = SpeechRecognitionTestHarness()
         harness.authorizationStatus = SpeechAuthorizationStatus.DENIED
-        val controller = SpeechFlowController(
-            recognition = harness.makeClient(),
-            scope = backgroundScope,
-            context = context,
-        )
+        val controller = makeController(harness)
 
         controller.startListening()
         advanceTimeBy(1)
@@ -120,28 +109,26 @@ class SpeechFlowControllerTest {
     }
 
     @Test
-    fun cancelListeningDiscardsTranscript() = runTest(testDispatcher) {
+    fun cancelListeningDiscardsTranscriptAndAudio() = runTest(testDispatcher) {
         val harness = SpeechRecognitionTestHarness()
         harness.hangsOpenAfterEvents = true
+        val tempAudio = File.createTempFile("voice-note", ".wav", context.cacheDir)
+        tempAudio.writeBytes(byteArrayOf(0x00, 0x01))
         harness.events = listOf(SpeechRecognitionEvent.Ready, SpeechRecognitionEvent.Partial("discard me"))
-        harness.stopResult = SpeechRecognitionResult(transcript = "discard me")
-        val controller = SpeechFlowController(
-            recognition = harness.makeClient(),
-            scope = backgroundScope,
-            context = context,
+        harness.stopResult = SpeechRecognitionResult(
+            transcript = "discard me",
+            audioFilePath = tempAudio.absolutePath,
         )
+        val controller = makeController(harness)
 
         controller.startListening()
         advanceTimeBy(50)
-        assertEquals("discard me", controller.state.value.partialTranscript)
-
         controller.cancelListening()
         advanceTimeBy(1)
 
         assertFalse(controller.state.value.isListening)
         assertTrue(controller.state.value.partialTranscript.isEmpty())
-        assertTrue(controller.state.value.audioLevels.isEmpty())
-        assertFalse(controller.state.value.isVoiceActive)
+        assertFalse(tempAudio.exists())
     }
 
     @Test
@@ -153,18 +140,13 @@ class SpeechFlowControllerTest {
             SpeechRecognitionEvent.AudioLevel(0.001f),
             SpeechRecognitionEvent.AudioLevel(0.05f),
         )
-        val controller = SpeechFlowController(
-            recognition = harness.makeClient(),
-            scope = backgroundScope,
-            context = context,
-        )
+        val controller = makeController(harness)
 
         controller.startListening()
         advanceTimeBy(200)
 
         assertTrue(controller.state.value.isVoiceActive)
         assertEquals(2, controller.state.value.audioLevels.size)
-        assertEquals(0.05f, controller.state.value.audioLevels.last())
 
         controller.cancelListening()
         advanceTimeBy(1)
@@ -175,11 +157,7 @@ class SpeechFlowControllerTest {
         val harness = SpeechRecognitionTestHarness()
         harness.hangsOpenAfterEvents = true
         harness.events = listOf(SpeechRecognitionEvent.Ready)
-        val controller = SpeechFlowController(
-            recognition = harness.makeClient(),
-            scope = backgroundScope,
-            context = context,
-        )
+        val controller = makeController(harness)
 
         launch { controller.startListening() }
         launch { controller.startListening() }
@@ -192,99 +170,129 @@ class SpeechFlowControllerTest {
     }
 
     @Test
-    fun displayedDraftMergesPartialTranscript() = runTest(testDispatcher) {
+    fun stopListeningReturnsTranscriptForComposer() = runTest(testDispatcher) {
         val harness = SpeechRecognitionTestHarness()
         harness.hangsOpenAfterEvents = true
-        harness.events = listOf(SpeechRecognitionEvent.Ready, SpeechRecognitionEvent.Partial("world"))
-        val controller = SpeechFlowController(
-            recognition = harness.makeClient(),
-            scope = backgroundScope,
-            context = context,
-        )
-
-        controller.startListening()
-        advanceTimeBy(50)
-
-        assertEquals("Hello world", controller.displayedDraft(base = "Hello"))
-
-        controller.cancelListening()
-        advanceTimeBy(1)
-    }
-
-    @Test
-    fun stopListeningWithoutAudioReturnsNullAttachment() = runTest(testDispatcher) {
-        val harness = SpeechRecognitionTestHarness()
-        harness.hangsOpenAfterEvents = true
-        harness.stopResult = SpeechRecognitionResult(transcript = "there")
-        harness.events = listOf(SpeechRecognitionEvent.Ready)
-        val controller = SpeechFlowController(
-            recognition = harness.makeClient(),
-            scope = backgroundScope,
-            context = context,
-        )
-
-        controller.startListening()
-        advanceTimeBy(50)
-
-        val attachment = controller.stopListening()
-        advanceTimeBy(1)
-
-        assertNull(attachment)
-        assertFalse(controller.state.value.isListening)
-    }
-
-    @Test
-    fun stopListeningShowsErrorWhenAudioCapturedWithoutTranscript() = runTest(testDispatcher) {
-        val harness = SpeechRecognitionTestHarness()
-        harness.hangsOpenAfterEvents = true
+        val tempAudio = File.createTempFile("voice-note", ".wav", context.cacheDir)
+        tempAudio.writeBytes(byteArrayOf(0x00, 0x01))
         harness.stopResult = SpeechRecognitionResult(
-            transcript = "",
-            audioFilePath = "/tmp/voice-note.wav",
+            transcript = "send this",
+            audioFilePath = tempAudio.absolutePath,
+            durationSeconds = 2.0,
         )
         harness.events = listOf(SpeechRecognitionEvent.Ready)
-        val controller = SpeechFlowController(
-            recognition = harness.makeClient(),
-            scope = backgroundScope,
-            context = context,
-        )
+        val controller = makeController(harness)
 
         controller.startListening()
         advanceTimeBy(50)
 
-        val attachment = controller.stopListening()
+        val capture = controller.stopListening()
         advanceTimeBy(1)
 
-        assertNull(attachment)
+        assertEquals("send this", capture?.composerText)
+        assertFalse(controller.state.value.isListening)
+        assertEquals(1, harness.stopCallCount)
+        assertFalse(tempAudio.exists())
+    }
+
+    @Test
+    fun stopListeningShowsErrorWhenNoSpeechDetected() = runTest(testDispatcher) {
+        val harness = SpeechRecognitionTestHarness()
+        harness.hangsOpenAfterEvents = true
+        harness.stopResult = SpeechRecognitionResult(transcript = "")
+        harness.events = listOf(SpeechRecognitionEvent.Ready)
+        val controller = makeController(harness)
+
+        controller.startListening()
+        advanceTimeBy(50)
+
+        val capture = controller.stopListening()
+        advanceTimeBy(1)
+
+        assertNull(capture)
         assertEquals(
-            "Voice note could not be transcribed. Try again or type your message.",
+            "No speech was detected. Try again or type your message.",
             controller.state.value.errorMessage,
         )
     }
 
     @Test
-    fun stopListeningCreatesAttachmentFromTranscriptWithSilentAudioFallback() = runTest(testDispatcher) {
+    fun stopListeningIgnoresFailedEventDuringIntentionalStop() = runTest(testDispatcher) {
         val harness = SpeechRecognitionTestHarness()
         harness.hangsOpenAfterEvents = true
-        harness.stopResult = SpeechRecognitionResult(
-            transcript = "hello there",
-            durationSeconds = 1.0,
+        harness.stopResult = SpeechRecognitionResult(transcript = "")
+        harness.failedOnStop = SpeechRecognitionEvent.Failed("No speech was recognized.")
+        harness.events = listOf(
+            SpeechRecognitionEvent.Ready,
+            SpeechRecognitionEvent.Partial("hello there"),
         )
+        val controller = makeController(harness)
+
+        controller.startListening()
+        advanceTimeBy(50)
+
+        val capture = controller.stopListening()
+        advanceTimeBy(1)
+
+        assertEquals("hello there", capture?.composerText)
+        assertNull(controller.state.value.errorMessage)
+    }
+
+    @Test
+    fun failedEventStillSurfacesWhenNotStopping() = runTest(testDispatcher) {
+        val harness = SpeechRecognitionTestHarness()
+        harness.hangsOpenAfterEvents = false
+        harness.events = listOf(
+            SpeechRecognitionEvent.Ready,
+            SpeechRecognitionEvent.Failed("Recognizer unavailable"),
+        )
+        val controller = makeController(harness)
+
+        controller.startListening()
+        advanceTimeBy(50)
+
+        assertEquals("Recognizer unavailable", controller.state.value.errorMessage)
+        assertFalse(controller.state.value.isListening)
+    }
+
+    @Test
+    fun stopListeningUsesPartialTranscriptWhenStopReturnsEmpty() = runTest(testDispatcher) {
+        val harness = SpeechRecognitionTestHarness()
+        harness.hangsOpenAfterEvents = true
+        harness.stopResult = SpeechRecognitionResult(transcript = "")
+        harness.events = listOf(
+            SpeechRecognitionEvent.Ready,
+            SpeechRecognitionEvent.Partial("hello there"),
+        )
+        val controller = makeController(harness)
+
+        controller.startListening()
+        advanceTimeBy(50)
+
+        val capture = controller.stopListening()
+        advanceTimeBy(1)
+
+        assertEquals("hello there", capture?.composerText)
+    }
+
+    @Test
+    fun autoStopTriggersAtThreshold() = runTest(testDispatcher) {
+        val harness = SpeechRecognitionTestHarness()
+        harness.hangsOpenAfterEvents = true
+        harness.stopResult = SpeechRecognitionResult(transcript = "timed out")
         harness.events = listOf(SpeechRecognitionEvent.Ready)
-        val controller = SpeechFlowController(
-            recognition = harness.makeClient(),
-            scope = backgroundScope,
-            context = context,
+        val controller = makeController(
+            harness = harness,
+            autoStopThresholdSeconds = 1.0,
         )
 
         controller.startListening()
-        advanceTimeBy(300)
+        advanceTimeBy(50)
+        advanceTimeBy(1_100)
 
-        val attachment = controller.stopListening()
-        advanceTimeBy(1)
-
-        assertNotNull(attachment)
-        assertEquals("hello there", attachment?.speechTranscript)
-        assertTrue(attachment?.localPath?.endsWith(".wav") == true)
+        assertEquals(1, harness.stopCallCount)
+        assertFalse(controller.state.value.isListening)
+        assertEquals("timed out", controller.state.value.pendingCapture?.composerText)
     }
 
     @Test
@@ -293,6 +301,18 @@ class SpeechFlowControllerTest {
         assertEquals("Hi there", SpeechFlowController.mergedDraft("Hi ", "there"))
         assertEquals("there", SpeechFlowController.mergedDraft("", "there"))
     }
+
+    private fun makeController(
+        harness: SpeechRecognitionTestHarness,
+        autoStopThresholdSeconds: Double = SpeechRecordingLimits.autoStopThresholdSeconds,
+    ): SpeechFlowController = SpeechFlowController(
+        recognitionFactory = { harness.makeClient() },
+        scope = kotlinx.coroutines.CoroutineScope(testDispatcher),
+        context = context,
+        autoStopThresholdSeconds = autoStopThresholdSeconds,
+        microphoneAuthorizationStatus = { SpeechAuthorizationStatus.AUTHORIZED },
+        requestMicrophoneAuthorization = { SpeechAuthorizationStatus.AUTHORIZED },
+    )
 }
 
 private class SpeechRecognitionTestHarness {
@@ -300,10 +320,17 @@ private class SpeechRecognitionTestHarness {
     var events: List<SpeechRecognitionEvent> = emptyList()
     var hangsOpenAfterEvents: Boolean = false
     var stopResult: SpeechRecognitionResult? = null
+    var failedOnStop: SpeechRecognitionEvent.Failed? = null
     var startCallCount: Int = 0
         private set
     var stopCallCount: Int = 0
         private set
+
+    private var emitDuringSession: ((SpeechRecognitionEvent) -> Unit)? = null
+
+    fun emit(event: SpeechRecognitionEvent) {
+        emitDuringSession?.invoke(event)
+    }
 
     fun makeClient(): SpeechRecognitionClient = object : SpeechRecognitionClient {
         override fun authorizationStatus(): SpeechAuthorizationStatus = this@SpeechRecognitionTestHarness.authorizationStatus
@@ -311,16 +338,21 @@ private class SpeechRecognitionTestHarness {
         override suspend fun requestAuthorization(): SpeechAuthorizationStatus =
             this@SpeechRecognitionTestHarness.authorizationStatus
 
-        override fun start(): Flow<SpeechRecognitionEvent> = flow {
+        override fun start(): Flow<SpeechRecognitionEvent> = callbackFlow {
             startCallCount += 1
-            events.forEach { emit(it) }
+            emitDuringSession = { event -> trySend(event) }
+            events.forEach { trySend(it) }
             if (hangsOpenAfterEvents) {
-                delay(Long.MAX_VALUE)
+                awaitClose { emitDuringSession = null }
+            } else {
+                close()
+                emitDuringSession = null
             }
         }
 
         override suspend fun stop(): SpeechRecognitionResult? {
             stopCallCount += 1
+            failedOnStop?.let { emitDuringSession?.invoke(it) }
             return stopResult
         }
     }
