@@ -8,6 +8,7 @@ import com.arkivanov.essenty.lifecycle.doOnDestroy
 import io.github.bengidev.opencore.sidepanel.application.session.SidePanelSessionComponent
 import io.github.bengidev.opencore.sidepanel.application.session.SidePanelSessionState
 import io.github.bengidev.opencore.sidepanel.application.setting.SidePanelSettingComponent
+import io.github.bengidev.opencore.sidepanel.application.setting.SidePanelSettingState
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.shared.providers.ProviderRegistry
 import io.github.bengidev.opencore.shared.credential.CredentialStoring
@@ -34,7 +35,11 @@ internal class SidePanelComponent(
         history = history
     )
 
-    private var settingComponent: SidePanelSettingComponent? = null
+    private val settingComponent: SidePanelSettingComponent = SidePanelSettingComponent(
+        componentContext = childContext("setting"),
+        credentialStore = credentialStore,
+        preferenceStore = preferenceStore,
+    )
     private val _showSettings = MutableValue(false)
     val showSettings: Value<Boolean> = _showSettings
 
@@ -47,8 +52,11 @@ internal class SidePanelComponent(
     val sessionState: Value<SidePanelSessionState>
         get() = session.state
 
-    val setting: SidePanelSettingComponent?
+    val setting: SidePanelSettingComponent
         get() = settingComponent
+
+    val settingState: Value<SidePanelSettingState>
+        get() = settingComponent.state
 
     var onOpenConversation: ((SidePanelConversation) -> Unit)? = null
         set(value) {
@@ -74,7 +82,18 @@ internal class SidePanelComponent(
     init {
         lifecycle.doOnDestroy { scope.cancel() }
         session.onSettingsTapped = { settingsButtonTapped() }
-        scope.launch { refreshSelectedProvider() }
+        settingComponent.onCredentialsChanged = {
+            scope.launch { refreshSelectedProvider() }
+            onCredentialsChanged?.invoke()
+        }
+        settingComponent.onProviderChanged = { id ->
+            scope.launch { refreshSelectedProvider() }
+            onProviderChanged?.invoke(id)
+        }
+        scope.launch {
+            refreshSelectedProvider()
+            settingComponent.onAppear()
+        }
     }
 
     fun toggleSidebar() = session.toggleSidebar()
@@ -83,22 +102,7 @@ internal class SidePanelComponent(
 
     fun settingsButtonTapped() {
         session.dismissSidebar()
-        if (settingComponent == null) {
-            val component = SidePanelSettingComponent(
-                componentContext = childContext("setting"),
-                credentialStore = credentialStore,
-                preferenceStore = preferenceStore,
-            )
-            component.onCredentialsChanged = {
-                scope.launch { refreshSelectedProvider() }
-                onCredentialsChanged?.invoke()
-            }
-            component.onProviderChanged = { id ->
-                scope.launch { refreshSelectedProvider() }
-                onProviderChanged?.invoke(id)
-            }
-            settingComponent = component
-        }
+        settingComponent.onAppear()
         _showSettings.value = true
     }
 
