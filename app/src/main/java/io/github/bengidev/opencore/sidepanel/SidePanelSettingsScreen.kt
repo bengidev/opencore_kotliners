@@ -2,6 +2,7 @@ package io.github.bengidev.opencore.sidepanel
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -31,6 +32,7 @@ internal fun SidePanelSettingsScreen(
         modifier = modifier
             .fillMaxSize()
             .background(HomeTheme.palette.surfaceBase)
+            .statusBarsPadding()
             .testTag("settings-view"),
     )
 }
