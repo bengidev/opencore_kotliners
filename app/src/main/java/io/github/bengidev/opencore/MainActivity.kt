@@ -20,6 +20,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import com.arkivanov.decompose.childContext
 import io.github.bengidev.opencore.about.AboutScreen
 import io.github.bengidev.opencore.chat.ChatFacade
 import io.github.bengidev.opencore.chat.application.ChatComponent
@@ -32,14 +33,13 @@ import io.github.bengidev.opencore.onboarding.application.OnboardingComponent
 import io.github.bengidev.opencore.sidepanel.SidePanelFacade
 import io.github.bengidev.opencore.sidepanel.SidePanelSettingsScreen
 import io.github.bengidev.opencore.sidepanel.application.SidePanelComponent
+import io.github.bengidev.opencore.sidepanel.application.setting.SidePanelSettingComponent
 import io.github.bengidev.opencore.sidepanel.infrastructure.DataStoreSidePanelPreferenceStore
 import io.github.bengidev.opencore.shared.credential.CredentialEncryptedStore
 import io.github.bengidev.opencore.sidepanel.infrastructure.DataStoreSidePanelHistoryRepository
 import io.github.bengidev.opencore.speech.SpeechFacade
 import io.github.bengidev.opencore.speech.application.SpeechFlowController
-import io.github.bengidev.opencore.tabbar.TabBarFacade
 import io.github.bengidev.opencore.tabbar.TabBarScreen
-import io.github.bengidev.opencore.tabbar.application.TabBarComponent
 import io.github.bengidev.opencore.tabbar.domain.HomeTab
 import io.github.bengidev.opencore.vision.VisionFacade
 import io.github.bengidev.opencore.vision.application.VisionFlowController
@@ -57,7 +57,6 @@ class MainActivity : ComponentActivity() {
 
         val onboardingFacade = OnboardingFacade()
         val homeFacade = HomeFacade()
-        val tabBarFacade = TabBarFacade()
         val sidePanelFacade = SidePanelFacade()
         val chatFacade = ChatFacade()
         val speechFacade = SpeechFacade()
@@ -85,7 +84,6 @@ class MainActivity : ComponentActivity() {
                     )
                     false -> HomeRoute(
                         facade = homeFacade,
-                        tabBarFacade = tabBarFacade,
                         sidePanelFacade = sidePanelFacade,
                         chatFacade = chatFacade,
                         speechFacade = speechFacade,
@@ -126,7 +124,6 @@ private fun OnboardingRoute(
 @Composable
 private fun HomeRoute(
     facade: HomeFacade,
-    tabBarFacade: TabBarFacade,
     sidePanelFacade: SidePanelFacade,
     chatFacade: ChatFacade,
     speechFacade: SpeechFacade,
@@ -136,6 +133,7 @@ private fun HomeRoute(
 ) {
     val componentContext = rememberComponentContext()
     val scope = rememberCoroutineScope()
+    var selectedTab by rememberSaveable { mutableStateOf(HomeTab.HOME) }
     var pendingPermission by remember { mutableStateOf<CompletableDeferred<Boolean>?>(null) }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -170,16 +168,18 @@ private fun HomeRoute(
     val visionController: VisionFlowController = remember(activity) {
         visionFacade.createController(context = activity)
     }
-    val tabBarComponent: TabBarComponent = remember(componentContext) {
-        tabBarFacade.createComponent(componentContext = componentContext)
+    val settingComponent: SidePanelSettingComponent = remember(componentContext, preferenceStore, credentialStore) {
+        SidePanelSettingComponent(
+            componentContext = componentContext.childContext("setting"),
+            credentialStore = credentialStore,
+            preferenceStore = preferenceStore,
+        )
     }
-    val sidePanelComponent: SidePanelComponent = remember(componentContext, history, preferenceStore, credentialStore) {
+    val sidePanelComponent: SidePanelComponent = remember(componentContext, history, settingComponent) {
         sidePanelFacade.createComponent(
-            context = activity,
             componentContext = componentContext,
             history = history,
-            preferenceStore = preferenceStore,
-            credentialStore = credentialStore
+            setting = settingComponent,
         )
     }
     val chatComponent: ChatComponent = remember(componentContext, history, preferenceStore, credentialStore) {
@@ -229,13 +229,14 @@ private fun HomeRoute(
         }
         sidePanelComponent.onActiveConversationRenamed = chatComponent::onActiveConversationRenamed
         sidePanelComponent.onActiveConversationDeleted = chatComponent::onActiveConversationDeleted
-        sidePanelComponent.onProviderChanged = { homeComponent.onProviderChanged() }
-        sidePanelComponent.onCredentialsChanged = { homeComponent.onCredentialsChanged() }
+        settingComponent.onProviderChanged = { homeComponent.onProviderChanged() }
+        settingComponent.onCredentialsChanged = { homeComponent.onCredentialsChanged() }
     }
 
     OpenCoreHomeTheme(darkTheme = darkTheme) {
         TabBarScreen(
-            component = tabBarComponent,
+            selectedTab = selectedTab,
+            onTabSelected = { selectedTab = it },
             homeContent = {
                 HomeScreen(
                     component = homeComponent,
@@ -244,10 +245,10 @@ private fun HomeRoute(
                     speechController = speechController,
                     visionController = visionController,
                     darkTheme = darkTheme,
-                    onConfigureApiKeyTapped = { tabBarComponent.selectTab(HomeTab.SETTINGS) },
+                    onConfigureApiKeyTapped = { selectedTab = HomeTab.SETTINGS },
                 )
             },
-            settingsContent = { SidePanelSettingsScreen(component = sidePanelComponent) },
+            settingsContent = { SidePanelSettingsScreen(component = settingComponent) },
             aboutContent = { AboutScreen() },
         )
     }

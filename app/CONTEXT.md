@@ -5,13 +5,16 @@
 | **Context** | OpenCore Android application |
 | **Module** | `:app` (single Gradle module) |
 
-The app composes feature packages as siblings under `io.github.bengidev.opencore.*`. Each feature is an **internal module**: its own `domain/`, `application/`, `infrastructure/`, `presenter/`, and `theme/` packages, with types defaulting to `internal` visibility.
+The app composes feature packages as siblings under
+`io.github.bengidev.opencore.*`. Each feature is an **internal module**: its
+own `domain/`, `application/`, `infrastructure/`, `presenter/`, and `theme/`
+packages, with types defaulting to `internal` visibility.
 
 ## Language
 
-- **MainActivity**: Composition root, Decompose lifecycle owner
+- **MainActivity**: Composition root, Decompose lifecycle owner, and app-shell
+  tab state owner
 - **OnboardingFacade**: Wiring entry for the onboarding internal module
-- **TabBarFacade**: Wiring entry for the tab bar internal module
 - **HomeFacade**: Wiring entry for the home internal module
 - **ChatFacade**: Wiring entry for the chat internal module
 
@@ -26,9 +29,8 @@ io.github.bengidev.opencore/
 │   ├── infrastructure/
 │   ├── presenter/
 │   └── theme/
-├── tabbar/              # Tab bar internal module
+├── tabbar/              # Stateless tab bar UI
 │   ├── domain/
-│   ├── application/
 │   └── presenter/
 ├── about/               # About internal module
 │   └── presenter/
@@ -44,7 +46,7 @@ io.github.bengidev.opencore/
 │   ├── application/
 │   ├── infrastructure/
 │   └── presenter/
-├── shared/              # Shared internal modules (credential, persistence, providers)
+├── shared/              # Shared internal modules
 │   ├── credential/
 │   ├── persistence/
 │   └── providers/

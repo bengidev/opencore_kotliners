@@ -3,8 +3,9 @@ package io.github.bengidev.opencore.sidepanel.application
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.arkivanov.essenty.lifecycle.resume
-import io.github.bengidev.opencore.shared.providers.ProviderDescriptor
 import io.github.bengidev.opencore.shared.credential.CredentialInMemoryStore
+import io.github.bengidev.opencore.shared.providers.ProviderDescriptor
+import io.github.bengidev.opencore.sidepanel.application.setting.SidePanelSettingComponent
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelHistoryRepository
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelPreferenceStore
 import kotlinx.coroutines.Dispatchers
@@ -17,7 +18,6 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -48,12 +48,7 @@ class SidePanelComponentTest {
         advanceUntilIdle()
 
         assertTrue(component.showSettings.value)
-        val setting = component.setting
-        assertNotNull(setting)
-        setting!!.onAppear()
-        advanceUntilIdle()
-
-        assertTrue(setting.state.value.hasStoredKey)
+        assertTrue(component.setting.state.value.hasStoredKey)
     }
 
     @Test
@@ -77,7 +72,7 @@ class SidePanelComponentTest {
     fun dismissSettings_doesNotNotifyCredentialsChanged() = runTest(testDispatcher) {
         var credentialsChanged = 0
         val component = createComponent()
-        component.onCredentialsChanged = { credentialsChanged++ }
+        component.setting.onCredentialsChanged = { credentialsChanged++ }
 
         component.settingsButtonTapped()
         advanceUntilIdle()
@@ -95,9 +90,7 @@ class SidePanelComponentTest {
         component.settingsButtonTapped()
         advanceUntilIdle()
 
-        val setting = requireNotNull(component.setting)
-        setting.onAppear()
-        advanceUntilIdle()
+        val setting = component.setting
         assertFalse(setting.state.value.hasStoredKey)
 
         setting.onDraftChanged("sk-test")
@@ -114,11 +107,16 @@ class SidePanelComponentTest {
         credentialStore: CredentialInMemoryStore = CredentialInMemoryStore()
     ): SidePanelComponent {
         val lifecycle = LifecycleRegistry().apply { resume() }
+        val componentContext = DefaultComponentContext(lifecycle)
+        val preferenceStore = InMemorySidePanelPreferenceStore()
         return SidePanelComponent(
-            componentContext = DefaultComponentContext(lifecycle),
+            componentContext = componentContext,
             history = InMemorySidePanelHistoryRepository(seed = emptyList()),
-            credentialStore = credentialStore,
-            preferenceStore = InMemorySidePanelPreferenceStore()
+            setting = SidePanelSettingComponent(
+                componentContext = componentContext,
+                credentialStore = credentialStore,
+                preferenceStore = preferenceStore,
+            ),
         )
     }
 }

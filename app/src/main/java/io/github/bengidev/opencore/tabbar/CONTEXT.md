@@ -2,21 +2,19 @@
 
 | | |
 | --- | --- |
-| **Context** | App shell tab navigation |
+| **Context** | App shell tab navigation UI |
 | **Package** | `io.github.bengidev.opencore.tabbar` |
 | **Module** | Internal module inside `:app` |
 
-Bottom tab shell switching between Home, Settings, and About. Content stays slot-based so the tab module owns navigation state without owning feature internals.
+Bottom tab shell switching between Home, Settings, and About. The app shell
+owns selected-tab state; this module renders tab UI and content slots.
 
 ## Visibility
 
-Internal module with `TabBarFacade` and `TabBarScreen` as app-shell entry points.
+Internal module with `TabBarScreen` as the app-shell entry point.
 
-## Design patterns
+## Language
 
-| Pattern | Location |
-| --- | --- |
-| Command | `TabBarIntent` |
-| Reducer | `TabBarReducer` |
-| Facade | `TabBarFacade` |
-| Slot adapter | `TabBarScreen` / `TabBarShell` |
+- **HomeTab**: Closed set of app-shell tabs
+- **TabBarScreen** / **TabBarShell**: Stateless slot adapter + Material bottom
+  navigation

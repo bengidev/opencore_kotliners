@@ -20,12 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import io.github.bengidev.opencore.home.theme.HomeTheme
-import io.github.bengidev.opencore.tabbar.application.TabBarState
 import io.github.bengidev.opencore.tabbar.domain.HomeTab
 
 @Composable
 internal fun TabBarShell(
-    state: TabBarState,
+    selectedTab: HomeTab,
     onTabSelected: (HomeTab) -> Unit,
     homeContent: @Composable () -> Unit,
     settingsContent: @Composable () -> Unit,
@@ -42,7 +41,7 @@ internal fun TabBarShell(
         bottomBar = {
             if (!isImeVisible) {
                 TabNavigationBar(
-                    selectedTab = state.selectedTab,
+                    selectedTab = selectedTab,
                     onTabSelected = onTabSelected,
                 )
             }
@@ -53,7 +52,7 @@ internal fun TabBarShell(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            when (state.selectedTab) {
+            when (selectedTab) {
                 HomeTab.HOME -> homeContent()
                 HomeTab.SETTINGS -> settingsContent()
                 HomeTab.ABOUT -> aboutContent()
