@@ -1,7 +1,7 @@
 # App Context
 
 | | |
-|---|---|
+| --- | --- |
 | **Context** | OpenCore Android application |
 | **Module** | `:app` (single Gradle module) |
 
@@ -11,6 +11,7 @@ The app composes feature packages as siblings under `io.github.bengidev.opencore
 
 - **MainActivity**: Composition root, Decompose lifecycle owner
 - **OnboardingFacade**: Wiring entry for the onboarding internal module
+- **TabBarFacade**: Wiring entry for the tab bar internal module
 - **HomeFacade**: Wiring entry for the home internal module
 - **ChatFacade**: Wiring entry for the chat internal module
 
@@ -25,6 +26,12 @@ io.github.bengidev.opencore/
 │   ├── infrastructure/
 │   ├── presenter/
 │   └── theme/
+├── tabbar/              # Tab bar internal module
+│   ├── domain/
+│   ├── application/
+│   └── presenter/
+├── about/               # About internal module
+│   └── presenter/
 ├── home/                # Home internal module
 │   ├── application/
 │   ├── models/

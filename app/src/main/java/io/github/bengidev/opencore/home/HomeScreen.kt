@@ -48,6 +48,7 @@ internal fun HomeScreen(
     speechController: SpeechFlowController,
     visionController: VisionFlowController,
     darkTheme: Boolean,
+    onConfigureApiKeyTapped: (() -> Unit)? = null,
 ) {
     val state by component.state.subscribeAsState()
     val chatState by chatComponent.state.subscribeAsState()
@@ -207,7 +208,7 @@ internal fun HomeScreen(
                             capabilityWarningMessage = decision.message
                     }
                 },
-                onConfigureApiKeyTapped = sidePanelComponent::settingsButtonTapped,
+                onConfigureApiKeyTapped = onConfigureApiKeyTapped ?: sidePanelComponent::settingsButtonTapped,
                 onModelSelectorTapped = component::onModelSelectorTapped,
                 onSpeedModeSelected = component::onSpeedModeSelected,
                 onReasoningEffortSelected = component::onReasoningEffortSelected,
