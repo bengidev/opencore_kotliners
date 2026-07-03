@@ -23,12 +23,10 @@ internal fun SidePanelView(
         )
 
         if (showSettings) {
-            component.setting?.let { settingComponent ->
-                SidePanelSettingSheet(
-                    component = settingComponent,
-                    onDismiss = component::dismissSettings
-                )
-            }
+            SidePanelSettingSheet(
+                component = component.setting,
+                onDismiss = component::dismissSettings
+            )
         }
     }
 }

@@ -34,3 +34,6 @@ local.properties
 .cxx/
 .externalNativeBuild/
 captures/
+
+# Pi
+.pi-subagents/

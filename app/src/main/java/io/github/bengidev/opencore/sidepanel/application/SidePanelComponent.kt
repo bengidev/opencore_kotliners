@@ -4,51 +4,32 @@ import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.childContext
-import com.arkivanov.essenty.lifecycle.doOnDestroy
 import io.github.bengidev.opencore.sidepanel.application.session.SidePanelSessionComponent
 import io.github.bengidev.opencore.sidepanel.application.session.SidePanelSessionState
 import io.github.bengidev.opencore.sidepanel.application.setting.SidePanelSettingComponent
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
-import io.github.bengidev.opencore.shared.providers.ProviderRegistry
-import io.github.bengidev.opencore.shared.credential.CredentialStoring
 import io.github.bengidev.opencore.shared.persistence.PersistenceConversationHistoryStoring
-import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelPreferenceStore
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
 import java.util.UUID
 
 internal class SidePanelComponent(
     componentContext: ComponentContext,
     history: PersistenceConversationHistoryStoring,
-    private val credentialStore: CredentialStoring,
-    private val preferenceStore: SidePanelPreferenceStore
+    val setting: SidePanelSettingComponent,
 ) : ComponentContext by componentContext {
-
-    private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
 
     val session: SidePanelSessionComponent = SidePanelSessionComponent(
         componentContext = childContext("session"),
         history = history
     )
 
-    private var settingComponent: SidePanelSettingComponent? = null
     private val _showSettings = MutableValue(false)
     val showSettings: Value<Boolean> = _showSettings
-
-    var selectedProviderId: String = ProviderRegistry.defaultAdapter.descriptor.id
-        private set
 
     val isSidebarVisible: Boolean
         get() = session.state.value.isSidebarVisible
 
     val sessionState: Value<SidePanelSessionState>
         get() = session.state
-
-    val setting: SidePanelSettingComponent?
-        get() = settingComponent
 
     var onOpenConversation: ((SidePanelConversation) -> Unit)? = null
         set(value) {
@@ -68,13 +49,8 @@ internal class SidePanelComponent(
             session.onActiveConversationDeleted = value
         }
 
-    var onCredentialsChanged: (() -> Unit)? = null
-    var onProviderChanged: ((String) -> Unit)? = null
-
     init {
-        lifecycle.doOnDestroy { scope.cancel() }
         session.onSettingsTapped = { settingsButtonTapped() }
-        scope.launch { refreshSelectedProvider() }
     }
 
     fun toggleSidebar() = session.toggleSidebar()
@@ -83,31 +59,11 @@ internal class SidePanelComponent(
 
     fun settingsButtonTapped() {
         session.dismissSidebar()
-        if (settingComponent == null) {
-            val component = SidePanelSettingComponent(
-                componentContext = childContext("setting"),
-                credentialStore = credentialStore,
-                preferenceStore = preferenceStore,
-            )
-            component.onCredentialsChanged = {
-                scope.launch { refreshSelectedProvider() }
-                onCredentialsChanged?.invoke()
-            }
-            component.onProviderChanged = { id ->
-                scope.launch { refreshSelectedProvider() }
-                onProviderChanged?.invoke(id)
-            }
-            settingComponent = component
-        }
+        setting.onAppear()
         _showSettings.value = true
     }
 
     fun dismissSettings() {
         _showSettings.value = false
-    }
-
-    private suspend fun refreshSelectedProvider() {
-        selectedProviderId = preferenceStore.preference().providerId
-            ?: ProviderRegistry.defaultAdapter.descriptor.id
     }
 }

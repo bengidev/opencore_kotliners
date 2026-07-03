@@ -20,6 +20,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import com.arkivanov.decompose.childContext
+import io.github.bengidev.opencore.about.AboutScreen
 import io.github.bengidev.opencore.chat.ChatFacade
 import io.github.bengidev.opencore.chat.application.ChatComponent
 import io.github.bengidev.opencore.home.HomeFacade
@@ -29,14 +31,19 @@ import io.github.bengidev.opencore.onboarding.OnboardingFacade
 import io.github.bengidev.opencore.onboarding.OnboardingScreen
 import io.github.bengidev.opencore.onboarding.application.OnboardingComponent
 import io.github.bengidev.opencore.sidepanel.SidePanelFacade
+import io.github.bengidev.opencore.sidepanel.SidePanelSettingsScreen
 import io.github.bengidev.opencore.sidepanel.application.SidePanelComponent
+import io.github.bengidev.opencore.sidepanel.application.setting.SidePanelSettingComponent
 import io.github.bengidev.opencore.sidepanel.infrastructure.DataStoreSidePanelPreferenceStore
 import io.github.bengidev.opencore.shared.credential.CredentialEncryptedStore
 import io.github.bengidev.opencore.sidepanel.infrastructure.DataStoreSidePanelHistoryRepository
 import io.github.bengidev.opencore.speech.SpeechFacade
 import io.github.bengidev.opencore.speech.application.SpeechFlowController
+import io.github.bengidev.opencore.tabbar.TabBarScreen
+import io.github.bengidev.opencore.tabbar.domain.HomeTab
 import io.github.bengidev.opencore.vision.VisionFacade
 import io.github.bengidev.opencore.vision.application.VisionFlowController
+import io.github.bengidev.opencore.home.theme.OpenCoreHomeTheme
 import io.github.bengidev.opencore.ui.decompose.rememberComponentContext
 import io.github.bengidev.opencore.ui.theme.OpenCoreTheme
 import kotlinx.coroutines.CompletableDeferred
@@ -126,6 +133,7 @@ private fun HomeRoute(
 ) {
     val componentContext = rememberComponentContext()
     val scope = rememberCoroutineScope()
+    var selectedTab by rememberSaveable { mutableStateOf(HomeTab.HOME) }
     var pendingPermission by remember { mutableStateOf<CompletableDeferred<Boolean>?>(null) }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -160,13 +168,18 @@ private fun HomeRoute(
     val visionController: VisionFlowController = remember(activity) {
         visionFacade.createController(context = activity)
     }
-    val sidePanelComponent: SidePanelComponent = remember(componentContext, history, preferenceStore, credentialStore) {
+    val settingComponent: SidePanelSettingComponent = remember(componentContext, preferenceStore, credentialStore) {
+        SidePanelSettingComponent(
+            componentContext = componentContext.childContext("setting"),
+            credentialStore = credentialStore,
+            preferenceStore = preferenceStore,
+        )
+    }
+    val sidePanelComponent: SidePanelComponent = remember(componentContext, history, settingComponent) {
         sidePanelFacade.createComponent(
-            context = activity,
             componentContext = componentContext,
             history = history,
-            preferenceStore = preferenceStore,
-            credentialStore = credentialStore
+            setting = settingComponent,
         )
     }
     val chatComponent: ChatComponent = remember(componentContext, history, preferenceStore, credentialStore) {
@@ -216,16 +229,27 @@ private fun HomeRoute(
         }
         sidePanelComponent.onActiveConversationRenamed = chatComponent::onActiveConversationRenamed
         sidePanelComponent.onActiveConversationDeleted = chatComponent::onActiveConversationDeleted
-        sidePanelComponent.onProviderChanged = { homeComponent.onProviderChanged() }
-        sidePanelComponent.onCredentialsChanged = { homeComponent.onCredentialsChanged() }
+        settingComponent.onProviderChanged = { homeComponent.onProviderChanged() }
+        settingComponent.onCredentialsChanged = { homeComponent.onCredentialsChanged() }
     }
 
-    HomeScreen(
-        component = homeComponent,
-        chatComponent = chatComponent,
-        sidePanelComponent = sidePanelComponent,
-        speechController = speechController,
-        visionController = visionController,
-        darkTheme = darkTheme
-    )
+    OpenCoreHomeTheme(darkTheme = darkTheme) {
+        TabBarScreen(
+            selectedTab = selectedTab,
+            onTabSelected = { selectedTab = it },
+            homeContent = {
+                HomeScreen(
+                    component = homeComponent,
+                    chatComponent = chatComponent,
+                    sidePanelComponent = sidePanelComponent,
+                    speechController = speechController,
+                    visionController = visionController,
+                    darkTheme = darkTheme,
+                    onConfigureApiKeyTapped = { selectedTab = HomeTab.SETTINGS },
+                )
+            },
+            settingsContent = { SidePanelSettingsScreen(component = settingComponent) },
+            aboutContent = { AboutScreen() },
+        )
+    }
 }
