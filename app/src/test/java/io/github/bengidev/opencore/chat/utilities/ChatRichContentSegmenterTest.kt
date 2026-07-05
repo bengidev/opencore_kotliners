@@ -100,4 +100,59 @@ class ChatRichContentSegmenterTest {
         assertEquals(1, segments.size)
         assertEquals(ChatRichContentSegment.Prose(markdown), segments[0])
     }
+
+    @Test
+    fun segmentProgressive_unclosedFence_emitsRawTail() {
+        val markdown = "Intro\n\n```mermaid\ngraph TD"
+
+        val segments = ChatRichContentSegmenter.segment(markdown, progressive = true)
+
+        assertEquals(2, segments.size)
+        assertEquals(ChatRichContentSegment.Prose("Intro\n\n"), segments[0])
+        assertEquals(
+            ChatRichContentSegment.RawFragment("```mermaid\ngraph TD"),
+            segments[1],
+        )
+    }
+
+    @Test
+    fun segmentProgressive_closedMermaid_rendersDiagramBeforeTrailingProse() {
+        val markdown =
+            """
+            ```mermaid
+            graph TD
+              A --> B
+            ```
+
+            Still typing
+            """.trimIndent()
+
+        val segments = ChatRichContentSegmenter.segment(markdown, progressive = true)
+
+        assertEquals(2, segments.size)
+        assertTrue(segments[0] is ChatRichContentSegment.MermaidDiagram)
+        assertEquals(ChatRichContentSegment.Prose("\n\nStill typing"), segments[1])
+    }
+
+    @Test
+    fun segmentProgressive_unclosedInlineBacktick_emitsRawProse() {
+        val markdown = "Done **bold** and `partial"
+
+        val segments = ChatRichContentSegmenter.segment(markdown, progressive = true)
+
+        assertEquals(1, segments.size)
+        assertEquals(ChatRichContentSegment.RawFragment(markdown), segments[0])
+    }
+
+    @Test
+    fun segmentProgressive_completedProseBeforeRawTail_splitsRichAndRaw() {
+        val markdown = "Done **bold**\n\n```mermaid\ngraph TD\n```\n\nTail `open"
+
+        val segments = ChatRichContentSegmenter.segment(markdown, progressive = true)
+
+        assertEquals(3, segments.size)
+        assertEquals(ChatRichContentSegment.Prose("Done **bold**\n\n"), segments[0])
+        assertTrue(segments[1] is ChatRichContentSegment.MermaidDiagram)
+        assertEquals(ChatRichContentSegment.RawFragment("\n\nTail `open"), segments[2])
+    }
 }
