@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #111111;
+      --muted: #666666;
+    }
+    body {
+      margin: 0;
+      padding: 8px 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, sans-serif;
+      overflow: hidden;
+    }
+    .error { color: var(--muted); font-size: 12px; font-family: monospace; white-space: pre-wrap; }
+    .mermaid { background: transparent; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"></script>
+  <script>
+    function applyTheme(json) {
+      const theme = JSON.parse(json);
+      document.documentElement.style.setProperty('--bg', theme.background);
+      document.documentElement.style.setProperty('--text', theme.text);
+      document.documentElement.style.setProperty('--muted', theme.muted);
+      document.body.style.background = theme.background;
+    }
+    function renderMermaid(source) {
+      const root = document.getElementById('root');
+      root.innerHTML = '<pre class="mermaid"></pre>';
+      root.querySelector('.mermaid').textContent = source;
+      mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
+      mermaid.run({ nodes: root.querySelectorAll('.mermaid') })
+        .then(() => reportHeight())
+        .catch((e) => showError('Mermaid failed', source));
+    }
+    function renderMath(latex) {
+      const root = document.getElementById('root');
+      root.innerHTML = '';
+      try {
+        katex.render(latex, root, { throwOnError: true, displayMode: true });
+        reportHeight();
+      } catch (e) {
+        showError('KaTeX failed', latex);
+      }
+    }
+    function showError(label, source) {
+      document.getElementById('root').innerHTML =
+        '<div class="error">' + label + '\n```\n' + source + '\n```</div>';
+      reportHeight();
+    }
+    function reportHeight() {
+      const h = document.body.scrollHeight;
+      if (window.AndroidBridge) AndroidBridge.onHeightChanged(h);
+    }
+  </script>
+</body>
+</html>

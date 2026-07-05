@@ -24,10 +24,12 @@ import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,27 +39,38 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.chat.theme.ChatTheme
+import io.github.bengidev.opencore.chat.utilities.ChatMarkwonRenderer
+import java.util.UUID
 
 private val CardShape = RoundedCornerShape(14.dp)
 
 /** Collapsible reasoning card — mirrors iOS `ChatReasoningCardView`. */
 @Composable
 internal fun ChatReasoningCardView(
+    messageId: UUID,
     content: String,
     isComplete: Boolean,
     isStreaming: Boolean,
+    hasCompetingStream: Boolean = false,
     onCollapsed: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val palette = ChatTheme.palette
     val typography = ChatTheme.typography
-    var isExpanded by remember(isStreaming) { mutableStateOf(isStreaming) }
-    var didAutoCollapse by remember { mutableStateOf(false) }
+    val expansionKey = messageId.toString()
+    var isExpanded by rememberSaveable(expansionKey) { mutableStateOf(true) }
+    var didAutoCollapse by remember(messageId) { mutableStateOf(false) }
 
     val showsBody = isStreaming || content.isNotEmpty()
 
-    LaunchedEffect(isStreaming, showsBody) {
-        if (!isStreaming && showsBody && !didAutoCollapse) {
+    SideEffect {
+        if (
+            !didAutoCollapse &&
+            ChatReasoningCollapsePolicy.shouldAutoCollapse(
+                hasCompetingStream = hasCompetingStream,
+                isThinkingStreaming = isStreaming,
+            )
+        ) {
             didAutoCollapse = true
             isExpanded = false
             onCollapsed()
@@ -75,22 +88,22 @@ internal fun ChatReasoningCardView(
             }
             .padding(horizontal = 14.dp, vertical = 12.dp)
             .testTag("chat-reasoning-card"),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Icon(
                 imageVector = Icons.Default.Psychology,
                 contentDescription = null,
                 tint = palette.streamingDot,
-                modifier = Modifier.size(14.dp)
+                modifier = Modifier.size(14.dp),
             )
             Text(
                 text = if (isComplete) "Thought" else "Thinking",
                 style = typography.reasoningHeader,
-                color = palette.reasoningText
+                color = palette.reasoningText,
             )
             if (isStreaming) {
                 ChatReasoningPulseDot()
@@ -103,7 +116,7 @@ internal fun ChatReasoningCardView(
                     tint = palette.messageMetaText,
                     modifier = Modifier
                         .size(14.dp)
-                        .rotate(if (isExpanded) 180f else 0f)
+                        .rotate(if (isExpanded) 180f else 0f),
                 )
             }
         }
@@ -113,7 +126,7 @@ internal fun ChatReasoningCardView(
                 content = content,
                 isStreaming = isStreaming,
                 textColor = palette.reasoningText,
-                cursorColor = palette.streamingDot
+                cursorColor = palette.streamingDot,
             )
         }
     }
@@ -127,14 +140,14 @@ private fun ChatReasoningPulseDot() {
         initialValue = 0.35f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(tween(600), RepeatMode.Reverse),
-        label = "pulse-alpha"
+        label = "pulse-alpha",
     )
 
     Box(
         modifier = Modifier
             .size(6.dp)
             .clip(CircleShape)
-            .background(palette.streamingDot.copy(alpha = alpha))
+            .background(palette.streamingDot.copy(alpha = alpha)),
     )
 }
 
@@ -143,7 +156,7 @@ private fun StreamingReasoningText(
     content: String,
     isStreaming: Boolean,
     textColor: Color,
-    cursorColor: Color
+    cursorColor: Color,
 ) {
     val typography = ChatTheme.typography
     val displayedContent = content.ifEmpty { if (isStreaming) "…" else "" }
@@ -154,28 +167,33 @@ private fun StreamingReasoningText(
             initialValue = 1f,
             targetValue = 0.2f,
             animationSpec = infiniteRepeatable(tween(550), RepeatMode.Reverse),
-            label = "cursor-alpha"
+            label = "cursor-alpha",
         )
     } else {
         remember { mutableStateOf(0f) }
     }
 
     if (isStreaming) {
-        ChatStreamingTextView(
-            text = displayedContent,
-            textStyle = typography.reasoningBody,
-            color = textColor,
-            modifier = Modifier.fillMaxWidth(),
-            showsCursor = true,
-            cursorColor = cursorColor,
-            cursorOpacity = cursorAlpha,
-        )
+        key("reasoning-streaming") {
+            ChatRichContentColumn(
+                markdown = displayedContent,
+                profile = ChatMarkwonRenderer.Profile.Thinking,
+                modifier = Modifier.fillMaxWidth(),
+                progressive = true,
+                showsStreamingCursor = true,
+                streamingCursorColor = cursorColor,
+                streamingCursorOpacity = cursorAlpha,
+                streamingRawTextStyle = typography.reasoningBody,
+                streamingRawColor = textColor,
+            )
+        }
     } else {
-        Text(
-            text = displayedContent,
-            style = typography.reasoningBody,
-            color = textColor,
-            modifier = Modifier.fillMaxWidth()
-        )
+        key("reasoning-rich") {
+            ChatRichContentColumn(
+                markdown = displayedContent,
+                profile = ChatMarkwonRenderer.Profile.Thinking,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }

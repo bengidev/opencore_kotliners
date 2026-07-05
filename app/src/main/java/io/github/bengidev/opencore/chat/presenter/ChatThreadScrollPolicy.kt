@@ -6,7 +6,15 @@ internal object ChatThreadScrollPolicy {
         isBulkRestore: Boolean,
         streamingRevision: Int,
         imeVisible: Boolean,
-    ): Boolean = !isBulkRestore && streamingRevision == 0 && !imeVisible
+        previousMessageCount: Int,
+    ): Boolean =
+        !isBulkRestore &&
+            streamingRevision == 0 &&
+            !imeVisible &&
+            previousMessageCount <= 1
+
+    /** Reasoning-card collapse shrinks row height; animated scroll flashes prior turns. */
+    fun shouldAnimateReasoningCollapseScroll(): Boolean = false
 
     fun shouldDeferForActiveScroll(isScrollInProgress: Boolean): Boolean = isScrollInProgress
 

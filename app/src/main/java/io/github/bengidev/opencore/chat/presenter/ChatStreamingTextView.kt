@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.viewinterop.AndroidView
@@ -330,7 +331,7 @@ private fun TextView.updateInlineCursorColor(cursorColorArgb: Int) {
 private fun TextView.applyStreamingStyle(style: TextStyle, color: Color) {
     setTextColor(color.toArgb())
     setTextSize(TypedValue.COMPLEX_UNIT_SP, style.fontSize.value)
-    typeface = style.fontFamily.resolveTypeface(style.fontWeight ?: FontWeight.Normal)
+    typeface = style.resolveAndroidTypeface()
     val lineHeight = style.lineHeight
     if (lineHeight != null && lineHeight.isSpecified) {
         val fontSizePx = style.fontSize.value * resources.displayMetrics.scaledDensity
@@ -340,20 +341,15 @@ private fun TextView.applyStreamingStyle(style: TextStyle, color: Color) {
     }
 }
 
-private fun FontFamily?.resolveTypeface(weight: FontWeight): Typeface {
-    val family = when (this) {
+private fun TextStyle.resolveAndroidTypeface(): Typeface {
+    val family = when (fontFamily) {
         FontFamily.Monospace -> Typeface.MONOSPACE
         FontFamily.SansSerif, null -> Typeface.SANS_SERIF
         else -> Typeface.SANS_SERIF
     }
-    val style = when (weight) {
-        FontWeight.Bold,
-        FontWeight.SemiBold,
-        FontWeight.Medium,
-        FontWeight.Black,
-        FontWeight.ExtraBold,
-        -> Typeface.BOLD
-        else -> Typeface.NORMAL
-    }
-    return Typeface.create(family, style)
+    val weight = fontWeight ?: FontWeight.Normal
+    val bold = weight >= FontWeight.Medium
+    val italic = fontStyle == FontStyle.Italic
+    val styleBits = (if (bold) Typeface.BOLD else 0) or (if (italic) Typeface.ITALIC else 0)
+    return Typeface.create(family, styleBits)
 }

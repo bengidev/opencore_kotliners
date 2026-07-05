@@ -13,6 +13,7 @@ class ChatThreadScrollPolicyTest {
                 isBulkRestore = true,
                 streamingRevision = 0,
                 imeVisible = false,
+                previousMessageCount = 0,
             )
         )
     }
@@ -24,6 +25,7 @@ class ChatThreadScrollPolicyTest {
                 isBulkRestore = false,
                 streamingRevision = 2,
                 imeVisible = false,
+                previousMessageCount = 0,
             )
         )
     }
@@ -35,6 +37,7 @@ class ChatThreadScrollPolicyTest {
                 isBulkRestore = false,
                 streamingRevision = 0,
                 imeVisible = true,
+                previousMessageCount = 0,
             )
         )
     }
@@ -46,8 +49,26 @@ class ChatThreadScrollPolicyTest {
                 isBulkRestore = false,
                 streamingRevision = 0,
                 imeVisible = false,
+                previousMessageCount = 0,
             )
         )
+    }
+
+    @Test
+    fun shouldAnimateScroll_falseForFollowUpTurn() {
+        assertFalse(
+            ChatThreadScrollPolicy.shouldAnimateScroll(
+                isBulkRestore = false,
+                streamingRevision = 0,
+                imeVisible = false,
+                previousMessageCount = 3,
+            )
+        )
+    }
+
+    @Test
+    fun shouldAnimateReasoningCollapseScroll_neverAnimates() {
+        assertFalse(ChatThreadScrollPolicy.shouldAnimateReasoningCollapseScroll())
     }
 
     @Test
