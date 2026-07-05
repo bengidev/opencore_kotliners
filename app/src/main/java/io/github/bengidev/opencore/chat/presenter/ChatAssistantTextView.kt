@@ -9,12 +9,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import io.github.bengidev.opencore.chat.theme.ChatTheme
-import io.github.bengidev.opencore.chat.utilities.ChatAssistantMarkdownRenderer
+import io.github.bengidev.opencore.chat.utilities.ChatMarkwonRenderer
+import io.github.bengidev.opencore.chat.utilities.ChatPlainTextRenderer
 import io.github.bengidev.opencore.onboarding.theme.OpenCorePalette
 
 /**
- * Assistant answer text with markdown styling.
- * [isStreaming] coalesces full attributed rebuilds; completed messages render immediately.
+ * Assistant answer text with plain streaming and rich markdown when complete.
+ * [isStreaming] coalesces full attributed rebuilds; completed messages render via Markwon.
  */
 @Composable
 internal fun ChatAssistantTextView(
@@ -25,40 +26,43 @@ internal fun ChatAssistantTextView(
 ) {
     val palette = ChatTheme.corePalette
     val typography = ChatTheme.typography
-    val coordinator = remember { AssistantMarkdownStreamingCoordinator() }
 
-    AndroidView(
-        modifier = modifier,
-        factory = { context ->
-            ChatStreamingSizingTextView(context).apply {
-                configureAssistantMarkdownTextView(
-                    isStreaming = isStreaming,
-                    isTextSelectable = isTextSelectable,
-                    fontSizeSp = typography.assistantMessageBody.fontSize.value,
-                )
-            }
-        },
-        update = { textView ->
-            textView.setTextIsSelectable(isTextSelectable)
-            if (isStreaming) {
+    if (isStreaming) {
+        val coordinator = remember { AssistantPlainStreamingCoordinator() }
+
+        AndroidView(
+            modifier = modifier,
+            factory = { context ->
+                ChatStreamingSizingTextView(context).apply {
+                    configureAssistantPlainTextView(
+                        isTextSelectable = isTextSelectable,
+                        fontSizeSp = typography.assistantMessageBody.fontSize.value,
+                    )
+                }
+            },
+            update = { textView ->
+                textView.setTextIsSelectable(isTextSelectable)
                 coordinator.apply(text = text, palette = palette, textView = textView)
-            } else {
-                coordinator.cancel(textView)
-                textView.text = ChatAssistantMarkdownRenderer.spanned(text, palette)
-            }
-        },
-        onRelease = coordinator::cancel,
-    )
+            },
+            onRelease = coordinator::cancel,
+        )
+    } else {
+        ChatRichContentColumn(
+            markdown = text,
+            profile = ChatMarkwonRenderer.Profile.Assistant,
+            modifier = modifier,
+            isTextSelectable = isTextSelectable,
+        )
+    }
 }
 
-private fun TextView.configureAssistantMarkdownTextView(
-    isStreaming: Boolean,
+private fun TextView.configureAssistantPlainTextView(
     isTextSelectable: Boolean,
     fontSizeSp: Float,
 ) {
     isEnabled = true
     isFocusable = false
-    isClickable = !isStreaming
+    isClickable = false
     isLongClickable = isTextSelectable
     movementMethod = LinkMovementMethod.getInstance()
     clipToOutline = true
@@ -70,7 +74,7 @@ private fun TextView.configureAssistantMarkdownTextView(
     setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
 }
 
-private class AssistantMarkdownStreamingCoordinator {
+private class AssistantPlainStreamingCoordinator {
     private val scheduler = CoalescedTextViewScheduler()
     private var appliedText = ""
     private var appliedIsDark: Boolean? = null
@@ -109,7 +113,7 @@ private class AssistantMarkdownStreamingCoordinator {
         val isDark = palette.isDark
         if (text == appliedText && isDark == appliedIsDark) return
 
-        textView.text = ChatAssistantMarkdownRenderer.spanned(text, palette)
+        textView.text = ChatPlainTextRenderer.spanned(text, palette)
         appliedText = text
         appliedIsDark = isDark
 
