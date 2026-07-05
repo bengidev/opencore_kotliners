@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.chat.theme.ChatTheme
+import io.github.bengidev.opencore.chat.utilities.ChatMarkwonRenderer
 
 private val CardShape = RoundedCornerShape(14.dp)
 
@@ -46,18 +47,25 @@ internal fun ChatReasoningCardView(
     content: String,
     isComplete: Boolean,
     isStreaming: Boolean,
+    hasCompetingStream: Boolean = false,
     onCollapsed: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val palette = ChatTheme.palette
     val typography = ChatTheme.typography
-    var isExpanded by remember(isStreaming) { mutableStateOf(isStreaming) }
+    var isExpanded by remember { mutableStateOf(true) }
     var didAutoCollapse by remember { mutableStateOf(false) }
 
     val showsBody = isStreaming || content.isNotEmpty()
 
-    LaunchedEffect(isStreaming, showsBody) {
-        if (!isStreaming && showsBody && !didAutoCollapse) {
+    LaunchedEffect(hasCompetingStream, isStreaming) {
+        if (
+            !didAutoCollapse &&
+            ChatReasoningCollapsePolicy.shouldAutoCollapse(
+                hasCompetingStream = hasCompetingStream,
+                isThinkingStreaming = isStreaming,
+            )
+        ) {
             didAutoCollapse = true
             isExpanded = false
             onCollapsed()
@@ -171,11 +179,10 @@ private fun StreamingReasoningText(
             cursorOpacity = cursorAlpha,
         )
     } else {
-        Text(
-            text = displayedContent,
-            style = typography.reasoningBody,
-            color = textColor,
-            modifier = Modifier.fillMaxWidth()
+        ChatRichContentColumn(
+            markdown = displayedContent,
+            profile = ChatMarkwonRenderer.Profile.Thinking,
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
