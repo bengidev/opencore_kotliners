@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.chat.domain.ChatOutputStreamDetail
 import io.github.bengidev.opencore.chat.domain.ChatOutputStreamStatus
 import io.github.bengidev.opencore.chat.theme.ChatTheme
+import io.github.bengidev.opencore.chat.utilities.ChatMarkwonRenderer
 import io.github.bengidev.opencore.chat.utilities.ChatOutputStreamHumanizer
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 
@@ -157,10 +158,9 @@ private fun ChatOutputStreamDetailSheet(
                     color = corePalette.accentPrimary,
                 )
             }
-            Text(
-                text = message.content,
-                style = typography.reasoningBody.copy(fontFamily = FontFamily.Monospace),
-                color = corePalette.textPrimary,
+            ChatRichContentColumn(
+                markdown = message.content,
+                profile = ChatMarkwonRenderer.Profile.Assistant,
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
@@ -212,10 +212,9 @@ private fun ChatOutputStreamDetailSheet(
                     )
                 }
                 if (isOutputExpanded) {
-                    Text(
-                        text = detail.outputTail,
-                        style = typography.messageMeta.copy(fontFamily = FontFamily.Monospace),
-                        color = corePalette.textSecondary,
+                    ChatRichContentColumn(
+                        markdown = detail.outputTail,
+                        profile = ChatMarkwonRenderer.Profile.Assistant,
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
