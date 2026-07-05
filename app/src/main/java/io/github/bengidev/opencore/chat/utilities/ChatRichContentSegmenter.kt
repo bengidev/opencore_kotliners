@@ -3,7 +3,7 @@ package io.github.bengidev.opencore.chat.utilities
 internal object ChatRichContentSegmenter {
     fun segment(markdown: String): List<ChatRichContentSegment> {
         if (markdown.isEmpty()) return emptyList()
-        if (ChatAssistantMarkdownRenderer.shouldUsePlainFallback(markdown)) {
+        if (ChatStreamingMarkdownGuard.shouldUsePlainFallback(markdown)) {
             return listOf(ChatRichContentSegment.Prose(markdown))
         }
         val parts = markdown.split("```")

@@ -21,7 +21,7 @@ Internal module with `ChatFacade` as the app-shell wiring entry. `ChatComponent`
 | Facade | `ChatFacade` |
 | Strategy | `ChatStreamingClient`, `ChatStreamingTextAppendStrategy` |
 | Policy | `ChatStreamingCoalescingPolicy`, `ChatStreamingTextAppendPolicy`, `ChatStreamingTextCursorPolicy`, `ChatViewTitlePolicy`, `ChatThreadLayoutPolicy`, `ChatThreadScrollPolicy` |
-| Pure utility | `ChatAssistantMarkdownRenderer` |
+| Pure utility | `ChatMarkwonRenderer`, `ChatStreamingMarkdownGuard` |
 | State | `ChatStreamingCoalescer` |
 | Pure merge | `ChatStreamingMerger` |
 

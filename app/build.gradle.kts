@@ -60,7 +60,6 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
-    implementation(libs.commonmark)
     implementation(libs.markwon.core)
     implementation(libs.markwon.ext.strikethrough)
     implementation(libs.markwon.ext.tables)
