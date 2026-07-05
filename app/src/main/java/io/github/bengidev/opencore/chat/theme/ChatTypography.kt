@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
@@ -39,6 +40,7 @@ internal object ChatTypographyDefaults {
         reasoningBody = TextStyle(
             fontFamily = Mono,
             fontWeight = FontWeight.Normal,
+            fontStyle = FontStyle.Italic,
             fontSize = 12.sp,
             lineHeight = 18.sp
         ),
