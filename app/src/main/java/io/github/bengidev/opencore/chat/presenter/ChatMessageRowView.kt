@@ -39,6 +39,7 @@ internal fun ChatMessageRowView(
     message: SidePanelMessage,
     isLastAssistantMessage: Boolean,
     isStreamingAssistant: Boolean = false,
+    hasCompetingStream: Boolean = false,
     voicePlaybackController: ChatVoiceNotePlaybackController,
     onDismissKeyboard: () -> Unit,
     onReasoningCollapsed: () -> Unit = {},
@@ -47,6 +48,7 @@ internal fun ChatMessageRowView(
     when {
         message.kind == SidePanelMessageKind.THINKING -> ThinkingRow(
             message,
+            hasCompetingStream,
             onDismissKeyboard,
             onReasoningCollapsed,
             modifier,
@@ -67,6 +69,7 @@ internal fun ChatMessageRowView(
 @Composable
 private fun ThinkingRow(
     message: SidePanelMessage,
+    hasCompetingStream: Boolean = false,
     onDismissKeyboard: () -> Unit,
     onReasoningCollapsed: () -> Unit,
     modifier: Modifier = Modifier
@@ -82,6 +85,7 @@ private fun ThinkingRow(
             content = message.content,
             isComplete = message.isComplete,
             isStreaming = !message.isComplete,
+            hasCompetingStream = hasCompetingStream,
             onCollapsed = onReasoningCollapsed,
             modifier = Modifier
                 .weight(1f, fill = false)

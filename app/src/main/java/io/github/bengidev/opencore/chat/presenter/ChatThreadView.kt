@@ -150,6 +150,8 @@ internal fun ChatThreadView(
                 verticalArrangement = Arrangement.spacedBy(0.dp),
                 contentPadding = PaddingValues(vertical = 8.dp),
             ) {
+                val hasCompetingStream = state.streamingAnswerId != null ||
+                    state.streamingOutputStreamId != null
                 items(
                     items = displayMessages,
                     key = ChatThreadItemKeyPolicy::keyFor,
@@ -163,6 +165,7 @@ internal fun ChatThreadView(
                         message = message,
                         isLastAssistantMessage = message.id == lastAssistantTextId,
                         isStreamingAssistant = isStreamingAssistant,
+                        hasCompetingStream = hasCompetingStream,
                         voicePlaybackController = voicePlaybackController,
                         onDismissKeyboard = onDismissKeyboard,
                         onReasoningCollapsed = { scrollToBottomRequest++ },
