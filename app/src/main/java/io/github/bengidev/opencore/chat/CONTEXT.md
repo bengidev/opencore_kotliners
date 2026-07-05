@@ -23,7 +23,7 @@ Internal module with `ChatFacade` as the app-shell wiring entry. `ChatComponent`
 | Policy | `ChatStreamingCoalescingPolicy`, `ChatStreamingTextAppendPolicy`, `ChatStreamingTextCursorPolicy`, `ChatViewTitlePolicy`, `ChatThreadLayoutPolicy`, `ChatThreadScrollPolicy`, `ChatReasoningCollapsePolicy` |
 | Segmenter | `ChatRichContentSegmenter` |
 | Presenter orchestrator | `ChatRichContentColumn` |
-| Pure utility | `ChatMarkwonRenderer`, `ChatPlainTextRenderer`, `ChatStreamingMarkdownGuard`, `BoundedSpannedCache` |
+| Pure utility | `ChatMarkwonRenderer`, `ChatStreamingMarkdownGuard`, `BoundedSpannedCache` |
 | Composable embed | `MarkdownEmbedWebView` |
 | State | `ChatStreamingCoalescer` |
 | Pure merge | `ChatStreamingMerger` |
@@ -32,7 +32,7 @@ Internal module with `ChatFacade` as the app-shell wiring entry. `ChatComponent`
 
 Hybrid Markwon + CDN WebView pipeline for assistant answers, thinking cards, and command output detail.
 
-**Streaming policy:** deferred — plain text while streaming (`ChatStreamingTextView`); switch to full rich rendering (`ChatRichContentColumn`) only when the message completes. Thinking streams use mono-italic typography and a blinking cursor.
+**Streaming policy:** progressive — `ChatRichContentColumn` with `progressive = true` freezes completed segments as rich Markwon/embed blocks while the tail streams as coalesced plain text via `ChatStreamingTextView`. When the message completes, the full column re-renders in non-progressive mode. Thinking streams use mono-italic typography and a blinking cursor on the tail.
 
 **Completed content pipeline:**
 
@@ -46,8 +46,8 @@ Hybrid Markwon + CDN WebView pipeline for assistant answers, thinking cards, and
 
 | Surface | Streaming | Complete |
 |---|---|---|
-| Assistant answer (`ChatAssistantTextView`) | `ChatStreamingTextView` (plain) | `ChatRichContentColumn` (Assistant profile) |
-| Thinking card (`ChatReasoningCardView`) | `ChatStreamingTextView` (mono italic + cursor) | `ChatRichContentColumn` (Thinking profile) |
+| Assistant answer (`ChatAssistantTextView`) | `ChatRichContentColumn` progressive (plain tail) | `ChatRichContentColumn` (Assistant profile) |
+| Thinking card (`ChatReasoningCardView`) | `ChatRichContentColumn` progressive (mono italic + cursor) | `ChatRichContentColumn` (Thinking profile) |
 | Command output detail (`ChatOutputStreamCardView`) | — | `ChatRichContentColumn` (Assistant profile) |
 
 Thinking card starts expanded; `ChatReasoningCollapsePolicy` auto-collapses when a competing answer or output stream is active (`hasCompetingStream` from `ChatThreadView`).
@@ -62,10 +62,9 @@ Thinking card starts expanded; `ChatReasoningCollapsePolicy` auto-collapses when
 - **ChatStreamingClient**: Strategy seam for provider streaming (`ProviderChatStreamingClient` → OpenAI-compatible SSE HTTP)
 - **ChatRichContentSegment**: Sealed segment types — `Prose`, `RawFragment`, `MermaidDiagram`, `MathBlock`
 - **ChatRichContentSegmenter**: Fence-aware markdown splitter for completed content
-- **ChatRichContentColumn**: Compose orchestrator — Markwon `TextView` per prose segment, `MarkdownEmbedWebView` per embed
+- **ChatRichContentColumn**: Compose orchestrator — frozen Markwon `TextView` per completed segment, `ChatStreamingTextView` for progressive tails, `MarkdownEmbedWebView` per embed
 - **ChatStreamingTextView**: Coalesced plain-text streaming with optional cursor
 - **ChatMarkwonRenderer**: Markwon factory with `Assistant` and `Thinking` theme profiles
-- **ChatPlainTextRenderer**: Plain `Spanned` styling for raw streaming fragments (no markdown parse)
 - **ChatStreamingMarkdownGuard**: Detects incomplete fences/backticks; keeps segmenter on prose-only fallback
 - **MarkdownEmbedWebView**: WebView composable for Mermaid diagrams and KaTeX math blocks
 - **SidePanelHistoryRepository**: Persistence for conversations and messages (owned by SidePanel infrastructure)
@@ -95,5 +94,5 @@ Thinking card starts expanded; `ChatReasoningCollapsePolicy` auto-collapses when
 | Credential gating on composer send | |
 | Static model catalog per provider | |
 | Rich markdown rendering (Markwon + WebView embeds) | |
-| Deferred streaming (plain while streaming; rich when complete) | |
+| Deferred streaming (progressive freeze + plain tail; rich when complete) | |
 | Thinking card auto-collapse on competing stream | |

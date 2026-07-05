@@ -175,14 +175,16 @@ private fun StreamingReasoningText(
 
     if (isStreaming) {
         key("reasoning-streaming") {
-            ChatStreamingTextView(
-                text = displayedContent,
-                textStyle = typography.reasoningBody,
-                color = textColor,
+            ChatRichContentColumn(
+                markdown = displayedContent,
+                profile = ChatMarkwonRenderer.Profile.Thinking,
                 modifier = Modifier.fillMaxWidth(),
-                showsCursor = true,
-                cursorColor = cursorColor,
-                cursorOpacity = cursorAlpha,
+                progressive = true,
+                showsStreamingCursor = true,
+                streamingCursorColor = cursorColor,
+                streamingCursorOpacity = cursorAlpha,
+                streamingRawTextStyle = typography.reasoningBody,
+                streamingRawColor = textColor,
             )
         }
     } else {
