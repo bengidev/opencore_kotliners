@@ -32,12 +32,12 @@ Internal module with `ChatFacade` as the app-shell wiring entry. `ChatComponent`
 
 Hybrid Markwon + CDN WebView pipeline for assistant answers, thinking cards, and command output detail.
 
-**Streaming policy:** plain text while streaming, rich markdown when complete. `ChatAssistantTextView` and `ChatReasoningCardView` branch on `isStreaming` — streaming surfaces use `ChatPlainTextRenderer` (assistant) or `ChatStreamingTextView` (thinking, mono-italic via `ChatTypography.reasoningBody`); completed content uses `ChatRichContentColumn`.
+**Streaming policy:** deferred — plain text while streaming (`ChatStreamingTextView`); switch to full rich rendering (`ChatRichContentColumn`) only when the message completes. Thinking streams use mono-italic typography and a blinking cursor.
 
 **Completed content pipeline:**
 
 1. `ChatAssistantMarkdownPreprocessor.normalize` sanitizes input.
-2. `ChatRichContentSegmenter` splits markdown into `ChatRichContentSegment` values (`Prose`, `MermaidDiagram`, `MathBlock`). Fence-aware split (not AST). `mermaid`, `latex`/`math`/`katex` fences become embed segments; other fenced languages stay in prose. `ChatStreamingMarkdownGuard.shouldUsePlainFallback` treats unclosed fences and odd inline backtick counts as prose-only.
+2. `ChatRichContentSegmenter` splits markdown into `ChatRichContentSegment` values (`Prose`, `RawFragment`, `MermaidDiagram`, `MathBlock`). Fence-aware split (not AST). `mermaid`, `latex`/`math`/`katex` fences become embed segments; other fenced languages stay in prose. `ChatStreamingMarkdownGuard.shouldUsePlainFallback` provides all-or-nothing prose fallback when markdown is incomplete.
 3. `ChatRichContentColumn` lays out segments in a Compose `Column`.
 4. **Prose** → `ChatMarkwonRenderer.spanned` in an `AndroidView` `TextView`. Profiles: `Assistant` (default body) and `Thinking` (monospace + italic). Markwon plugins: core, strikethrough, tables, linkify. Results cached in `BoundedSpannedCache`.
 5. **Embeds** → `MarkdownEmbedWebView` loads `assets/markdown-embed/host.html`, renders via jsDelivr CDN (KaTeX 0.16.11, Mermaid 10.9.0), reports height through a JS bridge.
@@ -46,8 +46,8 @@ Hybrid Markwon + CDN WebView pipeline for assistant answers, thinking cards, and
 
 | Surface | Streaming | Complete |
 |---|---|---|
-| Assistant answer (`ChatAssistantTextView`) | `ChatPlainTextRenderer` | `ChatRichContentColumn` (Assistant profile) |
-| Thinking card (`ChatReasoningCardView`) | `ChatStreamingTextView` | `ChatRichContentColumn` (Thinking profile) |
+| Assistant answer (`ChatAssistantTextView`) | `ChatStreamingTextView` (plain) | `ChatRichContentColumn` (Assistant profile) |
+| Thinking card (`ChatReasoningCardView`) | `ChatStreamingTextView` (mono italic + cursor) | `ChatRichContentColumn` (Thinking profile) |
 | Command output detail (`ChatOutputStreamCardView`) | — | `ChatRichContentColumn` (Assistant profile) |
 
 Thinking card starts expanded; `ChatReasoningCollapsePolicy` auto-collapses when a competing answer or output stream is active (`hasCompetingStream` from `ChatThreadView`).
@@ -60,11 +60,12 @@ Thinking card starts expanded; `ChatReasoningCollapsePolicy` auto-collapses when
 - **ChatThreadView**: Bottom-aligned scrollable message list inside `ChatView` (`BoxWithConstraints` + chronological `LazyColumn`; mirrors iOS `defaultScrollAnchor(.bottom)`)
 - **ChatErrorBannerView**: Turn-level failure banner colocated in `ChatView`
 - **ChatStreamingClient**: Strategy seam for provider streaming (`ProviderChatStreamingClient` → OpenAI-compatible SSE HTTP)
-- **ChatRichContentSegment**: Sealed segment types — `Prose`, `MermaidDiagram`, `MathBlock`
-- **ChatRichContentSegmenter**: Fence-aware markdown splitter for prose vs embed blocks
-- **ChatRichContentColumn**: Compose orchestrator — one Markwon `TextView` per prose segment, one `MarkdownEmbedWebView` per embed
+- **ChatRichContentSegment**: Sealed segment types — `Prose`, `RawFragment`, `MermaidDiagram`, `MathBlock`
+- **ChatRichContentSegmenter**: Fence-aware markdown splitter for completed content
+- **ChatRichContentColumn**: Compose orchestrator — Markwon `TextView` per prose segment, `MarkdownEmbedWebView` per embed
+- **ChatStreamingTextView**: Coalesced plain-text streaming with optional cursor
 - **ChatMarkwonRenderer**: Markwon factory with `Assistant` and `Thinking` theme profiles
-- **ChatPlainTextRenderer**: Plain `Spanned` styling for streaming surfaces (no markdown parse)
+- **ChatPlainTextRenderer**: Plain `Spanned` styling for raw streaming fragments (no markdown parse)
 - **ChatStreamingMarkdownGuard**: Detects incomplete fences/backticks; keeps segmenter on prose-only fallback
 - **MarkdownEmbedWebView**: WebView composable for Mermaid diagrams and KaTeX math blocks
 - **SidePanelHistoryRepository**: Persistence for conversations and messages (owned by SidePanel infrastructure)
@@ -94,5 +95,5 @@ Thinking card starts expanded; `ChatReasoningCollapsePolicy` auto-collapses when
 | Credential gating on composer send | |
 | Static model catalog per provider | |
 | Rich markdown rendering (Markwon + WebView embeds) | |
-| Plain-text streaming; rich markdown when complete | |
+| Deferred streaming (plain while streaming; rich when complete) | |
 | Thinking card auto-collapse on competing stream | |
