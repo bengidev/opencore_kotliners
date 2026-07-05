@@ -4,7 +4,9 @@ import android.graphics.Typeface
 import android.text.style.StyleSpan
 import android.text.style.TypefaceSpan
 import android.text.style.URLSpan
+import android.widget.TextView
 import io.github.bengidev.opencore.onboarding.theme.LightOpenCorePalette
+import io.noties.markwon.ext.tables.TableRowSpan
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -64,5 +66,28 @@ class ChatMarkwonRendererTest {
 
         val urlSpans = rendered.getSpans(start, start + "https://example.com".length, URLSpan::class.java)
         assertTrue(urlSpans.isNotEmpty())
+    }
+
+    @Test
+    fun assistant_applyTo_schedulesTableRowSpans() {
+        val markdown =
+            """
+            | Hyper-parameter | Typical range / notes |
+            |---|---|
+            | vocab_size | 30k-200k |
+            | num_heads | embedding_dim ÷ 64 |
+            """.trimIndent()
+        val textView = TextView(context)
+
+        ChatMarkwonRenderer.applyTo(
+            textView = textView,
+            markdown = markdown,
+            palette = palette,
+            profile = ChatMarkwonRenderer.Profile.Assistant,
+            context = context,
+        )
+
+        val tableSpans = (textView.text as android.text.Spanned).getSpans(0, textView.text.length, TableRowSpan::class.java)
+        assertTrue(tableSpans.isNotEmpty())
     }
 }

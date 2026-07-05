@@ -8,6 +8,7 @@ import android.text.Spanned
 import android.text.style.StyleSpan
 import android.text.style.TypefaceSpan
 import android.text.util.Linkify
+import android.widget.TextView
 import io.github.bengidev.opencore.onboarding.theme.OpenCorePalette
 import io.noties.markwon.AbstractMarkwonPlugin
 import io.noties.markwon.Markwon
@@ -44,6 +45,27 @@ internal object ChatMarkwonRenderer {
         )
         cache.put(cacheKey, palette.isDark, rendered)
         return rendered
+    }
+
+    /**
+     * Applies cached markdown to [textView] via Markwon's [Markwon.setParsedMarkdown] so table
+     * plugins can schedule [io.noties.markwon.ext.tables.TableRowSpan] layout.
+     */
+    fun applyTo(
+        textView: TextView,
+        markdown: String,
+        palette: OpenCorePalette,
+        profile: Profile,
+        context: Context,
+    ) {
+        val normalized = ChatAssistantMarkdownPreprocessor.normalize(markdown)
+        val cacheKey = cacheKey(normalized, profile)
+        val markwon = createMarkwon(context, palette, profile)
+        val rendered = cache.get(cacheKey, palette.isDark)
+            ?: render(normalized, palette, profile, context).also {
+                cache.put(cacheKey, palette.isDark, it)
+            }
+        markwon.setParsedMarkdown(textView, rendered)
     }
 
     private fun render(
