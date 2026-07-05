@@ -82,10 +82,11 @@ private fun ThinkingRow(
         horizontalArrangement = Arrangement.Start
     ) {
         ChatReasoningCardView(
+            messageId = message.id,
             content = message.content,
             isComplete = message.isComplete,
             isStreaming = !message.isComplete,
-            hasCompetingStream = hasCompetingStream,
+            hasCompetingStream = hasCompetingStream && !message.isComplete,
             onCollapsed = onReasoningCollapsed,
             modifier = Modifier
                 .weight(1f, fill = false)
