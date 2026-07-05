@@ -99,11 +99,14 @@ internal fun ChatThreadView(
         var previousMessageCount by remember { mutableIntStateOf(0) }
         var scrollToBottomRequest by remember { mutableLongStateOf(0L) }
 
-        LaunchedEffect(scrollToBottomRequest) {
+        LaunchedEffect(scrollToBottomRequest, bottomTargetIndex) {
             if (scrollToBottomRequest == 0L) return@LaunchedEffect
-            delay(HISTORY_RESTORE_SCROLL_DELAY_MS)
             withFrameNanos { }
-            scrollThreadToBottom(listState, bottomTargetIndex, animate = true)
+            scrollThreadToBottom(
+                listState,
+                bottomTargetIndex,
+                animate = ChatThreadScrollPolicy.shouldAnimateReasoningCollapseScroll(),
+            )
         }
 
         LaunchedEffect(
@@ -114,16 +117,18 @@ internal fun ChatThreadView(
             imeBottomPx,
         ) {
             if (imeVisible && imeBottomPx <= 0) return@LaunchedEffect
+            val messageCount = state.messages.size
             val isBulkRestore = ChatThreadScrollPolicy.isBulkRestore(
                 previousMessageCount = previousMessageCount,
-                messageCount = state.messages.size,
+                messageCount = messageCount,
             )
-            previousMessageCount = state.messages.size
             val animate = ChatThreadScrollPolicy.shouldAnimateScroll(
                 isBulkRestore = isBulkRestore,
                 streamingRevision = state.streamingRevision,
                 imeVisible = imeVisible,
+                previousMessageCount = previousMessageCount,
             )
+            previousMessageCount = messageCount
             if (isBulkRestore) {
                 delay(HISTORY_RESTORE_SCROLL_DELAY_MS)
             } else if (state.streamingRevision > 0) {
@@ -150,8 +155,7 @@ internal fun ChatThreadView(
                 verticalArrangement = Arrangement.spacedBy(0.dp),
                 contentPadding = PaddingValues(vertical = 8.dp),
             ) {
-                val hasCompetingStream = state.streamingAnswerId != null ||
-                    state.streamingOutputStreamId != null
+                val hasCompetingStream = ChatCompetingStreamPolicy.hasCompetingStream(state)
                 items(
                     items = displayMessages,
                     key = ChatThreadItemKeyPolicy::keyFor,
