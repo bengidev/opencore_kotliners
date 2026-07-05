@@ -5,6 +5,7 @@ import android.text.method.LinkMovementMethod
 import android.util.TypedValue
 import android.widget.TextView
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
@@ -14,8 +15,8 @@ import io.github.bengidev.opencore.chat.utilities.ChatPlainTextRenderer
 import io.github.bengidev.opencore.onboarding.theme.OpenCorePalette
 
 /**
- * Assistant answer text with plain streaming and rich markdown when complete.
- * [isStreaming] coalesces full attributed rebuilds; completed messages render via Markwon.
+ * Assistant answer text with deferred rich rendering.
+ * Plain text while streaming; full markdown/LaTeX/Mermaid when the message completes.
  */
 @Composable
 internal fun ChatAssistantTextView(
@@ -28,31 +29,35 @@ internal fun ChatAssistantTextView(
     val typography = ChatTheme.typography
 
     if (isStreaming) {
-        val coordinator = remember { AssistantPlainStreamingCoordinator() }
+        key("assistant-streaming") {
+            val coordinator = remember { AssistantPlainStreamingCoordinator() }
 
-        AndroidView(
-            modifier = modifier,
-            factory = { context ->
-                ChatStreamingSizingTextView(context).apply {
-                    configureAssistantPlainTextView(
-                        isTextSelectable = isTextSelectable,
-                        fontSizeSp = typography.assistantMessageBody.fontSize.value,
-                    )
-                }
-            },
-            update = { textView ->
-                textView.setTextIsSelectable(isTextSelectable)
-                coordinator.apply(text = text, palette = palette, textView = textView)
-            },
-            onRelease = coordinator::cancel,
-        )
+            AndroidView(
+                modifier = modifier,
+                factory = { context ->
+                    ChatStreamingSizingTextView(context).apply {
+                        configureAssistantPlainTextView(
+                            isTextSelectable = isTextSelectable,
+                            fontSizeSp = typography.assistantMessageBody.fontSize.value,
+                        )
+                    }
+                },
+                update = { textView ->
+                    textView.setTextIsSelectable(isTextSelectable)
+                    coordinator.apply(text = text, palette = palette, textView = textView)
+                },
+                onRelease = coordinator::cancel,
+            )
+        }
     } else {
-        ChatRichContentColumn(
-            markdown = text,
-            profile = ChatMarkwonRenderer.Profile.Assistant,
-            modifier = modifier,
-            isTextSelectable = isTextSelectable,
-        )
+        key("assistant-rich") {
+            ChatRichContentColumn(
+                markdown = text,
+                profile = ChatMarkwonRenderer.Profile.Assistant,
+                modifier = modifier,
+                isTextSelectable = isTextSelectable,
+            )
+        }
     }
 }
 
