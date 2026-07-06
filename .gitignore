@@ -38,12 +38,9 @@ captures/
 # Pi
 .pi-subagents/
 
-# Agent design specs (local brainstorming)
+# Agent design specs and plans (local brainstorming)
 superpowers/
-!docs/superpowers/
-!docs/superpowers/specs/
-!docs/superpowers/specs/**
-docs/superpowers/plans/
+docs/superpowers/
 
 # Git worktrees (isolated feature branches)
 .worktrees/
