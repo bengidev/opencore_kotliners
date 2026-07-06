@@ -40,6 +40,45 @@ class HomeComposerModelCapabilityLogicTest {
     }
 
     @Test
+    fun validateDraft_blocksFileOnImageOnlyModel() {
+        val attachments = listOf(
+            ChatMessageAttachment(
+                kind = ChatMessageAttachmentKind.FILE,
+                filename = "notes.txt",
+                localPath = "/tmp/notes.txt",
+            ),
+        )
+
+        val decision = HomeComposerModelCapabilityLogic.validateDraft(
+            attachments = attachments,
+            model = visionModel,
+            modelName = visionModel.displayTitle,
+        )
+
+        assertTrue(decision is HomeComposerModelCapabilityLogic.VisualAttachmentDecision.Blocked)
+    }
+
+    @Test
+    fun validateDraft_allowsFileOnFileCapableModel() {
+        val fileModel = textModel.copy(supportsFileInput = true)
+        val attachments = listOf(
+            ChatMessageAttachment(
+                kind = ChatMessageAttachmentKind.FILE,
+                filename = "notes.txt",
+                localPath = "/tmp/notes.txt",
+            ),
+        )
+
+        val decision = HomeComposerModelCapabilityLogic.validateDraft(
+            attachments = attachments,
+            model = fileModel,
+            modelName = fileModel.displayTitle,
+        )
+
+        assertEquals(HomeComposerModelCapabilityLogic.VisualAttachmentDecision.Allowed, decision)
+    }
+
+    @Test
     fun validateDraft_allowsImageOnVisionModel() {
         val attachments = listOf(
             ChatMessageAttachment(
