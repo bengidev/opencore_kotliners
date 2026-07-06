@@ -52,12 +52,16 @@ internal object HomeComposerModelCapabilityLogic {
     fun hasVideoAttachments(attachments: List<ChatMessageAttachment>): Boolean =
         attachments.any { it.kind == ChatMessageAttachmentKind.VIDEO }
 
-    fun hasUnsupportedVisualAttachments(
+    fun hasFileAttachments(attachments: List<ChatMessageAttachment>): Boolean =
+        attachments.any { it.kind == ChatMessageAttachmentKind.FILE }
+
+    fun hasUnsupportedAttachments(
         attachments: List<ChatMessageAttachment>,
         model: SidePanelModel?,
     ): Boolean {
         if (hasImageAttachments(attachments) && !supportsImageInput(model)) return true
         if (hasVideoAttachments(attachments) && !supportsVideoInput(model)) return true
+        if (hasFileAttachments(attachments) && !supportsFileInput(model)) return true
         return false
     }
 
@@ -66,7 +70,7 @@ internal object HomeComposerModelCapabilityLogic {
         model: SidePanelModel?,
         modelName: String,
     ): VisualAttachmentDecision {
-        if (!hasUnsupportedVisualAttachments(attachments, model)) {
+        if (!hasUnsupportedAttachments(attachments, model)) {
             return VisualAttachmentDecision.Allowed
         }
         return VisualAttachmentDecision.Blocked(
@@ -95,12 +99,19 @@ internal object HomeComposerModelCapabilityLogic {
     fun visualInputWarningMessage(modelName: String, attachments: List<ChatMessageAttachment>): String {
         val hasImages = hasImageAttachments(attachments)
         val hasVideos = hasVideoAttachments(attachments)
+        val hasFiles = hasFileAttachments(attachments)
         return when {
             hasImages && hasVideos ->
                 "$modelName does not support the attached photos and videos. Choose a vision-capable model before sending."
+            hasImages && hasFiles ->
+                "$modelName does not support the attached photos and files. Choose a compatible model before sending."
+            hasVideos && hasFiles ->
+                "$modelName does not support the attached videos and files. Choose a compatible model before sending."
             hasImages -> imageInputWarningMessage(modelName)
             hasVideos ->
                 "$modelName does not support video input. Choose a video-capable model before sending."
+            hasFiles ->
+                "$modelName does not support file input. Choose a file-capable model before sending."
             else -> "$modelName does not support this attachment type."
         }
     }
