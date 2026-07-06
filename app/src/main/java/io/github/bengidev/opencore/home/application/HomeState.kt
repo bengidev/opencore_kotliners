@@ -3,6 +3,8 @@ package io.github.bengidev.opencore.home.application
 import io.github.bengidev.opencore.home.models.ContextWindowUsage
 import io.github.bengidev.opencore.home.models.HomeComposerSpeedMode
 import io.github.bengidev.opencore.home.models.HomeModelOption
+import io.github.bengidev.opencore.home.utilities.HomeComposerModelCapabilityLogic
+import io.github.bengidev.opencore.home.utilities.HomeComposerModelCapabilityLogic.AttachmentMenuOption
 import io.github.bengidev.opencore.shared.providers.ModelReasoningEffort
 import io.github.bengidev.opencore.shared.providers.ProviderDescriptor
 import io.github.bengidev.opencore.shared.providers.ProviderRegistry
@@ -70,6 +72,16 @@ internal data class HomeState(
 
     val selectedModelSupportsSpeedModes: Boolean
         get() = selectedModelOption?.availableSpeedModes?.isNotEmpty() == true
+
+    val selectedModelSupportsComposerAttachments: Boolean
+        get() = selectedModelAttachmentMenuOptions.isNotEmpty()
+
+    val selectedModelAttachmentMenuOptions: List<AttachmentMenuOption>
+        get() {
+            val modelId = selectedModelId ?: return emptyList()
+            val model = availableModels.firstOrNull { it.id == modelId } ?: return emptyList()
+            return HomeComposerModelCapabilityLogic.attachmentMenuOptions(model)
+        }
 
     val availableReasoningEfforts: List<ModelReasoningEffort>
         get() = selectedModelOption?.availableReasoningEfforts.orEmpty()
