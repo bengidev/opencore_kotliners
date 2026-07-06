@@ -101,6 +101,7 @@ internal fun HomeComposerView(
             canSend = canSend && !isSending && !isLoadingMessages &&
                 !speechState.isListening && !speechState.isTranscribing,
             showMissingApiKeyHint = state.showMissingApiKeyHint,
+            showAttachmentButton = state.selectedModelSupportsComposerAttachments,
             speechState = speechState,
             visionState = visionState,
             draftAttachments = draftAttachments,
@@ -131,6 +132,7 @@ private fun HomeComposerPromptPanel(
     composerText: String,
     canSend: Boolean,
     showMissingApiKeyHint: Boolean,
+    showAttachmentButton: Boolean,
     speechState: SpeechFlowState,
     visionState: VisionFlowState,
     draftAttachments: List<ChatMessageAttachment>,
@@ -230,11 +232,14 @@ private fun HomeComposerPromptPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            HomeComposerIconButton(
-                imageVector = Icons.Default.Add,
-                contentDescription = "Add attachment",
-                onClick = onAttachmentTapped
-            )
+            if (showAttachmentButton) {
+                HomeComposerIconButton(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add attachment",
+                    enabled = !visionState.isProcessing,
+                    onClick = onAttachmentTapped
+                )
+            }
 
             Spacer(modifier = Modifier.weight(1f))
 
@@ -665,6 +670,7 @@ private fun HomeComposerContextUsageButton(
 private fun HomeComposerIconButton(
     imageVector: androidx.compose.ui.graphics.vector.ImageVector,
     contentDescription: String,
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     val palette = HomeTheme.palette
@@ -675,6 +681,7 @@ private fun HomeComposerIconButton(
             .size(30.dp)
             .semantics { this.contentDescription = contentDescription }
             .clickable(
+                enabled = enabled,
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
@@ -684,7 +691,7 @@ private fun HomeComposerIconButton(
         Icon(
             imageVector = imageVector,
             contentDescription = null,
-            tint = palette.textTertiary,
+            tint = if (enabled) palette.textTertiary else palette.textTertiary.copy(alpha = 0.35f),
             modifier = Modifier.size(18.dp)
         )
     }

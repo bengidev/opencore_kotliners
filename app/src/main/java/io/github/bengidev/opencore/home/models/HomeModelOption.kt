@@ -12,6 +12,11 @@ internal data class HomeModelOption(
     val title: String get() = model.displayTitle
     val isFree: Boolean get() = model.isFree
     val contextLength: Int? get() = model.contextLength
+    val supportsImageInput: Boolean get() = model.supportsImageInput
+    val supportsVideoInput: Boolean get() = model.supportsVideoInput
+    val supportsFileInput: Boolean get() = model.supportsFileInput
+    val supportsNonTextInput: Boolean
+        get() = supportsImageInput || supportsVideoInput || supportsFileInput
     val supportsReasoning: Boolean get() = availableReasoningEfforts.isNotEmpty()
 
     constructor(

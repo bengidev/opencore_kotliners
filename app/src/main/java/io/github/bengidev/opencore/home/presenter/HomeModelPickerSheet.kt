@@ -277,7 +277,17 @@ private fun HomeModelPickerRow(
             .semantics {
                 val freeLabel = if (model.isFree) ", free" else ""
                 val selectedLabel = if (selected) ", selected" else ""
-                contentDescription = "${model.title}$freeLabel$selectedLabel"
+                val capabilityLabels = buildList {
+                    if (model.supportsImageInput) add("image input")
+                    if (model.supportsVideoInput) add("video input")
+                    if (model.supportsFileInput) add("file input")
+                }
+                val capabilityLabel = if (capabilityLabels.isEmpty()) {
+                    ""
+                } else {
+                    ", supports ${capabilityLabels.joinToString(" and ")}"
+                }
+                contentDescription = "${model.title}$freeLabel$capabilityLabel$selectedLabel"
             }
             .padding(horizontal = 20.dp, vertical = 12.dp)
             .testTag("home-model-row-${model.id}"),
@@ -333,16 +343,31 @@ private fun HomeModelPickerRow(
                     )
                 }
             }
-            model.contextLength?.let { contextLength ->
-                Text(
-                    text = contextLengthLabel(contextLength),
-                    style = typography.chipLabel.copy(
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Normal
-                    ),
-                    color = palette.textTertiary
-                )
+            if (model.contextLength != null || model.supportsNonTextInput) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    model.contextLength?.let { contextLength ->
+                        Text(
+                            text = contextLengthLabel(contextLength),
+                            style = typography.chipLabel.copy(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Normal
+                            ),
+                            color = palette.textTertiary
+                        )
+                    }
+                    if (model.supportsNonTextInput) {
+                        ModelInputCapabilityIcons(
+                            supportsImageInput = model.supportsImageInput,
+                            supportsVideoInput = model.supportsVideoInput,
+                            supportsFileInput = model.supportsFileInput,
+                            modelId = model.id,
+                        )
+                    }
+                }
             }
         }
     }

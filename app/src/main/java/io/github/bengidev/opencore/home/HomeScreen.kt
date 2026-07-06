@@ -1,5 +1,6 @@
 package io.github.bengidev.opencore.home
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,10 +27,12 @@ import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.chat.presenter.ChatVoiceNotePlaybackController
 import io.github.bengidev.opencore.chat.utilities.ChatAttachmentStore
 import io.github.bengidev.opencore.home.application.HomeComponent
+import io.github.bengidev.opencore.home.presenter.ComposerAttachmentMenuDialog
 import io.github.bengidev.opencore.home.presenter.HomeModelPickerSheet
 import io.github.bengidev.opencore.home.presenter.HomeView
 import io.github.bengidev.opencore.home.theme.OpenCoreHomeTheme
 import io.github.bengidev.opencore.home.utilities.HomeComposerModelCapabilityLogic
+import io.github.bengidev.opencore.home.utilities.HomeComposerModelCapabilityLogic.AttachmentMenuOption
 import io.github.bengidev.opencore.sidepanel.SidePanelScreen
 import io.github.bengidev.opencore.sidepanel.application.SidePanelComponent
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
@@ -75,10 +78,9 @@ internal fun HomeScreen(
         !speechState.isListening &&
         !speechState.isTranscribing
 
-    val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-    ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
+    val attachmentMenuOptions = state.selectedModelAttachmentMenuOptions
+
+    fun importAttachmentUri(uri: Uri) {
         scope.launch {
             val resolved = ContentUriMetadata.resolve(context, uri)
             val attachment = visionController.attachUri(
@@ -92,20 +94,61 @@ internal fun HomeScreen(
         }
     }
 
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+    ) { uri ->
+        if (uri != null) importAttachmentUri(uri)
+    }
+
+    val legacyVisualPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+    ) { uri ->
+        if (uri != null) importAttachmentUri(uri)
+    }
+
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        scope.launch {
-            val resolved = ContentUriMetadata.resolve(context, uri)
-            val attachment = visionController.attachUri(
-                uri = uri,
-                filename = resolved.filename,
-                mimeType = resolved.mimeType,
-            )
-            attachment?.let { addImportedAttachment(it, selectedModel, state.selectedModelTitle, chatComponent) { msg ->
-                capabilityWarningMessage = msg
-            } }
+        if (uri != null) importAttachmentUri(uri)
+    }
+
+    fun launchPhotoLibrary() {
+        val supportsVideo = HomeComposerModelCapabilityLogic.photoPickerSupportsVideo(selectedModel)
+        if (ActivityResultContracts.PickVisualMedia.isPhotoPickerAvailable(context)) {
+            val mediaType = if (supportsVideo) {
+                ActivityResultContracts.PickVisualMedia.ImageAndVideo
+            } else {
+                ActivityResultContracts.PickVisualMedia.ImageOnly
+            }
+            photoPickerLauncher.launch(PickVisualMediaRequest(mediaType))
+            return
+        }
+        if (supportsVideo) {
+            legacyVisualPickerLauncher.launch("*/*")
+        } else {
+            legacyVisualPickerLauncher.launch("image/*")
+        }
+    }
+
+    fun launchFileImport() {
+        val mimeTypes = HomeComposerModelCapabilityLogic.filePickerMimeTypes(selectedModel)
+        if (mimeTypes.isNotEmpty()) {
+            filePickerLauncher.launch(mimeTypes)
+        }
+    }
+
+    fun handleAttachmentOption(option: AttachmentMenuOption) {
+        when (option) {
+            AttachmentMenuOption.PhotoLibrary -> launchPhotoLibrary()
+            AttachmentMenuOption.ImportFile -> launchFileImport()
+        }
+    }
+
+    val onComposerAttachmentTapped = {
+        when (attachmentMenuOptions.size) {
+            0 -> Unit
+            1 -> handleAttachmentOption(attachmentMenuOptions.single())
+            else -> isAttachmentMenuVisible = true
         }
     }
 
@@ -134,40 +177,31 @@ internal fun HomeScreen(
         component.refreshContextUsage(chatState.messages, draftAttachments)
     }
 
-    capabilityWarningMessage?.let { message ->
-        AlertDialog(
-            onDismissRequest = { capabilityWarningMessage = null },
-            title = { Text("Attachment not supported") },
-            text = { Text(message) },
-            confirmButton = {
-                TextButton(onClick = { capabilityWarningMessage = null }) {
-                    Text("OK")
-                }
-            },
-        )
-    }
-
-    if (isAttachmentMenuVisible) {
-        AlertDialog(
-            onDismissRequest = { isAttachmentMenuVisible = false },
-            title = { Text("Add attachment") },
-            text = { Text("Attach a file or photo to include with your message.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    isAttachmentMenuVisible = false
-                    photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
-                }) { Text("Photo Library") }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    isAttachmentMenuVisible = false
-                    filePickerLauncher.launch(arrayOf("image/*", "video/*", "text/*", "application/json"))
-                }) { Text("Import File") }
-            },
-        )
-    }
-
     OpenCoreHomeTheme(darkTheme = darkTheme) {
+        capabilityWarningMessage?.let { message ->
+            AlertDialog(
+                onDismissRequest = { capabilityWarningMessage = null },
+                title = { Text("Attachment not supported") },
+                text = { Text(message) },
+                confirmButton = {
+                    TextButton(onClick = { capabilityWarningMessage = null }) {
+                        Text("OK")
+                    }
+                },
+            )
+        }
+
+        if (isAttachmentMenuVisible) {
+            ComposerAttachmentMenuDialog(
+                options = attachmentMenuOptions,
+                onDismiss = { isAttachmentMenuVisible = false },
+                onOptionSelected = { option ->
+                    isAttachmentMenuVisible = false
+                    handleAttachmentOption(option)
+                },
+            )
+        }
+
         Box(modifier = Modifier.fillMaxSize()) {
             HomeView(
                 state = state,
@@ -181,7 +215,7 @@ internal fun HomeScreen(
                 onDraftMessageChanged = component::onDraftMessageChanged,
                 onSidebarTapped = sidePanelComponent::toggleSidebar,
                 onNewConversationTapped = component::onNewConversationTapped,
-                onAttachmentTapped = { isAttachmentMenuVisible = true },
+                onAttachmentTapped = onComposerAttachmentTapped,
                 onRemoveAttachment = chatComponent::removeDraftAttachment,
                 onVisionErrorDismissed = visionController::clearError,
                 onStartVoiceInput = { speechController.startListening() },
