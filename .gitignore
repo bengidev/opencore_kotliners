@@ -43,6 +43,7 @@ superpowers/
 !docs/superpowers/
 !docs/superpowers/specs/
 !docs/superpowers/specs/**
+docs/superpowers/plans/
 
 # Git worktrees (isolated feature branches)
 .worktrees/
