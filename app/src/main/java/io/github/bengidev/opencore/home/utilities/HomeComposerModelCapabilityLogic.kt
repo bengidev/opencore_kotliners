@@ -6,6 +6,11 @@ import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
 
 /** Composer warnings for model capability mismatches. */
 internal object HomeComposerModelCapabilityLogic {
+    enum class AttachmentMenuOption {
+        PhotoLibrary,
+        ImportFile,
+    }
+
     sealed class VisualAttachmentDecision {
         data object Allowed : VisualAttachmentDecision()
         data class Blocked(val message: String) : VisualAttachmentDecision()
@@ -14,6 +19,32 @@ internal object HomeComposerModelCapabilityLogic {
     fun supportsImageInput(model: SidePanelModel?): Boolean = model?.supportsImageInput == true
 
     fun supportsVideoInput(model: SidePanelModel?): Boolean = model?.supportsVideoInput == true
+
+    fun supportsFileInput(model: SidePanelModel?): Boolean = model?.supportsFileInput == true
+
+    fun supportsComposerAttachments(model: SidePanelModel?): Boolean =
+        supportsImageInput(model) || supportsVideoInput(model) || supportsFileInput(model)
+
+    fun attachmentMenuOptions(model: SidePanelModel?): List<AttachmentMenuOption> {
+        if (model == null) return emptyList()
+        val options = mutableListOf<AttachmentMenuOption>()
+        if (supportsImageInput(model) || supportsVideoInput(model)) {
+            options += AttachmentMenuOption.PhotoLibrary
+        }
+        if (supportsFileInput(model)) {
+            options += AttachmentMenuOption.ImportFile
+        }
+        return options
+    }
+
+    fun photoPickerSupportsVideo(model: SidePanelModel?): Boolean = supportsVideoInput(model)
+
+    fun filePickerMimeTypes(model: SidePanelModel?): Array<String> =
+        if (supportsFileInput(model)) {
+            arrayOf("text/*", "application/json")
+        } else {
+            emptyArray()
+        }
 
     fun hasImageAttachments(attachments: List<ChatMessageAttachment>): Boolean =
         attachments.any { it.kind == ChatMessageAttachmentKind.IMAGE }
@@ -53,6 +84,10 @@ internal object HomeComposerModelCapabilityLogic {
         ChatMessageAttachmentKind.VIDEO if !supportsVideoInput(model) ->
             VisualAttachmentDecision.Blocked(
                 "$modelName does not support video input. Choose a video-capable model to attach videos.",
+            )
+        ChatMessageAttachmentKind.FILE if !supportsFileInput(model) ->
+            VisualAttachmentDecision.Blocked(
+                "$modelName does not support file input. Choose a file-capable model before importing files.",
             )
         else -> VisualAttachmentDecision.Allowed
     }
