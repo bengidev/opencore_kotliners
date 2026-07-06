@@ -30,6 +30,7 @@ internal object ProviderCatalogParser {
         val name: String?,
         val contextLength: Int?,
         val modality: String?,
+        val inputModalities: List<String>,
         val tokenizer: String?,
         val promptPrice: String?,
         val completionPrice: String?,
@@ -51,16 +52,44 @@ internal object ProviderCatalogParser {
                 supportedParameters.any { it.equals("provider", ignoreCase = true) } ||
                 id.equals("openrouter/free", ignoreCase = true)
 
-        fun toSidePanelModel(): SidePanelModel = SidePanelModel(
-            id = id,
-            displayTitle = name ?: id,
-            isFree = isFree,
-            contextLength = contextLength,
-            supportedReasoningEfforts = supportedReasoningEfforts,
-            reasoningMandatory = reasoningMandatory,
-            supportsSpeedModes = supportsSpeedModes,
-            supportsImageInput = modalitySupportsImage(modality),
-            supportsVideoInput = modalitySupportsVideo(modality),
+        fun toSidePanelModel(): SidePanelModel {
+            val capabilities = resolveInputCapabilities(inputModalities, modality)
+            return SidePanelModel(
+                id = id,
+                displayTitle = name ?: id,
+                isFree = isFree,
+                contextLength = contextLength,
+                supportedReasoningEfforts = supportedReasoningEfforts,
+                reasoningMandatory = reasoningMandatory,
+                supportsSpeedModes = supportsSpeedModes,
+                supportsImageInput = capabilities.supportsImage,
+                supportsVideoInput = capabilities.supportsVideo,
+                supportsFileInput = capabilities.supportsFile,
+            )
+        }
+    }
+
+    private data class InputCapabilities(
+        val supportsImage: Boolean,
+        val supportsVideo: Boolean,
+        val supportsFile: Boolean,
+    )
+
+    private fun resolveInputCapabilities(
+        inputModalities: List<String>,
+        modality: String?,
+    ): InputCapabilities {
+        if (inputModalities.isNotEmpty()) {
+            return InputCapabilities(
+                supportsImage = inputModalities.any { it.equals("image", ignoreCase = true) },
+                supportsVideo = inputModalities.any { it.equals("video", ignoreCase = true) },
+                supportsFile = inputModalities.any { it.equals("file", ignoreCase = true) },
+            )
+        }
+        return InputCapabilities(
+            supportsImage = modalitySupportsImage(modality),
+            supportsVideo = modalitySupportsVideo(modality),
+            supportsFile = modalitySupportsFile(modality),
         )
     }
 
@@ -71,6 +100,9 @@ internal object ProviderCatalogParser {
         val reasoningObject = extractNestedObject(objectJson, "reasoning")
         val supportedParameters = extractStringArray(objectJson, "supported_parameters")
         val modality = architectureObject?.let { ChatJsonStringField.extract(it, "modality") }
+        val inputModalities = architectureObject
+            ?.let { extractStringArray(it, "input_modalities") }
+            .orEmpty()
         val supportedEfforts = reasoningObject
             ?.let { extractStringArray(it, "supported_efforts") }
             .orEmpty()
@@ -85,6 +117,7 @@ internal object ProviderCatalogParser {
             name = ChatJsonStringField.extract(objectJson, "name"),
             contextLength = resolveContextLength(objectJson),
             modality = modality,
+            inputModalities = inputModalities,
             tokenizer = architectureObject?.let { ChatJsonStringField.extract(it, "tokenizer") },
             promptPrice = pricingObject?.let { ChatJsonStringField.extract(it, "prompt") },
             completionPrice = pricingObject?.let { ChatJsonStringField.extract(it, "completion") },
@@ -212,6 +245,9 @@ internal object ProviderCatalogParser {
 
     private fun modalitySupportsVideo(modality: String?): Boolean =
         modality?.contains("video", ignoreCase = true) == true
+
+    private fun modalitySupportsFile(modality: String?): Boolean =
+        modality?.contains("file", ignoreCase = true) == true
 
     private fun findMatchingBrace(json: String, openIndex: Int): Int? {
         var depth = 0

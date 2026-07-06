@@ -10,6 +10,7 @@ internal data class SidePanelModel(
     val supportsSpeedModes: Boolean = false,
     val supportsImageInput: Boolean = false,
     val supportsVideoInput: Boolean = false,
+    val supportsFileInput: Boolean = false,
 ) {
     val supportsReasoning: Boolean
         get() = supportedReasoningEfforts.isNotEmpty()
