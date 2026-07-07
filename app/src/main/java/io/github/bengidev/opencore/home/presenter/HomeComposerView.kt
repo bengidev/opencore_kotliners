@@ -401,59 +401,57 @@ private fun HomeComposerContextRail(
             }
         }
 
+        val railLayout = HomeComposerRailLayoutPolicy.layout(
+            hasReasoning = state.selectedModelSupportsReasoning,
+            hasSpeed = state.selectedModelSupportsSpeedModes,
+        )
+
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp)
-            ) {
-                HomeComposerModelChip(
-                    title = state.modelPickerTitle,
-                    enabled = state.isModelCatalogAvailable,
-                    onClick = onModelSelectorTapped
-                )
-                if (state.selectedModelSupportsReasoning) {
-                    HomeComposerReasoningChip(
+            HomeComposerModelChip(
+                title = state.modelPickerTitle,
+                enabled = state.isModelCatalogAvailable,
+                onClick = onModelSelectorTapped,
+                modifier = if (railLayout.modelUsesFlexibleWidth) {
+                    Modifier.weight(1f, fill = railLayout.modelFillsFlexibleWidth)
+                } else {
+                    Modifier
+                },
+            )
+
+            railLayout.prioritizedControls.forEach { control ->
+                when (control) {
+                    HomeComposerRailControl.REASONING -> HomeComposerReasoningChip(
                         selectedEffort = state.selectedReasoningEffort,
                         availableEfforts = state.availableReasoningEfforts,
                         onReasoningEffortSelected = onReasoningEffortSelected,
                     )
-                }
-            }
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (state.selectedModelSupportsSpeedModes) {
-                    HomeComposerSpeedChip(
+                    HomeComposerRailControl.SPEED -> HomeComposerSpeedChip(
                         speedMode = state.speedMode,
-                        onSpeedModeSelected = onSpeedModeSelected
+                        onSpeedModeSelected = onSpeedModeSelected,
+                    )
+                    HomeComposerRailControl.CONTEXT_USAGE -> ComposerControlPopoverHost(
+                        expanded = state.isContextUsagePresented,
+                        onExpandedChange = onContextUsagePresentedChanged,
+                        anchorAlignment = PopoverAnchorAlignment.Trailing,
+                        animateContent = true,
+                        reduceMotion = reduceMotion,
+                        anchor = {
+                            HomeComposerContextUsageButton(
+                                usage = state.contextUsage,
+                                onClick = {
+                                    onContextUsagePresentedChanged(!state.isContextUsagePresented)
+                                },
+                            )
+                        },
+                        content = {
+                            ContextWindowPopover(usage = state.contextUsage)
+                        },
                     )
                 }
-                ComposerControlPopoverHost(
-                    expanded = state.isContextUsagePresented,
-                    onExpandedChange = onContextUsagePresentedChanged,
-                    anchorAlignment = PopoverAnchorAlignment.Trailing,
-                    animateContent = true,
-                    reduceMotion = reduceMotion,
-                    anchor = {
-                        HomeComposerContextUsageButton(
-                            usage = state.contextUsage,
-                            onClick = {
-                                onContextUsagePresentedChanged(!state.isContextUsagePresented)
-                            },
-                        )
-                    },
-                    content = {
-                        ContextWindowPopover(usage = state.contextUsage)
-                    },
-                )
             }
         }
     }
@@ -475,15 +473,16 @@ private fun CatalogUnavailableHint(message: String) {
 private fun HomeComposerModelChip(
     title: String,
     enabled: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val palette = HomeTheme.palette
     val typography = HomeTheme.typography
     val contentColor = if (enabled) palette.textSecondary else palette.textTertiary
 
     Row(
-        modifier = Modifier
-            .widthIn(min = 92.dp)
+        modifier = modifier
+            .widthIn(min = 0.dp, max = 260.dp)
             .height(30.dp)
             .homeComposerGlass(cornerRadius = 16.dp, shadowOpacity = 0.06f)
             .then(
@@ -508,7 +507,7 @@ private fun HomeComposerModelChip(
             style = typography.chipLabel,
             color = contentColor,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
         if (enabled) {
             Icon(
