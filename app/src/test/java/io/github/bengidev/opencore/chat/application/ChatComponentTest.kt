@@ -387,7 +387,7 @@ class ChatComponentTest {
         val state = component.state.value
         assertFalse(state.isSending)
         assertEquals(ChatStreamingStatus.Failed, state.streamingStatus)
-        assertEquals("No response received from the provider.", state.streamErrorMessage)
+        assertEquals(ChatStreamingMerger.EMPTY_RESPONSE_MESSAGE, state.streamErrorMessage)
         assertEquals(listOf(ChatMessageRole.USER), state.messages.map { it.role })
     }
 

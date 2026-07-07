@@ -11,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -406,51 +407,57 @@ private fun HomeComposerContextRail(
             hasSpeed = state.selectedModelSupportsSpeedModes,
         )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            HomeComposerModelChip(
-                title = state.modelPickerTitle,
-                enabled = state.isModelCatalogAvailable,
-                onClick = onModelSelectorTapped,
-                modifier = if (railLayout.modelUsesFlexibleWidth) {
-                    Modifier.weight(1f, fill = railLayout.modelFillsFlexibleWidth)
-                } else {
-                    Modifier
-                },
-            )
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val controlsWidth = HomeComposerRailLayoutPolicy.reservedControlsWidth(railLayout)
+            val modelSpacing = if (railLayout.prioritizedControls.isNotEmpty()) 8.dp else 0.dp
+            val modelMaxWidth = (maxWidth - controlsWidth - modelSpacing)
+                .coerceAtLeast(48.dp)
+                .coerceAtMost(260.dp)
 
-            railLayout.prioritizedControls.forEach { control ->
-                when (control) {
-                    HomeComposerRailControl.REASONING -> HomeComposerReasoningChip(
-                        selectedEffort = state.selectedReasoningEffort,
-                        availableEfforts = state.availableReasoningEfforts,
-                        onReasoningEffortSelected = onReasoningEffortSelected,
-                    )
-                    HomeComposerRailControl.SPEED -> HomeComposerSpeedChip(
-                        speedMode = state.speedMode,
-                        onSpeedModeSelected = onSpeedModeSelected,
-                    )
-                    HomeComposerRailControl.CONTEXT_USAGE -> ComposerControlPopoverHost(
-                        expanded = state.isContextUsagePresented,
-                        onExpandedChange = onContextUsagePresentedChanged,
-                        anchorAlignment = PopoverAnchorAlignment.Trailing,
-                        animateContent = true,
-                        reduceMotion = reduceMotion,
-                        anchor = {
-                            HomeComposerContextUsageButton(
-                                usage = state.contextUsage,
-                                onClick = {
-                                    onContextUsagePresentedChanged(!state.isContextUsagePresented)
-                                },
-                            )
-                        },
-                        content = {
-                            ContextWindowPopover(usage = state.contextUsage)
-                        },
-                    )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                HomeComposerModelChip(
+                    title = state.modelPickerTitle,
+                    enabled = state.isModelCatalogAvailable,
+                    onClick = onModelSelectorTapped,
+                    modifier = Modifier
+                        .weight(1f, fill = railLayout.modelFillsFlexibleWidth)
+                        .widthIn(max = modelMaxWidth),
+                )
+
+                railLayout.prioritizedControls.forEach { control ->
+                    when (control) {
+                        HomeComposerRailControl.REASONING -> HomeComposerReasoningChip(
+                            selectedEffort = state.selectedReasoningEffort,
+                            availableEfforts = state.availableReasoningEfforts,
+                            onReasoningEffortSelected = onReasoningEffortSelected,
+                        )
+                        HomeComposerRailControl.SPEED -> HomeComposerSpeedChip(
+                            speedMode = state.speedMode,
+                            onSpeedModeSelected = onSpeedModeSelected,
+                        )
+                        HomeComposerRailControl.CONTEXT_USAGE -> ComposerControlPopoverHost(
+                            expanded = state.isContextUsagePresented,
+                            onExpandedChange = onContextUsagePresentedChanged,
+                            anchorAlignment = PopoverAnchorAlignment.Trailing,
+                            animateContent = true,
+                            reduceMotion = reduceMotion,
+                            anchor = {
+                                HomeComposerContextUsageButton(
+                                    usage = state.contextUsage,
+                                    onClick = {
+                                        onContextUsagePresentedChanged(!state.isContextUsagePresented)
+                                    },
+                                )
+                            },
+                            content = {
+                                ContextWindowPopover(usage = state.contextUsage)
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -482,7 +489,7 @@ private fun HomeComposerModelChip(
 
     Row(
         modifier = modifier
-            .widthIn(min = 0.dp, max = 260.dp)
+            .widthIn(min = 0.dp)
             .height(30.dp)
             .homeComposerGlass(cornerRadius = 16.dp, shadowOpacity = 0.06f)
             .then(

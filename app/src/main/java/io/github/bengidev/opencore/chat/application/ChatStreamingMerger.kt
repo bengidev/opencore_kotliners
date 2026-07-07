@@ -31,7 +31,7 @@ internal data class ChatStreamingMergeResult(
 
 /** Pure merge logic for SSE stream events. */
 internal object ChatStreamingMerger {
-    private const val EMPTY_RESPONSE_MESSAGE = "No response received from the provider."
+    internal const val EMPTY_RESPONSE_MESSAGE = "No response received from the provider."
 
     fun applyPendingPartial(
         state: ChatStreamingState,
@@ -390,7 +390,7 @@ internal object ChatStreamingMerger {
         if (!hasAssistantResponseAfterLatestUser(messages)) {
             return ChatStreamingMergeResult(
                 state = current.copy(
-                    messages = messages,
+                    messages = stripAssistantTurn(messages),
                     currentPartialText = "",
                     currentPartialThinking = "",
                     streamingThinkingId = null,
@@ -419,7 +419,25 @@ internal object ChatStreamingMerger {
     private fun hasAssistantResponseAfterLatestUser(messages: List<SidePanelMessage>): Boolean {
         val lastUserIndex = messages.indexOfLast { it.role == ChatMessageRole.USER }
         val responseStartIndex = if (lastUserIndex >= 0) lastUserIndex + 1 else 0
-        return messages.drop(responseStartIndex).any { it.role == ChatMessageRole.ASSISTANT }
+        return messages.drop(responseStartIndex).any(::isMeaningfulAssistantResponse)
+    }
+
+    private fun isMeaningfulAssistantResponse(message: SidePanelMessage): Boolean {
+        return when (message.kind) {
+            SidePanelMessageKind.OUTPUT_STREAM -> true
+            SidePanelMessageKind.TEXT ->
+                message.role == ChatMessageRole.ASSISTANT &&
+                    ChatAssistantContentNormalizer.displayText(message.content).trim().isNotEmpty()
+            SidePanelMessageKind.THINKING, SidePanelMessageKind.SYSTEM -> false
+        }
+    }
+
+    private fun stripAssistantTurn(messages: List<SidePanelMessage>): List<SidePanelMessage> {
+        val lastUserIndex = messages.indexOfLast { it.role == ChatMessageRole.USER }
+        if (lastUserIndex < 0) {
+            return messages.filter { it.role != ChatMessageRole.ASSISTANT }
+        }
+        return messages.take(lastUserIndex + 1)
     }
 
     private fun mergeError(state: ChatStreamingState, message: String): ChatStreamingMergeResult {

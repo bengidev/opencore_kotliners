@@ -387,7 +387,36 @@ class ChatStreamingMergerTest {
         val result = ChatStreamingMerger.merge(initial, ChatStreamingEvent.Done, ::makeId, now)
 
         assertEquals(ChatStreamingStatus.Failed, result.state.streamingStatus)
-        assertEquals("No response received from the provider.", result.state.streamErrorMessage)
+        assertEquals(ChatStreamingMerger.EMPTY_RESPONSE_MESSAGE, result.state.streamErrorMessage)
+        assertEquals(1, result.state.messages.size)
+        assertEquals(ChatMessageRole.USER, result.state.messages.first().role)
+    }
+
+    @Test
+    fun doneWithThinkingOnly_marksTurnFailedAndStripsThinkingRow() {
+        var state = ChatStreamingState(messages = listOf(userMessage()))
+        state = ChatStreamingMerger.merge(
+            state,
+            ChatStreamingEvent.ThinkingDelta("Consider options"),
+            ::makeId,
+            now,
+        ).state
+        val result = ChatStreamingMerger.merge(state, ChatStreamingEvent.Done, ::makeId, now)
+
+        assertEquals(ChatStreamingStatus.Failed, result.state.streamingStatus)
+        assertEquals(ChatStreamingMerger.EMPTY_RESPONSE_MESSAGE, result.state.streamErrorMessage)
+        assertEquals(1, result.state.messages.size)
+        assertEquals(ChatMessageRole.USER, result.state.messages.first().role)
+    }
+
+    @Test
+    fun doneWithWhitespaceOnlyAnswer_marksTurnFailedAndStripsAnswerRow() {
+        var state = ChatStreamingState(messages = listOf(userMessage()))
+        state = ChatStreamingMerger.merge(state, ChatStreamingEvent.TextDelta("   "), ::makeId, now).state
+        val result = ChatStreamingMerger.merge(state, ChatStreamingEvent.Done, ::makeId, now)
+
+        assertEquals(ChatStreamingStatus.Failed, result.state.streamingStatus)
+        assertEquals(ChatStreamingMerger.EMPTY_RESPONSE_MESSAGE, result.state.streamErrorMessage)
         assertEquals(1, result.state.messages.size)
         assertEquals(ChatMessageRole.USER, result.state.messages.first().role)
     }
