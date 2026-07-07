@@ -31,6 +31,8 @@ internal data class ChatStreamingMergeResult(
 
 /** Pure merge logic for SSE stream events. */
 internal object ChatStreamingMerger {
+    private const val EMPTY_RESPONSE_MESSAGE = "No response received from the provider."
+
     fun applyPendingPartial(
         state: ChatStreamingState,
         partialThinking: String,
@@ -337,6 +339,18 @@ internal object ChatStreamingMerger {
         var current = state
         var finalized = emptyList<SidePanelMessage>()
 
+        if (current.streamingStatus == ChatStreamingStatus.Failed) {
+            return ChatStreamingMergeResult(
+                state = current.copy(
+                    currentPartialText = "",
+                    currentPartialThinking = "",
+                    streamingThinkingId = null,
+                    streamingAnswerId = null,
+                    streamingOutputStreamId = null,
+                ),
+            )
+        }
+
         if (current.streamingOutputStreamId != null) {
             val outputResult = finalizeActiveOutputStream(
                 current,
@@ -373,6 +387,21 @@ internal object ChatStreamingMerger {
         val textFinalized = listOfNotNull(thinkingId, answerId)
             .mapNotNull { id -> messages.firstOrNull { it.id == id } }
 
+        if (!hasAssistantResponseAfterLatestUser(messages)) {
+            return ChatStreamingMergeResult(
+                state = current.copy(
+                    messages = messages,
+                    currentPartialText = "",
+                    currentPartialThinking = "",
+                    streamingThinkingId = null,
+                    streamingAnswerId = null,
+                    streamingOutputStreamId = null,
+                    streamingStatus = ChatStreamingStatus.Failed,
+                    streamErrorMessage = EMPTY_RESPONSE_MESSAGE,
+                ),
+            )
+        }
+
         return ChatStreamingMergeResult(
             state = current.copy(
                 messages = messages,
@@ -385,6 +414,12 @@ internal object ChatStreamingMerger {
             ),
             finalizedMessages = finalized + textFinalized
         )
+    }
+
+    private fun hasAssistantResponseAfterLatestUser(messages: List<SidePanelMessage>): Boolean {
+        val lastUserIndex = messages.indexOfLast { it.role == ChatMessageRole.USER }
+        val responseStartIndex = if (lastUserIndex >= 0) lastUserIndex + 1 else 0
+        return messages.drop(responseStartIndex).any { it.role == ChatMessageRole.ASSISTANT }
     }
 
     private fun mergeError(state: ChatStreamingState, message: String): ChatStreamingMergeResult {
