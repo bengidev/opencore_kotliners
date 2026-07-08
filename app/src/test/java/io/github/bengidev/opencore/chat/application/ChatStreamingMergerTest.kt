@@ -287,6 +287,24 @@ class ChatStreamingMergerTest {
     }
 
     @Test
+    fun doneAfterError_keepsFailedStatusForErrorBanner() {
+        val errored = ChatStreamingMerger.merge(
+            ChatStreamingState(messages = listOf(userMessage())),
+            ChatStreamingEvent.Error(ChatStreamError("Request timed out. Check your connection and try again.")),
+            ::makeId,
+            now,
+        ).state
+
+        val result = ChatStreamingMerger.merge(errored, ChatStreamingEvent.Done, ::makeId, now)
+
+        assertEquals(ChatStreamingStatus.Failed, result.state.streamingStatus)
+        assertEquals(
+            "Request timed out. Check your connection and try again.",
+            result.state.streamErrorMessage,
+        )
+    }
+
+    @Test
     fun error_removesOrphanIncompleteRowsWhenStreamingIdsAreNull() {
         val orphanAnswerId = UUID.fromString("00000000-0000-0000-0000-000000000011")
         val initial = ChatStreamingState(
@@ -361,6 +379,46 @@ class ChatStreamingMergerTest {
         assertEquals(2, result.state.messages.size)
         assertEquals("Hello", result.state.messages.last().content)
         assertEquals(answerId, result.state.streamingAnswerId)
+    }
+
+    @Test
+    fun doneWithoutAssistantRows_marksTurnFailed() {
+        val initial = ChatStreamingState(messages = listOf(userMessage()))
+        val result = ChatStreamingMerger.merge(initial, ChatStreamingEvent.Done, ::makeId, now)
+
+        assertEquals(ChatStreamingStatus.Failed, result.state.streamingStatus)
+        assertEquals(ChatStreamingMerger.EMPTY_RESPONSE_MESSAGE, result.state.streamErrorMessage)
+        assertEquals(1, result.state.messages.size)
+        assertEquals(ChatMessageRole.USER, result.state.messages.first().role)
+    }
+
+    @Test
+    fun doneWithThinkingOnly_marksTurnFailedAndStripsThinkingRow() {
+        var state = ChatStreamingState(messages = listOf(userMessage()))
+        state = ChatStreamingMerger.merge(
+            state,
+            ChatStreamingEvent.ThinkingDelta("Consider options"),
+            ::makeId,
+            now,
+        ).state
+        val result = ChatStreamingMerger.merge(state, ChatStreamingEvent.Done, ::makeId, now)
+
+        assertEquals(ChatStreamingStatus.Failed, result.state.streamingStatus)
+        assertEquals(ChatStreamingMerger.EMPTY_RESPONSE_MESSAGE, result.state.streamErrorMessage)
+        assertEquals(1, result.state.messages.size)
+        assertEquals(ChatMessageRole.USER, result.state.messages.first().role)
+    }
+
+    @Test
+    fun doneWithWhitespaceOnlyAnswer_marksTurnFailedAndStripsAnswerRow() {
+        var state = ChatStreamingState(messages = listOf(userMessage()))
+        state = ChatStreamingMerger.merge(state, ChatStreamingEvent.TextDelta("   "), ::makeId, now).state
+        val result = ChatStreamingMerger.merge(state, ChatStreamingEvent.Done, ::makeId, now)
+
+        assertEquals(ChatStreamingStatus.Failed, result.state.streamingStatus)
+        assertEquals(ChatStreamingMerger.EMPTY_RESPONSE_MESSAGE, result.state.streamErrorMessage)
+        assertEquals(1, result.state.messages.size)
+        assertEquals(ChatMessageRole.USER, result.state.messages.first().role)
     }
 
     @Test

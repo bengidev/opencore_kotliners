@@ -5,6 +5,7 @@ import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.domain.ChatOutputStreamStatus
 import io.github.bengidev.opencore.chat.domain.ChatStreamingEvent
+import io.github.bengidev.opencore.chat.domain.ChatStreamingStatus
 import io.github.bengidev.opencore.chat.infrastructure.ChatOutputStreamDetailCodec
 import io.github.bengidev.opencore.chat.infrastructure.ChatStreamingClient
 import io.github.bengidev.opencore.chat.infrastructure.EchoChatStreamingClient
@@ -373,6 +374,24 @@ class ChatComponentTest {
     }
 
     @Test
+    fun sendUserMessage_emptyStreamShowsErrorInsteadOfSilentDone() = runTest(testDispatcher) {
+        val component = ChatComponent(
+            componentContext = DefaultComponentContext(lifecycle = LifecycleRegistry()),
+            history = history,
+            streamingClient = EmptyStreamingClient(),
+        )
+
+        component.sendUserMessage("Hello")
+        advanceUntilIdle()
+
+        val state = component.state.value
+        assertFalse(state.isSending)
+        assertEquals(ChatStreamingStatus.Failed, state.streamingStatus)
+        assertEquals(ChatStreamingMerger.EMPTY_RESPONSE_MESSAGE, state.streamErrorMessage)
+        assertEquals(listOf(ChatMessageRole.USER), state.messages.map { it.role })
+    }
+
+    @Test
     fun cancelStream_finalizesActiveOutputStreamAsFailed() = runTest(testDispatcher) {
         val client = HangingOutputStreamClient()
         val component = ChatComponent(
@@ -395,6 +414,14 @@ class ChatComponentTest {
         assertEquals(ChatOutputStreamStatus.FAILED, detail.status)
         assertTrue(stream.isComplete)
     }
+}
+
+private class EmptyStreamingClient : ChatStreamingClient {
+    override fun stream(
+        messages: List<SidePanelMessage>,
+        providerSortBy: String?,
+        reasoningEffort: String?
+    ): Flow<ChatStreamingEvent> = flow { }
 }
 
 private class RecordingChatStreamingClient : ChatStreamingClient {
