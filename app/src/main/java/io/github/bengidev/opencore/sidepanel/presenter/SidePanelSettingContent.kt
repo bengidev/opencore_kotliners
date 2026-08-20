@@ -1,7 +1,5 @@
 package io.github.bengidev.opencore.sidepanel.presenter
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +22,8 @@ import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -106,40 +106,25 @@ internal fun SidePanelSettingContent(
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
+            OutlinedTextField(
+                value = state.draftApiKey,
+                onValueChange = onDraftChanged,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(
-                        color = palette.surfaceRaised.copy(alpha = if (palette.isDark) 0.5f else 0.85f),
-                        shape = RoundedCornerShape(14.dp),
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = palette.lineSoft.copy(alpha = if (palette.isDark) 0.45f else 0.6f),
-                        shape = RoundedCornerShape(14.dp),
-                    )
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Key,
-                    contentDescription = null,
-                    tint = palette.textTertiary,
-                )
-                TextField(
-                    value = state.draftApiKey,
-                    onValueChange = onDraftChanged,
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("settings-api-key-field"),
-                    placeholder = { Text(selectedProvider.credentialPlaceholder) },
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    singleLine = true,
-                    colors = exposedTextFieldColors(),
-                )
-            }
+                    .testTag("settings-api-key-field"),
+                placeholder = { Text(selectedProvider.credentialPlaceholder) },
+                leadingIcon = { Icon(Icons.Default.Key, contentDescription = null, tint = palette.textTertiary) },
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                singleLine = true,
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = palette.surfaceRaised.copy(alpha = if (palette.isDark) 0.5f else 0.85f),
+                    unfocusedContainerColor = palette.surfaceRaised.copy(alpha = if (palette.isDark) 0.5f else 0.85f),
+                    focusedBorderColor = palette.lineSoft.copy(alpha = if (palette.isDark) 0.45f else 0.6f),
+                    unfocusedBorderColor = palette.lineSoft.copy(alpha = if (palette.isDark) 0.45f else 0.6f),
+                ),
+            )
             if (state.hasStoredKey) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
