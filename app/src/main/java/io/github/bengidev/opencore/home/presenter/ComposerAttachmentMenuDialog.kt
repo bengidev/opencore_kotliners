@@ -1,22 +1,12 @@
 package io.github.bengidev.opencore.home.presenter
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import io.github.bengidev.opencore.home.theme.HomeTheme
 import io.github.bengidev.opencore.home.utilities.HomeComposerModelCapabilityLogic.AttachmentMenuOption
 
@@ -32,47 +22,41 @@ internal fun ComposerAttachmentMenuDialog(
     val typography = HomeTheme.typography
     val shape = RoundedCornerShape(20.dp)
 
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            modifier = Modifier
-                .clip(shape)
-                .background(palette.surfaceRaised)
-                .padding(horizontal = 20.dp, vertical = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
             Text(
                 text = "Add attachment",
                 style = typography.composerBody.copy(fontWeight = FontWeight.SemiBold),
                 color = palette.textPrimary,
             )
+        },
+        text = {
             Text(
                 text = attachmentMenuMessage(options),
                 style = typography.chipLabel,
                 color = palette.textSecondary,
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(onClick = onDismiss) {
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = "Cancel", color = palette.textSecondary)
+            }
+        },
+        confirmButton = {
+            options.forEach { option ->
+                TextButton(onClick = { onOptionSelected(option) }) {
                     Text(
-                        text = "Cancel",
-                        color = palette.textSecondary,
+                        text = option.label,
+                        color = palette.textPrimary,
+                        style = typography.chipLabel.copy(fontWeight = FontWeight.Medium),
                     )
                 }
-                options.forEach { option ->
-                    TextButton(onClick = { onOptionSelected(option) }) {
-                        Text(
-                            text = option.label,
-                            color = palette.textPrimary,
-                            style = typography.chipLabel.copy(fontWeight = FontWeight.Medium),
-                        )
-                    }
-                }
             }
-        }
-    }
+        },
+        shape = shape,
+        containerColor = palette.surfaceRaised,
+    )
 }
 
 private val AttachmentMenuOption.label: String
