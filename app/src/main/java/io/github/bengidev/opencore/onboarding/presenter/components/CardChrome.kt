@@ -1,13 +1,13 @@
 package io.github.bengidev.opencore.onboarding.presenter.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.onboarding.theme.OnboardingTheme
 
@@ -15,17 +15,17 @@ import io.github.bengidev.opencore.onboarding.theme.OnboardingTheme
 @Composable
 internal fun CardChrome(
     modifier: Modifier = Modifier,
-    cornerRadius: androidx.compose.ui.unit.Dp = 12.dp,
-    content: @Composable () -> Unit
+    cornerRadius: Dp = 12.dp,
+    content: @Composable ColumnScope.() -> Unit
 ) {
     val palette = OnboardingTheme.palette
+    val shape = RoundedCornerShape(cornerRadius)
 
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(cornerRadius))
-            .background(palette.surfacePaper)
-            .border(1.dp, palette.lineSoft, RoundedCornerShape(cornerRadius))
-    ) {
-        content()
-    }
+    OutlinedCard(
+        modifier = modifier,
+        shape = shape,
+        colors = CardDefaults.outlinedCardColors(containerColor = palette.surfacePaper),
+        border = BorderStroke(1.dp, palette.lineSoft),
+        content = content,
+    )
 }
