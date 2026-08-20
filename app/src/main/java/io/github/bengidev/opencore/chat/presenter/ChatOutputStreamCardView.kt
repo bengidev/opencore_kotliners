@@ -1,7 +1,7 @@
 package io.github.bengidev.opencore.chat.presenter
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -69,42 +70,45 @@ internal fun ChatOutputStreamCardView(
         ChatOutputStreamStatus.FAILED -> palette.errorIcon
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(CardShape)
-            .background(palette.reasoningCard)
-            .border(0.5.dp, palette.reasoningBorder, CardShape)
-            .clickable { isShowingDetailSheet = true }
-            .padding(horizontal = 14.dp, vertical = 12.dp)
-            .testTag("chat-output-stream-card"),
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = CardShape,
+        color = palette.reasoningCard,
+        border = BorderStroke(0.5.dp, palette.reasoningBorder),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            modifier = Modifier
+                .clickable { isShowingDetailSheet = true }
+                .padding(horizontal = 14.dp, vertical = 12.dp)
+                .testTag("chat-output-stream-card"),
         ) {
-            Text(
-                text = "${display.verb} ${display.target}",
-                style = typography.reasoningHeader,
-                color = palette.reasoningText,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            Spacer(modifier = Modifier.widthIn(min = 6.dp))
-            Text(
-                text = statusLabel,
-                style = typography.messageMeta,
-                color = statusColor.copy(
-                    alpha = if (detail.status == ChatOutputStreamStatus.FAILED) 1f else 0.5f
-                ),
-            )
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = palette.messageMetaText.copy(alpha = 0.6f),
-                modifier = Modifier.padding(start = 4.dp),
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "${display.verb} ${display.target}",
+                    style = typography.reasoningHeader,
+                    color = palette.reasoningText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(modifier = Modifier.widthIn(min = 6.dp))
+                Text(
+                    text = statusLabel,
+                    style = typography.messageMeta,
+                    color = statusColor.copy(
+                        alpha = if (detail.status == ChatOutputStreamStatus.FAILED) 1f else 0.5f
+                    ),
+                )
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = palette.messageMetaText.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(start = 4.dp),
+                )
+            }
         }
     }
 
