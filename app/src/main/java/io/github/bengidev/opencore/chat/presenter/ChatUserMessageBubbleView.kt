@@ -1,6 +1,5 @@
 package io.github.bengidev.opencore.chat.presenter
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -16,6 +15,7 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -48,14 +48,17 @@ internal fun ChatUserMessageBubbleView(
     val playbackCurrentTime by playbackController.playbackCurrentTime.collectAsState()
     val playbackError by playbackController.lastErrorMessage.collectAsState()
 
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(palette.userBubble)
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-            .widthIn(max = 320.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        color = palette.userBubble,
     ) {
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .widthIn(max = 320.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
         attachments.forEach { attachment ->
             when (attachment.kind) {
                 ChatMessageAttachmentKind.IMAGE -> {
@@ -165,6 +168,7 @@ internal fun ChatUserMessageBubbleView(
                 style = typography.userMessageBody,
                 color = palette.userBubbleText,
             )
+        }
         }
     }
 }

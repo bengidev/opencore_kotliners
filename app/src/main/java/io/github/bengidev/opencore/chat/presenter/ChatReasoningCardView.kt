@@ -5,8 +5,8 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -77,19 +78,21 @@ internal fun ChatReasoningCardView(
         }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(CardShape)
-            .background(palette.reasoningCard)
-            .border(0.5.dp, palette.reasoningBorder, CardShape)
-            .clickable(enabled = showsBody) {
-                if (showsBody) isExpanded = !isExpanded
-            }
-            .padding(horizontal = 14.dp, vertical = 12.dp)
-            .testTag("chat-reasoning-card"),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = CardShape,
+        color = palette.reasoningCard,
+        border = BorderStroke(0.5.dp, palette.reasoningBorder),
     ) {
+        Column(
+            modifier = Modifier
+                .clickable(enabled = showsBody) {
+                    if (showsBody) isExpanded = !isExpanded
+                }
+                .padding(horizontal = 14.dp, vertical = 12.dp)
+                .testTag("chat-reasoning-card"),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -128,6 +131,7 @@ internal fun ChatReasoningCardView(
                 textColor = palette.reasoningText,
                 cursorColor = palette.streamingDot,
             )
+        }
         }
     }
 }
