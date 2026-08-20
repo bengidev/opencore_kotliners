@@ -111,6 +111,7 @@ internal fun SidePanelSettingContent(
                 onValueChange = onDraftChanged,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(80.dp)
                     .testTag("settings-api-key-field"),
                 placeholder = { Text(selectedProvider.credentialPlaceholder) },
                 leadingIcon = { Icon(Icons.Default.Key, contentDescription = null, tint = palette.textTertiary) },

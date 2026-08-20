@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.longClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
@@ -18,6 +19,7 @@ import io.github.bengidev.opencore.home.theme.OpenCoreHomeTheme
 import io.github.bengidev.opencore.sidepanel.application.SidePanelComponent
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.shared.credential.CredentialInMemoryStore
+import io.github.bengidev.opencore.sidepanel.application.setting.SidePanelSettingComponent
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelHistoryRepository
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelPreferenceStore
 import org.junit.Rule
@@ -100,11 +102,15 @@ class SidePanelPresenterTest {
         history: InMemorySidePanelHistoryRepository = InMemorySidePanelHistoryRepository(seed = emptyList())
     ): SidePanelComponent {
         val lifecycle = LifecycleRegistry().apply { resume() }
+        val setting = SidePanelSettingComponent(
+            componentContext = DefaultComponentContext(lifecycle),
+            credentialStore = CredentialInMemoryStore(),
+            preferenceStore = InMemorySidePanelPreferenceStore(),
+        )
         return SidePanelComponent(
             componentContext = DefaultComponentContext(lifecycle),
             history = history,
-            credentialStore = CredentialInMemoryStore(),
-            preferenceStore = InMemorySidePanelPreferenceStore()
+            setting = setting,
         )
     }
 }

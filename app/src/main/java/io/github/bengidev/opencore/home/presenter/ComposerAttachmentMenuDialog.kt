@@ -1,5 +1,9 @@
 package io.github.bengidev.opencore.home.presenter
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -38,19 +42,24 @@ internal fun ComposerAttachmentMenuDialog(
                 color = palette.textSecondary,
             )
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = "Cancel", color = palette.textSecondary)
-            }
-        },
         confirmButton = {
-            options.forEach { option ->
-                TextButton(onClick = { onOptionSelected(option) }) {
-                    Text(
-                        text = option.label,
-                        color = palette.textPrimary,
-                        style = typography.chipLabel.copy(fontWeight = FontWeight.Medium),
-                    )
+            Row(
+                modifier = androidx.compose.ui.Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text(text = "Cancel", color = palette.textSecondary)
+                }
+                options.forEach { option ->
+                    TextButton(onClick = { onOptionSelected(option) }) {
+                        Text(
+                            text = option.label,
+                            color = palette.textPrimary,
+                            style = typography.chipLabel.copy(fontWeight = FontWeight.Medium),
+                        )
+                    }
                 }
             }
         },
