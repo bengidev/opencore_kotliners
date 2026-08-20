@@ -1,5 +1,6 @@
 package io.github.bengidev.opencore.speech.presenter
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -50,14 +52,9 @@ internal fun SpeechRecordingComposerView(
     val fill = palette.surfaceSubtle.copy(alpha = if (palette.isDark) 0.45f else 0.65f)
     val border = palette.textTertiary.copy(alpha = 0.12f)
 
-    Row(
+    Surface(
         modifier = modifier
             .fillMaxWidth()
-            .clip(shape)
-            .background(fill)
-            .border(1.dp, border, shape)
-            .padding(horizontal = 14.dp, vertical = 14.dp)
-            .height(56.dp)
             .semantics {
                 contentDescription = if (isTranscribing) {
                     "Transcribing voice"
@@ -65,9 +62,17 @@ internal fun SpeechRecordingComposerView(
                     "Voice recording in progress"
                 }
             },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        color = fill,
+        shape = shape,
+        border = BorderStroke(1.dp, border),
     ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 14.dp, vertical = 14.dp)
+                .height(56.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
         RecordingIndicator(isVoiceActive = isVoiceActive, isTranscribing = isTranscribing)
 
         BoxWithConstraints(
@@ -128,6 +133,7 @@ internal fun SpeechRecordingComposerView(
                     modifier = Modifier.size(14.dp),
                 )
             }
+        }
         }
     }
 }
