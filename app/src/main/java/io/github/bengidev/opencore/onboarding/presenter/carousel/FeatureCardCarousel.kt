@@ -238,7 +238,15 @@ internal fun FeatureCardCarousel(
             feature = features[wrappedIndex(scrollTarget.roundToInt(), features.size)],
             isImageRevealed = isImageRevealed,
             onRevealChanged = { setImageRevealed(it) },
-            onPressChanged = { setUserPressing(it) },
+            onBeginPress = { beginFocusedPress() },
+            onResetPress = { resetFocusedPress() },
+            focusedPressCharge = focusedPressCharge.value,
+            onNavigateBy = { delta ->
+                scrollTarget = normalizeScrollIndex(
+                    scrollTarget.roundToInt() + delta.toFloat(),
+                    features.size
+                )
+            },
             modifier = modifier
         )
         return
@@ -427,21 +435,124 @@ private fun StaticFocusedCard(
     feature: OnboardingFeature,
     isImageRevealed: Boolean,
     onRevealChanged: (Boolean) -> Unit,
-    onPressChanged: (Boolean) -> Unit,
+    onBeginPress: () -> Unit,
+    onResetPress: () -> Unit,
+    focusedPressCharge: Float,
+    onNavigateBy: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val density = LocalDensity.current
+    val haptics = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+
     BoxWithConstraints(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         val cardSize = cardDimensions(maxWidth, maxHeight)
-        FeatureCarouselCard(
-            feature = feature,
-            cardWidth = cardSize.width,
-            cardHeight = cardSize.height,
-            relativePosition = 0f,
-            isRevealed = isImageRevealed,
-            shouldAmbientBob = false,
-            pressCharge = 0f,
-            modifier = Modifier.width(cardSize.width).height(cardSize.height)
-        )
+        val cardWidthPx = with(density) { cardSize.width.toPx() }
+        val cardHeightPx = with(density) { cardSize.height.toPx() }
+        val cardStepPx = cardWidthPx + with(density) { CardInterCardGapDp.dp.toPx() }
+        val dragMinimumDistancePx = with(density) { CarouselDragMinimumDistanceDp.dp.toPx() }
+        val pressMaximumDistancePx = with(density) { PressMaximumDistanceDp.dp.toPx() }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .semantics {
+                    contentDescription = "${feature.title}. ${feature.subtitle}"
+                }
+                .pointerInput(cardStepPx, dragMinimumDistancePx, pressMaximumDistancePx, cardWidthPx, cardHeightPx) {
+                    var totalDragPx = 0f
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val pointerId = down.id
+                        val start = down.position
+                        var dragStarted = false
+                        var pressStarted = false
+                        var cancelled = false
+
+                        val centerX = size.width / 2f
+                        val centerY = size.height / 2f
+                        val downOnFocusedCard = abs(start.x - centerX) <= cardWidthPx / 2f &&
+                            abs(start.y - centerY) <= cardHeightPx / 2f
+
+                        val holdJob = scope.launch {
+                            if (!downOnFocusedCard) return@launch
+                            delay(PressStartDelayMs)
+                            if (cancelled || dragStarted) return@launch
+                            pressStarted = true
+                            onBeginPress()
+                            delay(RevealHoldDurationMs)
+                            if (!cancelled && !dragStarted && pressStarted) {
+                                onRevealChanged(true)
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            }
+                        }
+
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == pointerId } ?: break
+                            if (!change.pressed) {
+                                holdJob.cancel()
+                                if (dragStarted) {
+                                    val targetDelta = when {
+                                        totalDragPx <= -cardStepPx * 0.28f -> 1
+                                        totalDragPx >= cardStepPx * 0.28f -> -1
+                                        else -> 0
+                                    }
+                                    if (targetDelta != 0) {
+                                        onNavigateBy(targetDelta)
+                                    }
+                                    onResetPress()
+                                    onRevealChanged(false)
+                                } else {
+                                    onResetPress()
+                                    onRevealChanged(false)
+                                }
+                                break
+                            }
+
+                            val distance = hypot(
+                                change.position.x - start.x,
+                                change.position.y - start.y
+                            )
+
+                            if (!dragStarted && !isImageRevealed) {
+                                if (distance >= dragMinimumDistancePx) {
+                                    holdJob.cancel()
+                                    if (pressStarted) {
+                                        onResetPress()
+                                    }
+                                    dragStarted = true
+                                    totalDragPx = 0f
+                                } else if (distance > pressMaximumDistancePx) {
+                                    cancelled = true
+                                    holdJob.cancel()
+                                    if (pressStarted) {
+                                        onResetPress()
+                                    }
+                                    break
+                                }
+                            }
+
+                            if (!dragStarted) continue
+
+                            totalDragPx += change.position.x - change.previousPosition.x
+                            change.consume()
+                        }
+                    }
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            FeatureCarouselCard(
+                feature = feature,
+                cardWidth = cardSize.width,
+                cardHeight = cardSize.height,
+                relativePosition = 0f,
+                isRevealed = isImageRevealed,
+                shouldAmbientBob = false,
+                pressCharge = focusedPressCharge,
+                modifier = Modifier.width(cardSize.width).height(cardSize.height)
+            )
+        }
     }
 }
 
