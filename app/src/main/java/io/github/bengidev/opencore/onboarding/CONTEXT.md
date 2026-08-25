@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| **Context** | Onboarding feature — first-run product tour |
+| **Context** | Onboarding feature — first-run cinematic intro |
 | **Package** | `io.github.bengidev.opencore.onboarding` |
 | **Module** | Internal module inside `:app` |
 
-First-run product tour with interactive visual demos. Persists completion via DataStore, then returns control to the app shell.
+Single-page onboarding with a wireframe cube hero, feature card carousel, and swipe-to-start CTA. Persists completion via DataStore, then returns control to the app shell.
 
 ## Visibility
 
@@ -16,8 +16,8 @@ The entire onboarding package is an **internal module**: types default to `inter
 
 - **OnboardingComponent**: Decompose component dispatching intents
 - **OnboardingIntent**: Command objects (Command pattern)
-- **OnboardingReducer**: Pure state transitions
-- **Pages**: `EncryptedPairing`, `IdeaStudio`, `PromptQueue`, `ReasoningControl`, `WorkspaceReady`
+- **OnboardingReducer**: Pure state transitions (`isFinished` only)
+- **OnboardingFeature**: Feature catalog for the carousel
 - **OpenCorePalette**: Graphite monochrome design tokens (OpenCore branding)
 
 ## Design patterns
@@ -25,18 +25,16 @@ The entire onboarding package is an **internal module**: types default to `inter
 | Pattern | Location |
 |---|---|
 | Command | `OnboardingIntent` |
-| Strategy | `PageDemoDefaultsStrategy` |
-| Factory Method | `PageDemoDefaultsStrategyFactory`, `PageVisualFactory` |
 | Repository | `OnboardingRepository` |
 | Facade | `OnboardingFacade` |
 
 ## Flow
 
 ```
-EncryptedPairing → IdeaStudio → PromptQueue → ReasoningControl → WorkspaceReady
+Cube hero showoff → morph to header → feature carousel → swipe to start → app shell
 ```
 
 ## Constraints
 
 - Onboarding must not store provider credentials or model preferences.
-- Only completion is persisted; demo state is local UI state.
+- Only completion is persisted; animation and carousel state are local UI state.
