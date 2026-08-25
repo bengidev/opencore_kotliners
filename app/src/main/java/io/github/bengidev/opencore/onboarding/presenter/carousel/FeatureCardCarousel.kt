@@ -159,9 +159,25 @@ internal fun FeatureCardCarousel(
         }
     }
 
+    fun pauseCarouselForUserInteraction() {
+        pendingCarouselSettle = false
+        isCarouselSettling = false
+        scope.launch {
+            scrollOffset.stop()
+            val settled = normalizeScrollIndex(
+                if (isUserDragging) dragScroll else scrollOffset.value,
+                features.size
+            )
+            scrollTarget = settled
+            scrollOffset.snapTo(settled)
+            isScrollAnimating = false
+        }
+    }
+
     fun beginFocusedPress() {
         if (isUserPressing) return
         isUserPressing = true
+        pauseCarouselForUserInteraction()
         scope.launch {
             focusedPressCharge.animateTo(
                 1f,
@@ -180,7 +196,7 @@ internal fun FeatureCardCarousel(
 
     fun setImageRevealed(revealed: Boolean) {
         if (revealed == isImageRevealed) return
-        if (revealed && isCarouselMoving) return
+        if (revealed && isUserDragging) return
         isImageRevealed = revealed
     }
 
@@ -211,10 +227,10 @@ internal fun FeatureCardCarousel(
         if (isImageRevealed) resetFocusedPress()
     }
 
-    LaunchedEffect(isCarouselMoving) {
-        if (!isCarouselMoving) return@LaunchedEffect
-        if (isUserPressing) resetFocusedPress()
-        if (isImageRevealed) setImageRevealed(false)
+    LaunchedEffect(isUserDragging) {
+        if (!isUserDragging) return@LaunchedEffect
+        resetFocusedPress()
+        setImageRevealed(false)
     }
 
     if (reduceMotion) {
@@ -270,7 +286,7 @@ internal fun FeatureCardCarousel(
                             pressStarted = true
                             beginFocusedPress()
                             delay(RevealHoldDurationMs)
-                            if (!cancelled && !dragStarted) {
+                            if (!cancelled && !dragStarted && pressStarted) {
                                 setImageRevealed(true)
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             }
