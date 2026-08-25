@@ -37,25 +37,21 @@ internal class OnboardingComponent(
 
     internal fun dispatch(intent: OnboardingIntent) {
         _state.update { current -> OnboardingReducer.reduce(current, intent) }
-        when (intent) {
-            is OnboardingIntent.FinishButtonTapped -> {
-                scope.launch {
-                    repository.completeOnboarding()
-                    dispatch(OnboardingIntent.CompletionSaved)
-                    onComplete()
-                }
-            }
-            else -> Unit
-        }
     }
 
-    internal fun onNextTapped() = dispatch(OnboardingIntent.NextButtonTapped)
-    internal fun onPreviousTapped() = dispatch(OnboardingIntent.PreviousButtonTapped)
-    internal fun onPageSelected(index: Int) = dispatch(OnboardingIntent.PageSelected(index))
-    internal fun onFinishTapped() = dispatch(OnboardingIntent.FinishButtonTapped)
-    internal fun onSkipTapped() = dispatch(OnboardingIntent.SkipButtonTapped)
-    internal fun onPromptChipTapped(index: Int) = dispatch(OnboardingIntent.PromptChipTapped(index))
-    internal fun onAddQueuedPromptTapped() = dispatch(OnboardingIntent.AddQueuedPromptButtonTapped)
-    internal fun onReasoningLevelChanged(value: Double) = dispatch(OnboardingIntent.ReasoningLevelChanged(value))
-    internal fun onPairingToggleTapped() = dispatch(OnboardingIntent.PairingToggleTapped)
+    internal fun onFinishTapped() {
+        scope.launch { finish() }
+    }
+
+    internal suspend fun finish(): Boolean {
+        return try {
+            repository.completeOnboarding()
+            dispatch(OnboardingIntent.CompletionSaved)
+            dispatch(OnboardingIntent.FinishRequested)
+            onComplete()
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
 }
