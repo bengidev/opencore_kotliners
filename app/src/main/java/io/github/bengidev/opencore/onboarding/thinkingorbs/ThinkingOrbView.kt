@@ -4,16 +4,14 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -35,25 +33,24 @@ internal fun ThinkingOrbView(
     val sidePx = with(density) { displaySize.toPx() }
     val preset = remember(state, size) { OrbSpec.resolvePreset(state, size) }
     val effectiveSpeed = preset.speed * speed
-    var timeSeconds by remember(state, size, reduceMotion, paused) {
-        mutableDoubleStateOf(OrbSpec.REDUCED_MOTION_T * effectiveSpeed)
+    val view = LocalView.current
+    val animationClock = remember(state, size, reduceMotion, paused, effectiveSpeed) {
+        OrbAnimationClock()
     }
 
     LaunchedEffect(state, size, reduceMotion, paused, effectiveSpeed) {
         if (reduceMotion || paused) {
-            timeSeconds = OrbSpec.REDUCED_MOTION_T * effectiveSpeed
+            animationClock.freeze(OrbSpec.REDUCED_MOTION_T * effectiveSpeed)
+            view.invalidate()
             return@LaunchedEffect
         }
-        val startNanos = withFrameNanos { it }
+        animationClock.reset()
         while (true) {
-            withFrameNanos { nanos ->
-                timeSeconds = (nanos - startNanos) / 1_000_000_000.0 * effectiveSpeed
+            withFrameNanos { frameNanos ->
+                animationClock.onFrame(frameNanos, effectiveSpeed)
+                view.invalidate()
             }
         }
-    }
-
-    val frame = remember(timeSeconds, preset) {
-        orbFrame(preset, size.value, timeSeconds)
     }
 
     Canvas(
@@ -61,6 +58,7 @@ internal fun ThinkingOrbView(
             .size(displaySize)
             .semantics { contentDescription = state.label }
     ) {
+        val frame = orbFrame(preset, size.value, animationClock.timeSeconds)
         val zoom = sidePx / size.value.toFloat()
         scale(zoom, pivot = Offset.Zero) {
             for (line in frame.lines) {
@@ -79,6 +77,27 @@ internal fun ThinkingOrbView(
                 )
             }
         }
+    }
+}
+
+private class OrbAnimationClock {
+    private var startNanos: Long = 0L
+    var timeSeconds: Double = 0.0
+        private set
+
+    fun reset() {
+        startNanos = 0L
+        timeSeconds = 0.0
+    }
+
+    fun freeze(t: Double) {
+        startNanos = 0L
+        timeSeconds = t
+    }
+
+    fun onFrame(frameNanos: Long, speed: Double) {
+        if (startNanos == 0L) startNanos = frameNanos
+        timeSeconds = (frameNanos - startNanos) / 1_000_000_000.0 * speed
     }
 }
 

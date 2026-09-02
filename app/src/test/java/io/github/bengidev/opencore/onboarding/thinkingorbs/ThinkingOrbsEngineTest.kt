@@ -26,6 +26,26 @@ class ThinkingOrbsEngineTest {
     }
 
     @Test
+    fun orbFrame_isDeterministicForKnownInputs() {
+        val breathing = orbFrame(OrbState.BREATHING, OrbSize.PX64, t = 1.2)
+        val working = orbFrame(OrbState.WORKING, OrbSize.PX64, t = 0.8)
+        val connecting = orbFrame(OrbState.CONNECTING, OrbSize.PX64, t = 2.0)
+
+        assertEquals(frameFingerprint(breathing), frameFingerprint(breathing))
+        assertEquals(frameFingerprint(working), frameFingerprint(working))
+        assertEquals(frameFingerprint(connecting), frameFingerprint(connecting))
+
+        val breathingFingerprint = frameFingerprint(breathing)
+        val workingFingerprint = frameFingerprint(working)
+        val connectingFingerprint = frameFingerprint(connecting)
+
+        assertEquals(3_358_548_326_805_899_979L, breathingFingerprint)
+        assertEquals(-1_189_196_513_264_998_506L, workingFingerprint)
+        assertEquals(connectingFingerprint, frameFingerprint(connecting))
+        assertTrue(connectingFingerprint != 0L)
+    }
+
+    @Test
     fun resolvePreset_isCachedPerStateAndSize() {
         val first = OrbSpec.resolvePreset(OrbState.SHAPING, OrbSize.PX64)
         val second = OrbSpec.resolvePreset(OrbState.SHAPING, OrbSize.PX64)
@@ -41,4 +61,20 @@ class ThinkingOrbsEngineTest {
         assertEquals(OrbState.WORKING, thinkingOrbStateForIndex(3))
         assertEquals(OrbState.BREATHING, thinkingOrbStateForIndex(4))
     }
+}
+
+private fun frameFingerprint(frame: OrbFrame): Long {
+    var hash = 17L
+    for (dot in frame.dots) {
+        hash = 31 * hash + dot.x.toRawBits()
+        hash = 31 * hash + dot.y.toRawBits()
+        hash = 31 * hash + dot.r.toRawBits()
+    }
+    for (line in frame.lines) {
+        hash = 31 * hash + line.x1.toRawBits()
+        hash = 31 * hash + line.y1.toRawBits()
+        hash = 31 * hash + line.x2.toRawBits()
+        hash = 31 * hash + line.y2.toRawBits()
+    }
+    return hash
 }
