@@ -119,15 +119,25 @@ private fun LeftAlignedBubble(
     }
     val density = LocalDensity.current
     val maxWidthPx = with(density) { maxWidth.roundToPx() }
+    val shellCache = remember(message.id, assistantMessage.feature?.id, maxWidthPx) {
+        AssistantShellCache()
+    }
 
     SubcomposeLayout(modifier = modifier.width(maxWidth)) { constraints ->
         val widthConstraint = constraints.copy(maxWidth = maxWidthPx)
-        val assistantPlaceable = subcompose("assistant-measure") {
-            AssistantBubble(message = assistantMessage, maxWidth = maxWidth)
-        }.first().measure(widthConstraint)
-
-        val shellHeight = assistantPlaceable.height
-        val shellWidth = assistantPlaceable.width
+        val shellWidth: Int
+        val shellHeight: Int
+        if (shellCache.isValid) {
+            shellWidth = shellCache.width
+            shellHeight = shellCache.height
+        } else {
+            val assistantPlaceable = subcompose("assistant-measure") {
+                AssistantBubble(message = assistantMessage, maxWidth = maxWidth)
+            }.first().measure(widthConstraint)
+            shellWidth = assistantPlaceable.width
+            shellHeight = assistantPlaceable.height
+            shellCache.set(shellWidth, shellHeight)
+        }
         val shellHeightDp = with(density) { shellHeight.toDp() }
 
         val contentPlaceable = subcompose("bubble-content") {
@@ -264,5 +274,20 @@ private fun AssistantBubble(
                 )
             }
         }
+    }
+}
+
+private class AssistantShellCache {
+    var width: Int = 0
+        private set
+    var height: Int = 0
+        private set
+    var isValid: Boolean = false
+        private set
+
+    fun set(width: Int, height: Int) {
+        this.width = width
+        this.height = height
+        isValid = true
     }
 }
