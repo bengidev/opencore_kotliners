@@ -38,7 +38,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.HapticFeedbackConstantsCompat
 import androidx.core.view.ViewCompat
-import io.github.bengidev.opencore.onboarding.presenter.carousel.FeatureCardCarousel
+import io.github.bengidev.opencore.onboarding.presenter.chat.OnboardingFeatureChatFeedView
+import io.github.bengidev.opencore.onboarding.presenter.components.OnboardingUsageNoticeView
 import io.github.bengidev.opencore.onboarding.presenter.components.SwipeToStartView
 import io.github.bengidev.opencore.onboarding.presenter.cube.OnboardingCubeView
 import io.github.bengidev.opencore.onboarding.theme.OnboardingTheme
@@ -52,6 +53,7 @@ private val HeaderCubeTextGap = 14.dp
 private val HeaderTopPadding = 18.dp
 private val HeaderHorizontalPadding = 24.dp
 private val FooterBottomPadding = 2.dp
+private const val ChatFeedFadeDelayMs = 780L
 private const val SwipeSectionDelayMs = 620L
 private const val HeroShowoffDelayMs = 1750L
 private const val HeroTransitionDurationMs = 1020
@@ -78,8 +80,8 @@ internal fun OnboardingSinglePageScreen(
     var cubeAppeared by remember { mutableStateOf(false) }
     val heroTransitionAnim = remember { Animatable(0f) }
     var isTransformed by remember { mutableStateOf(false) }
-    var showCarousel by remember { mutableStateOf(false) }
-    var carouselRevealed by remember { mutableStateOf(false) }
+    var showChatFeed by remember { mutableStateOf(false) }
+    var chatFeedRevealed by remember { mutableStateOf(false) }
     var swipeCompleted by remember { mutableStateOf(false) }
 
     val heroTransitionAnimated = heroTransitionAnim.value
@@ -104,21 +106,20 @@ internal fun OnboardingSinglePageScreen(
         label = "SwipeAlpha"
     )
 
-    val carouselAlpha by animateFloatAsState(
-        targetValue = if (carouselRevealed) 1f else 0f,
+    val chatFeedAlpha by animateFloatAsState(
+        targetValue = if (chatFeedRevealed) 1f else 0f,
         animationSpec = if (reduceMotion) {
             tween(200)
         } else {
             spring(dampingRatio = 0.78f, stiffness = 320f)
         },
-        label = "CarouselAlpha"
+        label = "ChatFeedAlpha"
     )
 
     LaunchedEffect(reduceMotion) {
         cubeAppeared = true
         if (!reduceMotion) delay(HeroShowoffDelayMs)
         isTransformed = true
-        showCarousel = true
 
         launch {
             if (reduceMotion) {
@@ -134,8 +135,14 @@ internal fun OnboardingSinglePageScreen(
             }
         }
 
-        if (!reduceMotion) delay(SwipeSectionDelayMs)
-        carouselRevealed = true
+        if (reduceMotion) {
+            showChatFeed = true
+            chatFeedRevealed = true
+        } else {
+            delay(ChatFeedFadeDelayMs)
+            showChatFeed = true
+            chatFeedRevealed = true
+        }
     }
 
     BoxWithConstraints(
@@ -163,7 +170,7 @@ internal fun OnboardingSinglePageScreen(
         )
 
         val rotationProgress = HeroCubeLayoutMath.heroRotationProgress(heroTransitionAnimated)
-        val morphPaused = showCarousel && carouselRevealed
+        val morphPaused = showChatFeed && chatFeedRevealed
 
         Column(modifier = Modifier.fillMaxSize()) {
             if (isTransformed) {
@@ -194,36 +201,24 @@ internal fun OnboardingSinglePageScreen(
                 }
             }
 
-            if (isTransformed && showCarousel) {
-                FeatureCardCarousel(
-                    isActive = true,
+            if (isTransformed && showChatFeed) {
+                OnboardingFeatureChatFeedView(
+                    feedActive = chatFeedRevealed,
                     reduceMotion = reduceMotion,
-                    contentRevealed = carouselRevealed,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 14.dp)
-                        .graphicsLayer { alpha = carouselAlpha }
+                        .graphicsLayer { alpha = chatFeedAlpha }
                 )
+            } else if (isTransformed) {
+                Spacer(modifier = Modifier.weight(1f))
             } else {
                 Spacer(modifier = Modifier.weight(1f))
             }
 
             if (isTransformed) {
-                SwipeToStartView(
-                    isUnlocked = swipeCompleted,
-                    reduceMotion = reduceMotion,
-                    onComplete = {
-                        val succeeded = onComplete()
-                        if (succeeded) {
-                            swipeCompleted = true
-                            ViewCompat.performHapticFeedback(
-                                view,
-                                HapticFeedbackConstantsCompat.CONFIRM
-                            )
-                        }
-                        succeeded
-                    },
+                Column(
                     modifier = Modifier
                         .padding(horizontal = 20.dp)
                         .padding(bottom = FooterBottomPadding)
@@ -231,7 +226,28 @@ internal fun OnboardingSinglePageScreen(
                             alpha = swipeAlpha
                             translationY = if (isTransformed) 0f else 28f
                         }
-                )
+                ) {
+                    OnboardingUsageNoticeView(
+                        modifier = Modifier
+                            .padding(horizontal = 10.dp)
+                            .padding(bottom = 14.dp)
+                    )
+                    SwipeToStartView(
+                        isUnlocked = swipeCompleted,
+                        reduceMotion = reduceMotion,
+                        onComplete = {
+                            val succeeded = onComplete()
+                            if (succeeded) {
+                                swipeCompleted = true
+                                ViewCompat.performHapticFeedback(
+                                    view,
+                                    HapticFeedbackConstantsCompat.CONFIRM
+                                )
+                            }
+                            succeeded
+                        }
+                    )
+                }
             }
         }
 

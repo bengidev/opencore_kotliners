@@ -6,7 +6,7 @@
 | **Package** | `io.github.bengidev.opencore.onboarding` |
 | **Module** | Internal module inside `:app` |
 
-Single-page onboarding with a wireframe cube hero, feature card carousel, and swipe-to-start CTA. Persists completion via DataStore, then returns control to the app shell.
+Single-page onboarding with a wireframe cube hero, looping chat feature feed, usage notice, and swipe-to-start CTA. Persists completion via DataStore, then returns control to the app shell.
 
 ## Visibility
 
@@ -17,7 +17,8 @@ The entire onboarding package is an **internal module**: types default to `inter
 - **OnboardingComponent**: Decompose component dispatching intents
 - **OnboardingIntent**: Command objects (Command pattern)
 - **OnboardingReducer**: Pure state transitions (`isFinished` only)
-- **OnboardingFeature**: Feature catalog for the carousel
+- **OnboardingFeature**: Feature catalog for the chat feed
+- **ThinkingOrbsKit port** (`thinkingorbs/`): MetalForge thinking-orb procedural animation engine (Canvas)
 - **OpenCorePalette**: Graphite monochrome design tokens (OpenCore branding)
 
 ## Design patterns
@@ -31,10 +32,10 @@ The entire onboarding package is an **internal module**: types default to `inter
 ## Flow
 
 ```
-Cube hero showoff → morph to header → feature carousel → swipe to start → app shell
+Cube hero showoff → morph to header → chat feature feed → swipe to start → app shell
 ```
 
 ## Constraints
 
 - Onboarding must not store provider credentials or model preferences.
-- Only completion is persisted; animation and carousel state are local UI state.
+- Only completion is persisted; animation and chat feed state are local UI state.

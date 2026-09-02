@@ -1,14 +1,9 @@
 package io.github.bengidev.opencore.onboarding.domain
 
 import io.github.bengidev.opencore.onboarding.presenter.HeroCubeLayoutMath
-import io.github.bengidev.opencore.onboarding.presenter.carousel.cardStepOffset
-import io.github.bengidev.opencore.onboarding.presenter.carousel.modularRelative
-import io.github.bengidev.opencore.onboarding.presenter.carousel.normalizeScrollIndex
-import io.github.bengidev.opencore.onboarding.presenter.carousel.wrappedIndex
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import androidx.compose.ui.unit.dp
 
 class OnboardingDomainTest {
 
@@ -25,6 +20,42 @@ class OnboardingDomainTest {
     fun onboardingFeature_hasUniqueIds() {
         val ids = OnboardingFeature.catalog.map { it.id }
         assertEquals(ids.size, ids.toSet().size)
+    }
+
+    @Test
+    fun onboardingFeature_includesChatPrompts() {
+        val neural = OnboardingFeature.catalog.first { it.id == "neural_core" }
+        assertEquals("How does on-device reasoning work?", neural.userPrompt)
+        assertEquals("cpu", neural.iconName)
+    }
+
+    @Test
+    fun onboardingChatMessage_thinkingPreparesAssistantPayload() {
+        val feature = OnboardingFeature.catalog.first()
+        val thinking = OnboardingChatMessage.thinking(feature)
+        val prepared = thinking.preparedAssistant
+
+        requireNotNull(prepared)
+        assertEquals(thinking.id, prepared.id)
+        assertEquals(OnboardingChatRole.ASSISTANT, prepared.role)
+        assertEquals(feature.accessibilitySummary, prepared.text)
+    }
+
+    @Test
+    fun onboardingChatMessage_morphsThinkingToAssistant() {
+        val feature = OnboardingFeature.catalog.first()
+        val thinking = OnboardingChatMessage.thinking(feature)
+        val assistant = thinking.morphToAssistant()
+
+        assertEquals(thinking.id, assistant.id)
+        assertEquals(OnboardingChatRole.ASSISTANT, assistant.role)
+        assertEquals(feature.accessibilitySummary, assistant.text)
+    }
+
+    @Test
+    fun onboardingFeature_wrapsCatalogIndex() {
+        assertEquals(1, OnboardingFeature.wrappedCatalogIndex(5))
+        assertEquals(0, OnboardingFeature.wrappedCatalogIndex(4))
     }
 
     @Test
@@ -54,18 +85,5 @@ class OnboardingDomainTest {
         assertEquals(36f, small.size, 0.01f)
         assertEquals(200f, large.center.x, 0.01f)
         assertTrue(small.center.y < large.center.y)
-    }
-
-    @Test
-    fun carouselMath_cardStepIncludesGap() {
-        val step = cardStepOffset(1f, 300.dp)
-        assertEquals(314f, step.value, 0.01f)
-    }
-
-    @Test
-    fun carouselMath_wrapsIndices() {
-        assertEquals(1, wrappedIndex(5, 4))
-        assertEquals(0f, modularRelative(0, 4f, 4), 0.01f)
-        assertEquals(2f, normalizeScrollIndex(6f, 4), 0.01f)
     }
 }
