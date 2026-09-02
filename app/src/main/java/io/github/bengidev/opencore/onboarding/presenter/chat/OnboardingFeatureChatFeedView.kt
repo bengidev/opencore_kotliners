@@ -1,5 +1,6 @@
 package io.github.bengidev.opencore.onboarding.presenter.chat
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.spring
@@ -34,17 +35,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import io.github.bengidev.opencore.chat.presenter.ChatThreadScrollPolicy
 import io.github.bengidev.opencore.onboarding.domain.OnboardingChatMessage
 import io.github.bengidev.opencore.onboarding.domain.OnboardingChatRole
 import io.github.bengidev.opencore.onboarding.domain.OnboardingFeature
 import io.github.bengidev.opencore.onboarding.theme.OnboardingTheme
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -54,6 +54,7 @@ private const val MaxVisibleItems = 20
 private const val FeedBottomInsetDp = 16
 private const val MorphRevealSettleMs = 180L
 private const val FeedEdgeFadeFraction = 0.10f
+private const val ScrollLogTag = "OnboardingChatFeed"
 
 private val FeedItemEnterSpring = spring<Float>(
     dampingRatio = 0.8f,
@@ -80,7 +81,7 @@ private enum class FeedStep {
 
 @Composable
 internal fun OnboardingFeatureChatFeedView(
-    isActive: Boolean,
+    feedActive: Boolean,
     reduceMotion: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -89,7 +90,7 @@ internal fun OnboardingFeatureChatFeedView(
 
         if (reduceMotion) {
             StaticConversation(
-                isActive = isActive,
+                feedActive = feedActive,
                 containerWidth = containerWidth
             )
             return@BoxWithConstraints
@@ -98,21 +99,19 @@ internal fun OnboardingFeatureChatFeedView(
         val palette = OnboardingTheme.palette
         val feedItems = remember { mutableStateListOf<OnboardingChatMessage>() }
         var nextFeatureIndex by remember { mutableIntStateOf(0) }
-        var accessibilityFeatureIndex by remember { mutableIntStateOf(0) }
         var feedStep by remember { mutableStateOf(FeedStep.USER) }
         val listState = rememberLazyListState()
 
-        LaunchedEffect(isActive) {
-            if (!isActive) return@LaunchedEffect
+        LaunchedEffect(feedActive) {
+            if (!feedActive) return@LaunchedEffect
 
             feedItems.clear()
             feedStep = FeedStep.USER
             nextFeatureIndex = 0
-            accessibilityFeatureIndex = 0
 
             delay(OnboardingChatFeedTiming.FirstMessageDelayMs)
 
-            while (isActive) {
+            while (currentCoroutineContext().isActive && feedActive) {
                 val catalog = OnboardingFeature.catalog
                 if (catalog.isEmpty()) break
 
@@ -120,7 +119,6 @@ internal fun OnboardingFeatureChatFeedView(
 
                 when (feedStep) {
                     FeedStep.USER -> {
-                        accessibilityFeatureIndex = nextFeatureIndex
                         feedItems.add(OnboardingChatMessage.user(feature.userPrompt, feature))
                         trimFeedIfNeeded(feedItems)
                         feedStep = FeedStep.THINKING
@@ -173,23 +171,10 @@ internal fun OnboardingFeatureChatFeedView(
                 }
         }
 
-        val accessibilityLabel = remember(accessibilityFeatureIndex) {
-            val catalog = OnboardingFeature.catalog
-            if (catalog.isEmpty()) {
-                "Onboarding features"
-            } else {
-                catalog[OnboardingFeature.wrappedCatalogIndex(accessibilityFeatureIndex)].feedAccessibilityLabel
-            }
-        }
-
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 state = listState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .semantics {
-                        contentDescription = accessibilityLabel
-                    },
+                modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(top = 6.dp, bottom = FeedBottomInsetDp.dp),
                 verticalArrangement = Arrangement.spacedBy(MessageSpacingDp.dp)
             ) {
@@ -251,7 +236,7 @@ private fun FeedMessageItem(
 
 @Composable
 private fun StaticConversation(
-    isActive: Boolean,
+    feedActive: Boolean,
     containerWidth: Dp
 ) {
     val palette = OnboardingTheme.palette
@@ -259,15 +244,9 @@ private fun StaticConversation(
     val catalog = OnboardingFeature.catalog
     val feature = catalog.getOrNull(OnboardingFeature.wrappedCatalogIndex(focusedFeatureIndex))
 
-    val accessibilityLabel = remember(focusedFeatureIndex) {
-        feature?.feedAccessibilityLabel ?: "Onboarding features"
-    }
-
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .semantics { contentDescription = accessibilityLabel },
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(MessageSpacingDp.dp)
         ) {
@@ -306,9 +285,9 @@ private fun StaticConversation(
         }
     }
 
-    LaunchedEffect(isActive, catalog.size) {
-        if (!isActive || catalog.isEmpty()) return@LaunchedEffect
-        while (isActive) {
+    LaunchedEffect(feedActive, catalog.size) {
+        if (!feedActive || catalog.isEmpty()) return@LaunchedEffect
+        while (currentCoroutineContext().isActive && feedActive) {
             delay(4_000)
             focusedFeatureIndex = (focusedFeatureIndex + 1) % catalog.size
         }
@@ -343,10 +322,6 @@ private fun chatEnterTransition(role: OnboardingChatRole) =
         )
     }
 
-private object OnboardingChatFeedScrollPolicy {
-    fun shouldAnimateScroll(messageCount: Int): Boolean = messageCount <= 3
-}
-
 /** Bottom-anchor scroll — mirrors iOS `scrollTo(_, anchor: .bottom)`. */
 private suspend fun scrollFeedToBottom(
     listState: LazyListState,
@@ -359,7 +334,7 @@ private suspend fun scrollFeedToBottom(
         listState.layoutInfo.totalItemsCount to listState.isScrollInProgress
     }
         .filter { (count, scrolling) ->
-            count > targetIndex && !ChatThreadScrollPolicy.shouldDeferForActiveScroll(scrolling)
+            count > targetIndex && !OnboardingChatFeedScrollPolicy.shouldDeferForActiveScroll(scrolling)
         }
         .first()
 
@@ -376,25 +351,36 @@ private suspend fun scrollFeedToBottom(
                 scrollOffset = scrollOffset
             )
         }
-    } catch (_: IllegalArgumentException) {
-        // Layout race while items are still measuring.
-    } catch (_: IllegalStateException) {
-        delay(32L)
-        try {
-            if (animate) {
-                listState.animateScrollToItem(
-                    index = targetIndex,
-                    scrollOffset = scrollOffset
-                )
-            } else {
-                listState.scrollToItem(
-                    index = targetIndex,
-                    scrollOffset = scrollOffset
-                )
-            }
-        } catch (_: IllegalArgumentException) {
-        } catch (_: IllegalStateException) {
-            // Concurrent scroll or user drag — safe to ignore.
+    } catch (first: IllegalArgumentException) {
+        Log.w(ScrollLogTag, "scrollFeedToBottom layout race; retrying", first)
+        retryScrollFeedToBottom(listState, targetIndex, animate)
+    } catch (first: IllegalStateException) {
+        Log.w(ScrollLogTag, "scrollFeedToBottom deferred; retrying", first)
+        retryScrollFeedToBottom(listState, targetIndex, animate)
+    }
+}
+
+private suspend fun retryScrollFeedToBottom(
+    listState: LazyListState,
+    targetIndex: Int,
+    animate: Boolean
+) {
+    delay(32L)
+    try {
+        if (animate) {
+            listState.animateScrollToItem(
+                index = targetIndex,
+                scrollOffset = Int.MAX_VALUE
+            )
+        } else {
+            listState.scrollToItem(
+                index = targetIndex,
+                scrollOffset = Int.MAX_VALUE
+            )
         }
+    } catch (retry: IllegalArgumentException) {
+        Log.w(ScrollLogTag, "scrollFeedToBottom retry failed", retry)
+    } catch (retry: IllegalStateException) {
+        Log.w(ScrollLogTag, "scrollFeedToBottom retry skipped during active scroll", retry)
     }
 }

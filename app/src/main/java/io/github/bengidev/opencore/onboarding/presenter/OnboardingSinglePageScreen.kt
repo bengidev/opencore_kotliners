@@ -203,7 +203,7 @@ internal fun OnboardingSinglePageScreen(
 
             if (isTransformed && showChatFeed) {
                 OnboardingFeatureChatFeedView(
-                    isActive = chatFeedRevealed,
+                    feedActive = chatFeedRevealed,
                     reduceMotion = reduceMotion,
                     modifier = Modifier
                         .weight(1f)
