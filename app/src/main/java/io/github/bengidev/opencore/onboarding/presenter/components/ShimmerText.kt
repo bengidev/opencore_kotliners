@@ -73,7 +73,7 @@ internal fun ShimmerText(
                 colorStops = arrayOf(
                     0f to baseColor,
                     0.38f to lerp(baseColor, highlightColor.copy(alpha = 0.2f), 1f),
-                    0.5f to highlightColor.copy(alpha = 0.95f),
+                    0.5f to highlightColor.copy(alpha = 0.55f),
                     0.62f to lerp(baseColor, highlightColor.copy(alpha = 0.2f), 1f),
                     1f to baseColor
                 ),
