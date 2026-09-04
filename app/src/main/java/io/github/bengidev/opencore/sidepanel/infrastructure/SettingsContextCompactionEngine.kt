@@ -78,6 +78,7 @@ internal class SettingsContextCompactionEngine(
             draft = null,
             contextLength = contextLength,
             reserveTokens = preference.reserveTokens,
+            triggerThresholdPercent = preference.triggerThresholdPercent,
         )
     }
 

@@ -1,7 +1,8 @@
 package io.github.bengidev.opencore.atoms
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,15 +24,22 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -39,9 +47,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import io.github.bengidev.opencore.atoms.application.AtomsComponent
+import io.github.bengidev.opencore.atoms.domain.Atom
 import io.github.bengidev.opencore.atoms.domain.AtomsSection
 import io.github.bengidev.opencore.home.theme.HomeTheme
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun AtomsScreen(
     component: AtomsComponent,
@@ -53,6 +63,10 @@ internal fun AtomsScreen(
         entries = state.filteredEntries,
         expandedGroups = state.expandedGroups,
     )
+    var contextMenuAtom by remember { mutableStateOf<Atom?>(null) }
+    var showContextMenu by remember { mutableStateOf(false) }
+    var renameTarget by remember { mutableStateOf<Atom?>(null) }
+    var renameText by remember { mutableStateOf("") }
 
     Column(
         modifier = modifier
@@ -131,7 +145,13 @@ internal fun AtomsScreen(
                                         palette.surfaceBase.copy(alpha = 0f)
                                     },
                                 )
-                                .clickable { component.selectAtom(entry.atom) }
+                                .combinedClickable(
+                                    onClick = { component.selectAtom(entry.atom) },
+                                    onLongClick = {
+                                        contextMenuAtom = entry.atom
+                                        showContextMenu = true
+                                    },
+                                )
                                 .padding(horizontal = 12.dp, vertical = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
@@ -155,6 +175,86 @@ internal fun AtomsScreen(
                 }
             }
         }
+    }
+
+    val renameAtom = renameTarget
+    if (renameAtom != null) {
+        AlertDialog(
+            onDismissRequest = { renameTarget = null },
+            title = { Text("Rename atom") },
+            text = {
+                TextField(
+                    value = renameText,
+                    onValueChange = { renameText = it },
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    component.renameAtom(renameAtom.id, renameText)
+                    renameTarget = null
+                }) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { renameTarget = null }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
+    val liveAtom = contextMenuAtom?.let { target ->
+        state.filteredEntries.firstOrNull { it.atom.id == target.id }?.atom ?: target
+    }
+    if (showContextMenu && liveAtom != null) {
+        val atom = liveAtom
+        AlertDialog(
+            onDismissRequest = { showContextMenu = false },
+            title = {
+                Text(atom.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    AtomActionButton("Rename") {
+                        renameTarget = atom
+                        renameText = atom.title
+                        showContextMenu = false
+                    }
+                    AtomActionButton(
+                        label = "Delete",
+                        color = palette.accentPrimary,
+                    ) {
+                        component.deleteAtom(atom.id)
+                        showContextMenu = false
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showContextMenu = false }) {
+                    Text("Close")
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun AtomActionButton(
+    label: String,
+    color: Color = Color.Unspecified,
+    onClick: () -> Unit,
+) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = label,
+            color = color,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

@@ -234,13 +234,22 @@ internal class ChatComponent(
         lastProviderSortBy = providerSortBy
         lastReasoningEffort = reasoningEffort
 
+        if (overflowRetry) {
+            dispatch(ChatIntent.CompactingStarted)
+        }
         val wireMessages = try {
             prepareMessagesForWire(conversationId, overflowRetry)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            if (overflowRetry) {
+                dispatch(ChatIntent.CompactingFinished)
+            }
             reportStreamFailure(e, conversationId)
             return
+        }
+        if (overflowRetry) {
+            dispatch(ChatIntent.CompactingFinished)
         }
 
         dispatch(ChatIntent.StreamingTurnStarted)

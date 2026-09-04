@@ -208,6 +208,8 @@ private fun HomeRoute(
             },
         )
     }
+    var historyMigrationReady by remember { mutableStateOf(false) }
+
     val chatComponent: ChatComponent = remember(
         componentContext,
         history,
@@ -239,6 +241,7 @@ private fun HomeRoute(
         }
         history.migrateFromDataStoreIfNeeded(legacyConversations, legacyMessages)
         history.pruneExpiredVoiceAttachments()
+        historyMigrationReady = true
     }
 
     LaunchedEffect(chatComponent, atomsComponent, homeComponent) {
@@ -265,6 +268,10 @@ private fun HomeRoute(
     }
 
     OpenCoreHomeTheme(darkTheme = darkTheme) {
+        if (!historyMigrationReady) {
+            Box(modifier = Modifier.fillMaxSize())
+            return@OpenCoreHomeTheme
+        }
         TabBarScreen(
             selectedTab = selectedTab,
             onTabSelected = { selectedTab = it },

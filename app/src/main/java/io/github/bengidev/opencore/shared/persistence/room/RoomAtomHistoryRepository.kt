@@ -215,12 +215,9 @@ internal class RoomAtomHistoryRepository(
         mutex.withLock {
             val migrationKey = "datastore_history_migrated_v1"
             if (dao.metadataValue(migrationKey) == "1") return
-            val existing = dao.listAtoms()
-            if (existing.isNotEmpty()) {
-                dao.setMetadata(AppMetadataEntity(migrationKey, "1"))
-                return
-            }
+            val existingIds = dao.listAtoms().map { it.id }.toSet()
             for (atom in legacyConversations) {
+                if (atom.id.toString() in existingIds) continue
                 dao.insertAtom(atomToEntity(atom))
                 for (message in legacyMessages[atom.id].orEmpty()) {
                     appendChatMessageUnlocked(atom.id, message)
