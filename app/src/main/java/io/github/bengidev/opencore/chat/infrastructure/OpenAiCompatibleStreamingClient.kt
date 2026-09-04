@@ -18,12 +18,15 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 internal class OpenAiCompatibleStreamingClient(
+    private val readTimeoutMs: Int = DEFAULT_STREAM_READ_TIMEOUT_MS,
     private val httpStream: suspend (
         String,
         Map<String, String>,
         String,
         suspend (ByteArray) -> Unit
-    ) -> HttpStreamResult = ::defaultHttpStream
+    ) -> HttpStreamResult = { url, headers, body, onChunk ->
+        defaultHttpStream(url, headers, body, readTimeoutMs, onChunk)
+    },
 ) {
     fun stream(
         providerId: String,
@@ -113,17 +116,20 @@ internal sealed class HttpStreamResult {
     data class Failure(val statusCode: Int, val errorBody: String) : HttpStreamResult()
 }
 
+internal const val DEFAULT_STREAM_READ_TIMEOUT_MS = 120_000
+
 private suspend fun defaultHttpStream(
     url: String,
     headers: Map<String, String>,
     body: String,
+    readTimeoutMs: Int,
     onChunk: suspend (ByteArray) -> Unit
 ): HttpStreamResult {
     val connection = (URL(url).openConnection() as HttpURLConnection).apply {
         requestMethod = "POST"
         doOutput = true
         connectTimeout = 30_000
-        readTimeout = 0
+        readTimeout = readTimeoutMs
         setRequestProperty("Content-Type", "application/json; charset=utf-8")
         headers.forEach { (name, value) -> setRequestProperty(name, value) }
     }
