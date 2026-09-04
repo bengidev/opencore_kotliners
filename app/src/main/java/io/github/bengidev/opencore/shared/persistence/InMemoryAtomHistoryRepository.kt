@@ -42,6 +42,9 @@ internal class InMemoryAtomHistoryRepository(
     override suspend fun loadProjectedChatMessages(atomId: UUID): List<SidePanelMessage> =
         AtomSessionContextBuilder.buildModelMessages(loadSessionEntries(atomId), loadLeafEntryId(atomId))
 
+    override suspend fun loadThreadDisplayMessages(atomId: UUID): List<SidePanelMessage> =
+        AtomSessionContextBuilder.buildThreadDisplayMessages(loadSessionEntries(atomId), loadLeafEntryId(atomId))
+
     override suspend fun loadSessionEntries(atomId: UUID): List<AtomSessionEntry> =
         sessionEntries[atomId].orEmpty()
 

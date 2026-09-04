@@ -64,6 +64,12 @@ internal class RoomAtomHistoryRepository(
         AtomSessionContextBuilder.buildModelMessages(entries, leafId)
     }
 
+    override suspend fun loadThreadDisplayMessages(atomId: UUID): List<SidePanelMessage> = mutex.withLock {
+        val entries = loadSessionEntriesInternal(atomId)
+        val leafId = leafEntryIdInternal(atomId)
+        AtomSessionContextBuilder.buildThreadDisplayMessages(entries, leafId)
+    }
+
     override suspend fun loadSessionEntries(atomId: UUID): List<AtomSessionEntry> = mutex.withLock {
         loadSessionEntriesInternal(atomId)
     }

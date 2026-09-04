@@ -13,6 +13,7 @@ internal interface PersistenceAtomHistoryStoring {
     suspend fun listAtoms(): List<Atom>
     suspend fun loadChatMessages(atomId: UUID): List<SidePanelMessage>
     suspend fun loadProjectedChatMessages(atomId: UUID): List<SidePanelMessage>
+    suspend fun loadThreadDisplayMessages(atomId: UUID): List<SidePanelMessage>
     suspend fun loadSessionEntries(atomId: UUID): List<AtomSessionEntry>
     suspend fun loadLeafEntryId(atomId: UUID): UUID?
     suspend fun saveAtom(atom: Atom)
