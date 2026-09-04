@@ -85,7 +85,7 @@ internal class ChatComponent(
         dispatch(ChatIntent.ConversationOpened(conversation))
         onActiveConversationChanged?.invoke(conversation.id)
         scope.launch {
-            val messages = history.loadProjectedChatMessages(conversation.id)
+            val messages = history.loadThreadDisplayMessages(conversation.id)
             if (generation != loadGeneration) return@launch
             dispatch(ChatIntent.MessagesLoaded(conversation.id, messages))
         }
@@ -117,7 +117,8 @@ internal class ChatComponent(
                 if (outcome.checkpoint != null) {
                     history.appendCompaction(conversation.id, outcome.checkpoint)
                 }
-                dispatch(ChatIntent.MessagesLoaded(conversation.id, outcome.projectedMessages))
+                val threadMessages = history.loadThreadDisplayMessages(conversation.id)
+                dispatch(ChatIntent.MessagesLoaded(conversation.id, threadMessages))
                 dispatch(ChatIntent.CompactingFinished)
                 onHistoryChanged?.invoke()
             } catch (error: Exception) {
@@ -306,8 +307,9 @@ internal class ChatComponent(
         if (outcome.checkpoint != null) {
             history.appendCompaction(conversationId, outcome.checkpoint)
         }
-        if (outcome.projectedMessages != currentMessages) {
-            dispatch(ChatIntent.MessagesLoaded(conversationId, outcome.projectedMessages))
+        val threadMessages = history.loadThreadDisplayMessages(conversationId)
+        if (threadMessages != currentMessages) {
+            dispatch(ChatIntent.MessagesLoaded(conversationId, threadMessages))
         }
         return outcome.projectedMessages
     }
