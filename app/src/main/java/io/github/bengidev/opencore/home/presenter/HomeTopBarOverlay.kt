@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
@@ -28,7 +27,6 @@ internal val HomeTopBarClearance = 52.dp
 
 @Composable
 internal fun HomeTopBarOverlay(
-    onSidebarTapped: () -> Unit,
     onNewConversationTapped: () -> Unit,
     onDismissKeyboard: () -> Unit,
     threadTitle: String? = null,
@@ -44,15 +42,9 @@ internal fun HomeTopBarOverlay(
             }
     ) {
         HomeTopBarButton(
-            onClick = onSidebarTapped,
-            icon = Icons.Default.Menu,
-            contentDescription = "Show sidebar",
-            modifier = Modifier.align(Alignment.CenterStart)
-        )
-        HomeTopBarButton(
             onClick = onNewConversationTapped,
             icon = Icons.Default.Add,
-            contentDescription = "New conversation",
+            contentDescription = "New atom",
             modifier = Modifier.align(Alignment.CenterEnd)
         )
         if (!threadTitle.isNullOrBlank()) {

@@ -30,13 +30,18 @@ import io.github.bengidev.opencore.home.application.HomeComponent
 import io.github.bengidev.opencore.onboarding.OnboardingFacade
 import io.github.bengidev.opencore.onboarding.OnboardingScreen
 import io.github.bengidev.opencore.onboarding.application.OnboardingComponent
-import io.github.bengidev.opencore.sidepanel.SidePanelFacade
-import io.github.bengidev.opencore.sidepanel.SidePanelSettingsScreen
-import io.github.bengidev.opencore.sidepanel.application.SidePanelComponent
-import io.github.bengidev.opencore.sidepanel.application.setting.SidePanelSettingComponent
-import io.github.bengidev.opencore.sidepanel.infrastructure.DataStoreSidePanelPreferenceStore
+import io.github.bengidev.opencore.atoms.AtomsFacade
+import io.github.bengidev.opencore.atoms.AtomsScreen
+import io.github.bengidev.opencore.atoms.application.AtomsComponent
 import io.github.bengidev.opencore.shared.credential.CredentialEncryptedStore
+import io.github.bengidev.opencore.sidepanel.SidePanelSettingsScreen
+import io.github.bengidev.opencore.sidepanel.application.setting.SidePanelSettingComponent
+import io.github.bengidev.opencore.sidepanel.infrastructure.DataStoreSettingsContextCompactionPreferenceStore
 import io.github.bengidev.opencore.sidepanel.infrastructure.DataStoreSidePanelHistoryRepository
+import io.github.bengidev.opencore.sidepanel.infrastructure.DataStoreSidePanelPreferenceStore
+import io.github.bengidev.opencore.shared.persistence.room.RoomAtomHistoryRepository
+import io.github.bengidev.opencore.atoms.domain.toAtom
+import io.github.bengidev.opencore.shared.tokenization.ContextTokenCounter
 import io.github.bengidev.opencore.speech.SpeechFacade
 import io.github.bengidev.opencore.speech.application.SpeechFlowController
 import io.github.bengidev.opencore.tabbar.TabBarScreen
@@ -57,7 +62,7 @@ class MainActivity : ComponentActivity() {
 
         val onboardingFacade = OnboardingFacade()
         val homeFacade = HomeFacade()
-        val sidePanelFacade = SidePanelFacade()
+        val atomsFacade = AtomsFacade()
         val chatFacade = ChatFacade()
         val speechFacade = SpeechFacade()
         val visionFacade = VisionFacade()
@@ -84,7 +89,7 @@ class MainActivity : ComponentActivity() {
                     )
                     false -> HomeRoute(
                         facade = homeFacade,
-                        sidePanelFacade = sidePanelFacade,
+                        atomsFacade = atomsFacade,
                         chatFacade = chatFacade,
                         speechFacade = speechFacade,
                         visionFacade = visionFacade,
@@ -124,7 +129,7 @@ private fun OnboardingRoute(
 @Composable
 private fun HomeRoute(
     facade: HomeFacade,
-    sidePanelFacade: SidePanelFacade,
+    atomsFacade: AtomsFacade,
     chatFacade: ChatFacade,
     speechFacade: SpeechFacade,
     visionFacade: VisionFacade,
@@ -141,8 +146,12 @@ private fun HomeRoute(
         pendingPermission?.complete(granted)
         pendingPermission = null
     }
-    val history = remember(activity) { DataStoreSidePanelHistoryRepository(activity) }
+    val history = remember(activity) { RoomAtomHistoryRepository(activity) }
+    val legacyHistory = remember(activity) { DataStoreSidePanelHistoryRepository(activity) }
     val preferenceStore = remember(activity) { DataStoreSidePanelPreferenceStore(activity) }
+    val compactionPreferenceStore = remember(activity) {
+        DataStoreSettingsContextCompactionPreferenceStore(activity)
+    }
     val credentialStore = remember(activity) { CredentialEncryptedStore(activity) }
     val speechController: SpeechFlowController = remember(activity, scope, credentialStore, preferenceStore) {
         speechFacade.createController(
@@ -168,72 +177,101 @@ private fun HomeRoute(
     val visionController: VisionFlowController = remember(activity) {
         visionFacade.createController(context = activity)
     }
-    val settingComponent: SidePanelSettingComponent = remember(componentContext, preferenceStore, credentialStore) {
+    val settingComponent: SidePanelSettingComponent = remember(componentContext, preferenceStore, credentialStore, compactionPreferenceStore) {
         SidePanelSettingComponent(
             componentContext = componentContext.childContext("setting"),
             credentialStore = credentialStore,
             preferenceStore = preferenceStore,
+            compactionPreferenceStore = compactionPreferenceStore,
         )
     }
-    val sidePanelComponent: SidePanelComponent = remember(componentContext, history, settingComponent) {
-        sidePanelFacade.createComponent(
-            componentContext = componentContext,
+    val atomsComponent: AtomsComponent = remember(componentContext, history) {
+        atomsFacade.createComponent(
+            componentContext = componentContext.childContext("atoms"),
             history = history,
-            setting = settingComponent,
         )
     }
-    val chatComponent: ChatComponent = remember(componentContext, history, preferenceStore, credentialStore) {
-        chatFacade.createComponent(
-            componentContext = componentContext,
-            history = history,
-            preferenceStore = preferenceStore,
-            credentialStore = credentialStore
-        )
-    }
-    val homeComponent: HomeComponent = remember(componentContext, chatComponent, sidePanelComponent, preferenceStore, credentialStore) {
+    val chatComponentHolder = remember { mutableStateOf<ChatComponent?>(null) }
+    val homeComponent: HomeComponent = remember(componentContext, preferenceStore, credentialStore) {
         facade.createComponent(
             componentContext = componentContext,
             preferenceStore = preferenceStore,
             credentialStore = credentialStore,
             onSendMessage = { message, providerSortBy, reasoningEffort ->
-                chatComponent.sendUserMessage(message, providerSortBy, reasoningEffort)
+                chatComponentHolder.value?.sendUserMessage(message, providerSortBy, reasoningEffort)
             },
             onNewConversation = {
                 scope.launch {
                     speechController.cancelListening()
-                    chatComponent.startNewConversation()
+                    chatComponentHolder.value?.startNewConversation()
                 }
             },
         )
     }
+    var historyMigrationReady by remember { mutableStateOf(false) }
 
-    LaunchedEffect(history) {
-        history.pruneExpiredVoiceAttachments()
+    val chatComponent: ChatComponent = remember(
+        componentContext,
+        history,
+        preferenceStore,
+        credentialStore,
+        compactionPreferenceStore,
+        homeComponent,
+    ) {
+        chatFacade.createComponent(
+            componentContext = componentContext.childContext("chat"),
+            history = history,
+            preferenceStore = preferenceStore,
+            credentialStore = credentialStore,
+            compactionPreferenceStore = compactionPreferenceStore,
+            contextLengthProvider = {
+                val state = homeComponent.state.value
+                state.selectedModelId?.let { id ->
+                    state.availableModels.firstOrNull { it.id == id }?.contextLength
+                }
+            },
+        ).also { chatComponentHolder.value = it }
     }
 
-    LaunchedEffect(chatComponent, sidePanelComponent, homeComponent) {
+    LaunchedEffect(Unit) {
+        ContextTokenCounter.warmUp()
+        val legacyConversations = legacyHistory.listConversations().map { it.toAtom() }
+        val legacyMessages = legacyConversations.associate { atom ->
+            atom.id to legacyHistory.loadMessages(atom.id)
+        }
+        history.migrateFromDataStoreIfNeeded(legacyConversations, legacyMessages)
+        history.pruneExpiredVoiceAttachments()
+        historyMigrationReady = true
+    }
+
+    LaunchedEffect(chatComponent, atomsComponent, homeComponent) {
         chatComponent.onActiveConversationChanged = { id ->
-            sidePanelComponent.session.setActiveConversationId(id)
+            atomsComponent.setActiveAtomId(id)
         }
         chatComponent.onHistoryChanged = {
-            sidePanelComponent.session.refreshConversationsIfVisible()
+            atomsComponent.refreshIfNeeded()
         }
         chatComponent.onConversationTitleChanged = { id, title ->
-            sidePanelComponent.session.syncConversationTitle(id, title)
+            atomsComponent.syncAtomTitle(id, title)
         }
-        sidePanelComponent.onOpenConversation = { conversation ->
+        atomsComponent.onOpenAtom = { conversation ->
             scope.launch {
                 speechController.cancelListening()
+                selectedTab = HomeTab.HOME
                 chatComponent.openConversation(conversation)
             }
         }
-        sidePanelComponent.onActiveConversationRenamed = chatComponent::onActiveConversationRenamed
-        sidePanelComponent.onActiveConversationDeleted = chatComponent::onActiveConversationDeleted
+        atomsComponent.onActiveAtomRenamed = chatComponent::onActiveConversationRenamed
+        atomsComponent.onActiveAtomDeleted = chatComponent::onActiveConversationDeleted
         settingComponent.onProviderChanged = { homeComponent.onProviderChanged() }
         settingComponent.onCredentialsChanged = { homeComponent.onCredentialsChanged() }
     }
 
     OpenCoreHomeTheme(darkTheme = darkTheme) {
+        if (!historyMigrationReady) {
+            Box(modifier = Modifier.fillMaxSize())
+            return@OpenCoreHomeTheme
+        }
         TabBarScreen(
             selectedTab = selectedTab,
             onTabSelected = { selectedTab = it },
@@ -241,13 +279,13 @@ private fun HomeRoute(
                 HomeScreen(
                     component = homeComponent,
                     chatComponent = chatComponent,
-                    sidePanelComponent = sidePanelComponent,
                     speechController = speechController,
                     visionController = visionController,
                     darkTheme = darkTheme,
                     onConfigureApiKeyTapped = { selectedTab = HomeTab.SETTINGS },
                 )
             },
+            atomsContent = { AtomsScreen(component = atomsComponent) },
             settingsContent = { SidePanelSettingsScreen(component = settingComponent) },
             aboutContent = { AboutScreen() },
         )

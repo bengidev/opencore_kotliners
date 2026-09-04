@@ -7,6 +7,7 @@ import io.github.bengidev.opencore.shared.credential.CredentialInMemoryStore
 import io.github.bengidev.opencore.shared.providers.ProviderDescriptor
 import io.github.bengidev.opencore.sidepanel.application.setting.SidePanelSettingComponent
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelHistoryRepository
+import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySettingsContextCompactionPreferenceStore
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelPreferenceStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -116,6 +117,7 @@ class SidePanelComponentTest {
                 componentContext = componentContext,
                 credentialStore = credentialStore,
                 preferenceStore = preferenceStore,
+                compactionPreferenceStore = InMemorySettingsContextCompactionPreferenceStore(),
             ),
         )
     }

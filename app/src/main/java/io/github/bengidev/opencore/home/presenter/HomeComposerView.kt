@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.KeyOff
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -59,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.home.application.HomeState
 import io.github.bengidev.opencore.home.presenter.components.homeComposerGlass
 import io.github.bengidev.opencore.home.theme.HomeTheme
+import androidx.compose.material.icons.filled.Compress
 import androidx.compose.material.icons.filled.Mic
 import io.github.bengidev.opencore.chat.domain.ChatMessageAttachment
 import io.github.bengidev.opencore.chat.presenter.ChatComposerAttachmentsStripView
@@ -77,6 +79,8 @@ internal fun HomeComposerView(
     canSend: Boolean,
     isSending: Boolean = false,
     isLoadingMessages: Boolean = false,
+    isCompacting: Boolean = false,
+    canCompactContext: Boolean = false,
     onDraftMessageChanged: (String) -> Unit,
     onAttachmentTapped: () -> Unit,
     onRemoveAttachment: (java.util.UUID) -> Unit,
@@ -91,6 +95,7 @@ internal fun HomeComposerView(
     onSpeedModeSelected: (HomeComposerSpeedMode) -> Unit,
     onReasoningEffortSelected: (ModelReasoningEffort) -> Unit,
     onContextUsagePresentedChanged: (Boolean) -> Unit,
+    onCompactContextTapped: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -99,8 +104,10 @@ internal fun HomeComposerView(
     ) {
         HomeComposerPromptPanel(
             composerText = composerText,
-            canSend = canSend && !isSending && !isLoadingMessages &&
+            canSend = canSend && !isSending && !isLoadingMessages && !isCompacting &&
                 !speechState.isListening && !speechState.isTranscribing,
+            canCompactContext = canCompactContext,
+            isCompacting = isCompacting,
             showMissingApiKeyHint = state.showMissingApiKeyHint,
             showAttachmentButton = state.selectedModelSupportsComposerAttachments,
             speechState = speechState,
@@ -115,7 +122,8 @@ internal fun HomeComposerView(
             onStopVoiceInput = onStopVoiceInput,
             onCancelVoiceInput = onCancelVoiceInput,
             onSpeechErrorDismissed = onSpeechErrorDismissed,
-            onSendTapped = onSendTapped
+            onSendTapped = onSendTapped,
+            onCompactContextTapped = onCompactContextTapped,
         )
 
         HomeComposerContextRail(
@@ -132,6 +140,8 @@ internal fun HomeComposerView(
 private fun HomeComposerPromptPanel(
     composerText: String,
     canSend: Boolean,
+    canCompactContext: Boolean,
+    isCompacting: Boolean,
     showMissingApiKeyHint: Boolean,
     showAttachmentButton: Boolean,
     speechState: SpeechFlowState,
@@ -146,7 +156,8 @@ private fun HomeComposerPromptPanel(
     onStopVoiceInput: () -> Unit,
     onCancelVoiceInput: () -> Unit,
     onSpeechErrorDismissed: () -> Unit,
-    onSendTapped: () -> Unit
+    onSendTapped: () -> Unit,
+    onCompactContextTapped: () -> Unit,
 ) {
     val palette = HomeTheme.palette
     val typography = HomeTheme.typography
@@ -233,6 +244,28 @@ private fun HomeComposerPromptPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+            if (isCompacting) {
+                Box(
+                    modifier = Modifier.size(30.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = palette.textSecondary,
+                    )
+                }
+            } else {
+                HomeComposerIconButton(
+                    imageVector = Icons.Default.Compress,
+                    contentDescription = "Compact conversation context",
+                    enabled = canCompactContext,
+                    onClick = onCompactContextTapped,
+                )
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
             if (showAttachmentButton) {
                 HomeComposerIconButton(
                     imageVector = Icons.Default.Add,
@@ -241,8 +274,6 @@ private fun HomeComposerPromptPanel(
                     onClick = onAttachmentTapped
                 )
             }
-
-            Spacer(modifier = Modifier.weight(1f))
 
             if (speechState.isListening || speechState.isTranscribing) {
                 HomeComposerStopRecordingButton(onClick = onStopVoiceInput)

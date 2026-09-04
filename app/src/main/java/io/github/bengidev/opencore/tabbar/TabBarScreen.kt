@@ -9,6 +9,7 @@ internal fun TabBarScreen(
     selectedTab: HomeTab,
     onTabSelected: (HomeTab) -> Unit,
     homeContent: @Composable () -> Unit,
+    atomsContent: @Composable () -> Unit,
     settingsContent: @Composable () -> Unit,
     aboutContent: @Composable () -> Unit,
 ) {
@@ -16,6 +17,7 @@ internal fun TabBarScreen(
         selectedTab = selectedTab,
         onTabSelected = onTabSelected,
         homeContent = homeContent,
+        atomsContent = atomsContent,
         settingsContent = settingsContent,
         aboutContent = aboutContent,
     )

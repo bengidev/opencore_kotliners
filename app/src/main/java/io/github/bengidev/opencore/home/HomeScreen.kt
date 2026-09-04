@@ -33,8 +33,6 @@ import io.github.bengidev.opencore.home.presenter.HomeView
 import io.github.bengidev.opencore.home.theme.OpenCoreHomeTheme
 import io.github.bengidev.opencore.home.utilities.HomeComposerModelCapabilityLogic
 import io.github.bengidev.opencore.home.utilities.HomeComposerModelCapabilityLogic.AttachmentMenuOption
-import io.github.bengidev.opencore.sidepanel.SidePanelScreen
-import io.github.bengidev.opencore.sidepanel.application.SidePanelComponent
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelModel
 import io.github.bengidev.opencore.speech.application.SpeechFlowController
 import io.github.bengidev.opencore.speech.domain.SpeechCaptureResult
@@ -47,7 +45,6 @@ import kotlinx.coroutines.launch
 internal fun HomeScreen(
     component: HomeComponent,
     chatComponent: ChatComponent,
-    sidePanelComponent: SidePanelComponent,
     speechController: SpeechFlowController,
     visionController: VisionFlowController,
     darkTheme: Boolean,
@@ -213,7 +210,6 @@ internal fun HomeScreen(
                 canSend = canSend,
                 voicePlaybackController = voicePlaybackController,
                 onDraftMessageChanged = component::onDraftMessageChanged,
-                onSidebarTapped = sidePanelComponent::toggleSidebar,
                 onNewConversationTapped = component::onNewConversationTapped,
                 onAttachmentTapped = onComposerAttachmentTapped,
                 onRemoveAttachment = chatComponent::removeDraftAttachment,
@@ -242,17 +238,17 @@ internal fun HomeScreen(
                             capabilityWarningMessage = decision.message
                     }
                 },
-                onConfigureApiKeyTapped = onConfigureApiKeyTapped ?: sidePanelComponent::settingsButtonTapped,
+                onConfigureApiKeyTapped = onConfigureApiKeyTapped ?: {},
                 onModelSelectorTapped = component::onModelSelectorTapped,
                 onSpeedModeSelected = component::onSpeedModeSelected,
                 onReasoningEffortSelected = component::onReasoningEffortSelected,
                 onContextUsagePresentedChanged = component::onContextUsagePresentedChanged,
+                onCompactContextTapped = chatComponent::compactContextManually,
                 onChatRetryTapped = {
                     chatComponent.retry(state.activeProviderSortBy, state.activeReasoningEffort)
                 },
                 onChatErrorDismissed = chatComponent::dismissError,
             )
-            SidePanelScreen(component = sidePanelComponent)
             HomeModelPickerSheet(
                 state = state,
                 onDismiss = component::onModelPickerDismissed,

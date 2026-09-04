@@ -52,6 +52,9 @@ internal fun SidePanelSettingContent(
     onDraftChanged: (String) -> Unit,
     onSave: () -> Unit,
     onClear: () -> Unit,
+    onCompactionEnabledChanged: (Boolean) -> Unit,
+    onReserveTokensChanged: (Int) -> Unit,
+    onKeepRecentTokensChanged: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val palette = HomeTheme.palette
@@ -176,6 +179,13 @@ internal fun SidePanelSettingContent(
                 }
             }
         }
+
+        SettingsContextWindowSection(
+            preference = state.compactionPreference,
+            onAutoCompactionChanged = onCompactionEnabledChanged,
+            onReserveTokensChanged = onReserveTokensChanged,
+            onKeepRecentTokensChanged = onKeepRecentTokensChanged,
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
     }

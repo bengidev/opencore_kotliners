@@ -8,7 +8,7 @@ import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import java.time.Instant
 import java.util.UUID
 import io.github.bengidev.opencore.chat.infrastructure.EchoChatStreamingClient
-import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelHistoryRepository
+import io.github.bengidev.opencore.shared.persistence.InMemoryAtomHistoryRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -119,7 +119,7 @@ class ChatStreamingStatusCapsuleTest {
     fun showsStreamingStatusCapsule_hiddenAfterStreamCompletes() = runTest(testDispatcher) {
         val component = ChatComponent(
             componentContext = DefaultComponentContext(lifecycle = LifecycleRegistry()),
-            history = InMemorySidePanelHistoryRepository(seed = emptyList()),
+            history = InMemoryAtomHistoryRepository(seed = emptyList()),
             streamingClient = EchoChatStreamingClient(),
         )
         component.sendUserMessage("Question")

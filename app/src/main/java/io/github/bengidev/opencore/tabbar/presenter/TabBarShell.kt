@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -27,6 +28,7 @@ internal fun TabBarShell(
     selectedTab: HomeTab,
     onTabSelected: (HomeTab) -> Unit,
     homeContent: @Composable () -> Unit,
+    atomsContent: @Composable () -> Unit,
     settingsContent: @Composable () -> Unit,
     aboutContent: @Composable () -> Unit,
     modifier: Modifier = Modifier,
@@ -54,6 +56,7 @@ internal fun TabBarShell(
         ) {
             when (selectedTab) {
                 HomeTab.HOME -> homeContent()
+                HomeTab.ATOMS -> atomsContent()
                 HomeTab.SETTINGS -> settingsContent()
                 HomeTab.ABOUT -> aboutContent()
             }
@@ -98,6 +101,7 @@ private fun TabNavigationBar(
 private val HomeTab.icon: ImageVector
     get() = when (this) {
         HomeTab.HOME -> Icons.Default.Home
+        HomeTab.ATOMS -> Icons.Outlined.ChatBubbleOutline
         HomeTab.SETTINGS -> Icons.Default.Settings
         HomeTab.ABOUT -> Icons.Default.Info
     }

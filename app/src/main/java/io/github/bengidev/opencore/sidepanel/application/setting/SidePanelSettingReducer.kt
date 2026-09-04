@@ -1,5 +1,7 @@
 package io.github.bengidev.opencore.sidepanel.application.setting
 
+import io.github.bengidev.opencore.sidepanel.domain.SettingsContextCompactionPreference
+
 internal object SidePanelSettingReducer {
     fun reduce(state: SidePanelSettingState, intent: SidePanelSettingIntent): SidePanelSettingState =
         when (intent) {
@@ -24,6 +26,20 @@ internal object SidePanelSettingReducer {
                     selectedProviderId = intent.id,
                     hasStoredKey = intent.hasStoredKey,
                     errorMessage = null
+                )
+            is SidePanelSettingIntent.CompactionPreferenceLoaded ->
+                state.copy(compactionPreference = intent.preference)
+            is SidePanelSettingIntent.CompactionEnabledChanged ->
+                state.copy(
+                    compactionPreference = state.compactionPreference.copy(isEnabled = intent.enabled)
+                )
+            is SidePanelSettingIntent.ReserveTokensChanged ->
+                state.copy(
+                    compactionPreference = state.compactionPreference.copy(reserveTokens = intent.tokens)
+                )
+            is SidePanelSettingIntent.KeepRecentTokensChanged ->
+                state.copy(
+                    compactionPreference = state.compactionPreference.copy(keepRecentTokens = intent.tokens)
                 )
         }
 }
