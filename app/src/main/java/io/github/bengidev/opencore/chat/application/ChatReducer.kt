@@ -103,7 +103,24 @@ internal object ChatReducer {
         ChatIntent.StreamingErrorDismissed -> state
             .withoutIncompleteAssistantRows()
             .clearedStreamingFields()
-        is ChatIntent.SendPreparationFailed -> state.copy(streamErrorMessage = intent.message)
+        is ChatIntent.SendPreparationFailed -> state
+            .withoutIncompleteAssistantRows()
+            .copy(
+                streamErrorMessage = intent.message,
+                streamingStatus = ChatStreamingStatus.Failed,
+                isSending = false,
+                isCompacting = false,
+            )
+        ChatIntent.CompactingStarted -> state.copy(isCompacting = true, streamErrorMessage = null)
+        ChatIntent.CompactingFinished -> state.copy(isCompacting = false)
+        is ChatIntent.CompactionFailed -> state
+            .withoutIncompleteAssistantRows()
+            .copy(
+                isCompacting = false,
+                streamErrorMessage = intent.message,
+                streamingStatus = ChatStreamingStatus.Failed,
+                isSending = false,
+            )
     }
 
     private fun ChatState.alsoClearDraftAttachmentFiles(

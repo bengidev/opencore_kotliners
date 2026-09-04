@@ -5,6 +5,7 @@ import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import com.arkivanov.essenty.lifecycle.doOnDestroy
+import io.github.bengidev.opencore.chat.domain.ChatStreamError
 import io.github.bengidev.opencore.chat.domain.ChatMessageAttachment
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.domain.ChatOutputStreamStatus
@@ -17,7 +18,12 @@ import io.github.bengidev.opencore.chat.infrastructure.ChatStreamingClient
 import io.github.bengidev.opencore.sidepanel.domain.ConversationTitlePolicy
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
-import io.github.bengidev.opencore.shared.persistence.PersistenceConversationHistoryStoring
+import io.github.bengidev.opencore.atoms.domain.toAtom
+import io.github.bengidev.opencore.chat.utilities.ChatContextOverflowDetector
+import io.github.bengidev.opencore.chat.utilities.SettingsContextCompactionClient
+import io.github.bengidev.opencore.chat.utilities.SettingsContextCompactionException
+import io.github.bengidev.opencore.shared.persistence.PersistenceAtomHistoryError
+import io.github.bengidev.opencore.shared.persistence.PersistenceAtomHistoryStoring
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,8 +38,10 @@ import java.util.UUID
 
 internal class ChatComponent(
     componentContext: ComponentContext,
-    private val history: PersistenceConversationHistoryStoring,
-    private val streamingClient: ChatStreamingClient
+    private val history: PersistenceAtomHistoryStoring,
+    private val streamingClient: ChatStreamingClient,
+    private val contextCompaction: SettingsContextCompactionClient = SettingsContextCompactionClient.disabled,
+    private val contextLengthProvider: suspend () -> Int? = { null },
 ) : ComponentContext by componentContext {
 
     private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
@@ -44,6 +52,9 @@ internal class ChatComponent(
     private val streamingCoalescer = ChatStreamingCoalescer()
     private var activeStreamId = 0
     private var loadGeneration = 0
+    private var lastProviderSortBy: String? = null
+    private var lastReasoningEffort: String? = null
+    private var didOverflowRetry = false
 
     var onActiveConversationChanged: ((UUID?) -> Unit)? = null
     var onHistoryChanged: (() -> Unit)? = null
@@ -74,9 +85,46 @@ internal class ChatComponent(
         dispatch(ChatIntent.ConversationOpened(conversation))
         onActiveConversationChanged?.invoke(conversation.id)
         scope.launch {
-            val messages = history.loadMessages(conversation.id)
+            val messages = history.loadProjectedChatMessages(conversation.id)
             if (generation != loadGeneration) return@launch
             dispatch(ChatIntent.MessagesLoaded(conversation.id, messages))
+        }
+    }
+
+    fun compactContextManually() {
+        val conversation = _state.value.activeConversation ?: return
+        if (_state.value.isSending || _state.value.isCompacting || !_state.value.hasMessages) return
+        scope.launch {
+            dispatch(ChatIntent.CompactingStarted)
+            try {
+                val contextLength = contextLengthProvider()
+                if (contextLength == null || contextLength <= 0) {
+                    dispatch(ChatIntent.CompactionFailed("Select a model before compacting context."))
+                    return@launch
+                }
+                val sessionEntries = history.loadSessionEntries(conversation.id)
+                val leafEntryId = history.loadLeafEntryId(conversation.id)
+                val outcome = contextCompaction.compactManually(
+                    messages = _state.value.messages,
+                    sessionEntries = sessionEntries,
+                    leafEntryId = leafEntryId,
+                    contextLength = contextLength,
+                )
+                if (outcome.checkpoint == null && outcome.projectedMessages == _state.value.messages) {
+                    dispatch(ChatIntent.CompactionFailed("Not enough conversation history to compact yet."))
+                    return@launch
+                }
+                if (outcome.checkpoint != null) {
+                    history.appendCompaction(conversation.id, outcome.checkpoint)
+                }
+                dispatch(ChatIntent.MessagesLoaded(conversation.id, outcome.projectedMessages))
+                dispatch(ChatIntent.CompactingFinished)
+                onHistoryChanged?.invoke()
+            } catch (error: Exception) {
+                val message = error.message?.takeIf { it.isNotBlank() }
+                    ?: "Could not compact conversation context."
+                dispatch(ChatIntent.CompactionFailed(message))
+            }
         }
     }
 
@@ -173,37 +221,102 @@ internal class ChatComponent(
     private suspend fun startStream(
         conversationId: UUID,
         providerSortBy: String? = null,
-        reasoningEffort: String? = null
+        reasoningEffort: String? = null,
+        overflowRetry: Boolean = false,
     ) {
         cancelStream()
         resetStreamingBuffers()
         val streamId = ++activeStreamId
-        dispatch(ChatIntent.StreamingTurnStarted)
-
-        val messagesForWire = _state.value.messages.filter { message ->
-            message.isComplete || message.role != ChatMessageRole.ASSISTANT
+        if (!overflowRetry) {
+            didOverflowRetry = false
         }
+        lastProviderSortBy = providerSortBy
+        lastReasoningEffort = reasoningEffort
+
+        val wireMessages = try {
+            prepareMessagesForWire(conversationId, overflowRetry)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            reportStreamFailure(e, conversationId)
+            return
+        }
+
+        dispatch(ChatIntent.StreamingTurnStarted)
+        var scheduledOverflowRetry = false
 
         streamJob = scope.launch {
             try {
-                streamingClient.stream(messagesForWire, providerSortBy, reasoningEffort).collect { event ->
+                streamingClient.stream(wireMessages, providerSortBy, reasoningEffort).collect { event ->
                     if (streamId != activeStreamId) return@collect
-                    handleStreamingEvent(event, conversationId)
+                    handleStreamingEvent(
+                        event = event,
+                        conversationId = conversationId,
+                        onOverflowRetryScheduled = { scheduledOverflowRetry = true },
+                    )
                 }
                 if (streamId == activeStreamId &&
-                    _state.value.streamingStatus == ChatStreamingStatus.Running
+                    _state.value.streamingStatus == ChatStreamingStatus.Running &&
+                    !scheduledOverflowRetry
                 ) {
                     handleStreamingEvent(ChatStreamingEvent.Done, conversationId)
                 }
             } catch (_: CancellationException) {
                 // Turn cancelled (new message, new chat) — do not finalize.
+            } catch (e: Exception) {
+                if (streamId == activeStreamId) {
+                    handleStreamingEvent(
+                        ChatStreamingEvent.Error(ChatStreamError(formatStreamFailure(e))),
+                        conversationId,
+                    )
+                }
             }
         }
         streamJob?.join()
         onHistoryChanged?.invoke()
     }
 
-    private suspend fun handleStreamingEvent(event: ChatStreamingEvent, conversationId: UUID) {
+    private suspend fun prepareMessagesForWire(
+        conversationId: UUID,
+        overflowRetry: Boolean,
+    ): List<SidePanelMessage> {
+        val contextLength = contextLengthProvider() ?: 0
+        val sessionEntries = history.loadSessionEntries(conversationId)
+        val leafEntryId = history.loadLeafEntryId(conversationId)
+        val currentMessages = _state.value.messages.filter { message ->
+            message.isComplete || message.role != ChatMessageRole.ASSISTANT
+        }
+
+        val outcome = if (overflowRetry) {
+            contextCompaction.compactForOverflow(
+                messages = currentMessages,
+                sessionEntries = sessionEntries,
+                leafEntryId = leafEntryId,
+                contextLength = contextLength,
+            )
+        } else {
+            contextCompaction.compactIfNeeded(
+                messages = currentMessages,
+                sessionEntries = sessionEntries,
+                leafEntryId = leafEntryId,
+                contextLength = contextLength,
+            )
+        }
+
+        if (outcome.checkpoint != null) {
+            history.appendCompaction(conversationId, outcome.checkpoint)
+        }
+        if (outcome.projectedMessages != currentMessages) {
+            dispatch(ChatIntent.MessagesLoaded(conversationId, outcome.projectedMessages))
+        }
+        return outcome.projectedMessages
+    }
+
+    private suspend fun handleStreamingEvent(
+        event: ChatStreamingEvent,
+        conversationId: UUID,
+        onOverflowRetryScheduled: () -> Unit = {},
+    ) {
         when (event) {
             is ChatStreamingEvent.ThinkingDelta,
             is ChatStreamingEvent.TextDelta,
@@ -245,6 +358,22 @@ internal class ChatComponent(
             }
             is ChatStreamingEvent.Error -> {
                 flushStreamingNow()
+                if (
+                    !didOverflowRetry &&
+                    ChatContextOverflowDetector.isContextOverflow(event.error.message)
+                ) {
+                    didOverflowRetry = true
+                    onOverflowRetryScheduled()
+                    scope.launch {
+                        startStream(
+                            conversationId = conversationId,
+                            providerSortBy = lastProviderSortBy,
+                            reasoningEffort = lastReasoningEffort,
+                            overflowRetry = true,
+                        )
+                    }
+                    return
+                }
                 val mergeResult = ChatStreamingMerger.merge(
                     state = _state.value.toStreamingState(),
                     event = event,
@@ -269,7 +398,7 @@ internal class ChatComponent(
         mergeResult: ChatStreamingMergeResult,
     ) {
         mergeResult.finalizedMessages.forEach { message ->
-            history.appendMessage(conversationId, message)
+            history.appendChatMessage(conversationId, message)
         }
     }
 
@@ -373,10 +502,17 @@ internal class ChatComponent(
         dispatch(ChatIntent.UserMessageAppended(userMessage))
         onActiveConversationChanged?.invoke(conversation.id)
         scope.launch {
-            history.saveConversation(conversation)
-            onHistoryChanged?.invoke()
+            try {
+                history.saveAtom(conversation.toAtom())
+                onHistoryChanged?.invoke()
+                history.appendChatMessage(conversation.id, userMessage)
+                startStream(conversation.id, providerSortBy, reasoningEffort)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                reportStreamFailure(e, conversation.id)
+            }
         }
-        launchPersistAndStream(conversation.id, userMessage, providerSortBy, reasoningEffort)
     }
 
     private fun launchPersistAndStream(
@@ -386,11 +522,33 @@ internal class ChatComponent(
         reasoningEffort: String?,
     ) {
         scope.launch {
-            startStream(conversationId, providerSortBy, reasoningEffort)
+            try {
+                history.appendChatMessage(conversationId, userMessage)
+                startStream(conversationId, providerSortBy, reasoningEffort)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                reportStreamFailure(e, conversationId)
+            }
         }
-        scope.launch {
-            history.appendMessage(conversationId, userMessage)
+    }
+
+    private suspend fun reportStreamFailure(error: Exception, conversationId: UUID) {
+        val message = formatStreamFailure(error)
+        if (_state.value.isSending) {
+            handleStreamingEvent(ChatStreamingEvent.Error(ChatStreamError(message)), conversationId)
+            resetStreamingBuffers()
+        } else {
+            dispatch(ChatIntent.SendPreparationFailed(message))
         }
+    }
+
+    private fun formatStreamFailure(error: Exception): String = when (error) {
+        is SettingsContextCompactionException ->
+            error.message ?: "Could not compact conversation context."
+        is PersistenceAtomHistoryError ->
+            "Could not save this conversation yet. Try again."
+        else -> error.message?.takeIf { it.isNotBlank() } ?: "Could not send message."
     }
 
     private fun syncConversationTitle(
@@ -405,7 +563,7 @@ internal class ChatComponent(
         dispatch(ChatIntent.ActiveConversationRenamed(conversationId, newTitle))
         onConversationTitleChanged?.invoke(conversationId, newTitle)
         scope.launch {
-            history.renameConversation(conversationId, newTitle)
+            history.renameAtom(conversationId, newTitle)
         }
     }
 }

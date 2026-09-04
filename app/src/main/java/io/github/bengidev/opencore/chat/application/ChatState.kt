@@ -14,6 +14,7 @@ internal data class ChatState(
     val draftAttachments: List<ChatMessageAttachment> = emptyList(),
     val isLoadingMessages: Boolean = false,
     val isSending: Boolean = false,
+    val isCompacting: Boolean = false,
     val streamingStatus: ChatStreamingStatus = ChatStreamingStatus.Idle,
     val streamErrorMessage: String? = null,
     val currentPartialText: String = "",
@@ -26,6 +27,9 @@ internal data class ChatState(
 ) {
     val isThreadActive: Boolean
         get() = activeConversation != null
+
+    val hasMessages: Boolean
+        get() = messages.isNotEmpty()
 
     /** True while a turn is actively streaming; drives the status capsule above the composer. */
     val showsStreamingStatusCapsule: Boolean
@@ -95,6 +99,9 @@ internal sealed interface ChatIntent {
     ) : ChatIntent
     data object StreamingErrorDismissed : ChatIntent
     data class SendPreparationFailed(val message: String) : ChatIntent
+    data object CompactingStarted : ChatIntent
+    data object CompactingFinished : ChatIntent
+    data class CompactionFailed(val message: String) : ChatIntent
 }
 
 internal fun ChatState.withoutIncompleteAssistantRows(): ChatState =
