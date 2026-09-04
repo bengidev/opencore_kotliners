@@ -264,6 +264,8 @@ private fun HomeComposerPromptPanel(
                 )
             }
 
+            Spacer(modifier = Modifier.weight(1f))
+
             if (showAttachmentButton) {
                 HomeComposerIconButton(
                     imageVector = Icons.Default.Add,
@@ -272,8 +274,6 @@ private fun HomeComposerPromptPanel(
                     onClick = onAttachmentTapped
                 )
             }
-
-            Spacer(modifier = Modifier.weight(1f))
 
             if (speechState.isListening || speechState.isTranscribing) {
                 HomeComposerStopRecordingButton(onClick = onStopVoiceInput)
