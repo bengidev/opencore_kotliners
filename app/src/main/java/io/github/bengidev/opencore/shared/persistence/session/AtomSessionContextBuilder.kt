@@ -59,6 +59,43 @@ internal object AtomSessionContextBuilder {
             if (entry.kind == AtomSessionEntryKind.MESSAGE) entry.message else null
         }
 
+    /** Chronological chat-thread projection: kept turns in order, compaction summary appended at the tail. */
+    fun buildThreadDisplayMessages(entries: List<AtomSessionEntry>, leafId: UUID?): List<SidePanelMessage> {
+        val path = buildPath(entries, leafId)
+        if (path.isEmpty()) return emptyList()
+
+        val compactionIndex = path.indexOfLast { it.kind == AtomSessionEntryKind.COMPACTION }
+        if (compactionIndex < 0) {
+            return path.mapNotNull { entry ->
+                if (entry.kind == AtomSessionEntryKind.MESSAGE) entry.message else null
+            }
+        }
+
+        val compactionEntry = path[compactionIndex]
+        val firstKeptEntryId = compactionEntry.compaction?.firstKeptEntryId
+        val firstKeptIndex = when {
+            firstKeptEntryId != null -> {
+                val index = path.indexOfFirst { it.id == firstKeptEntryId }
+                if (index >= 0) index else compactionIndex
+            }
+            else -> compactionIndex
+        }
+
+        val result = mutableListOf<SidePanelMessage>()
+        for (index in path.indices) {
+            val entry = path[index]
+            when (entry.kind) {
+                AtomSessionEntryKind.COMPACTION -> Unit
+                AtomSessionEntryKind.MESSAGE -> {
+                    if (index < firstKeptIndex) continue
+                    entry.message?.let { result.add(it) }
+                }
+            }
+        }
+        result.addAll(entryToModelMessages(compactionEntry))
+        return result
+    }
+
     fun buildModelMessages(entries: List<AtomSessionEntry>, leafId: UUID?): List<SidePanelMessage> =
         buildContextEntries(entries, leafId).flatMap(::entryToModelMessages)
 
