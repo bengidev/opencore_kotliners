@@ -6,7 +6,7 @@ import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.infrastructure.EchoChatStreamingClient
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
-import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelHistoryRepository
+import io.github.bengidev.opencore.shared.persistence.InMemoryAtomHistoryRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -26,12 +26,12 @@ import java.util.UUID
 class ChatHistoryRestoreTest {
 
     private val testDispatcher = StandardTestDispatcher()
-    private lateinit var history: InMemorySidePanelHistoryRepository
+    private lateinit var history: InMemoryAtomHistoryRepository
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        history = InMemorySidePanelHistoryRepository(seed = emptyList())
+        history = InMemoryAtomHistoryRepository(seed = emptyList())
     }
 
     @After

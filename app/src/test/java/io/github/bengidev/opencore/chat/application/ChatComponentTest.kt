@@ -12,8 +12,11 @@ import io.github.bengidev.opencore.chat.infrastructure.EchoChatStreamingClient
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
-import io.github.bengidev.opencore.shared.persistence.PersistenceConversationHistoryStoring
-import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelHistoryRepository
+import io.github.bengidev.opencore.chat.utilities.SettingsContextCompactionClient
+import io.github.bengidev.opencore.chat.utilities.SettingsContextCompactionException
+import io.github.bengidev.opencore.sidepanel.domain.SettingsContextCompactionOutcome
+import io.github.bengidev.opencore.shared.persistence.InMemoryAtomHistoryRepository
+import io.github.bengidev.opencore.shared.persistence.PersistenceAtomHistoryStoring
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -41,12 +44,12 @@ import java.util.UUID
 class ChatComponentTest {
 
     private val testDispatcher = StandardTestDispatcher()
-    private lateinit var history: InMemorySidePanelHistoryRepository
+    private lateinit var history: InMemoryAtomHistoryRepository
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        history = InMemorySidePanelHistoryRepository(seed = emptyList())
+        history = InMemoryAtomHistoryRepository(seed = emptyList())
     }
 
     @After
@@ -79,7 +82,7 @@ class ChatComponentTest {
         assertEquals(ChatMessageRole.ASSISTANT, state.messages[2].role)
         assertEquals("Echo: Hello OpenCore", state.messages[2].content)
 
-        val stored = history.listConversations()
+        val stored = history.listAtoms()
         assertEquals(1, stored.size)
         assertEquals(3, history.loadMessages(stored.first().id).size)
     }
@@ -252,7 +255,7 @@ class ChatComponentTest {
         advanceUntilIdle()
 
         assertEquals("what is circuit?", component.state.value.headerTitle)
-        assertEquals("what is circuit?", history.listConversations().single().title)
+        assertEquals("what is circuit?", history.listAtoms().single().title)
     }
 
     @Test
@@ -284,7 +287,7 @@ class ChatComponentTest {
     }
 
     @Test
-    fun sendUserMessage_startsStreamWithoutWaitingForPersistence() = runTest(testDispatcher) {
+    fun sendUserMessage_persistsBeforeStartingStream() = runTest(testDispatcher) {
         val conversation = SidePanelConversation(title = "Saved")
         history.saveConversation(conversation)
         history.appendMessage(
@@ -307,16 +310,14 @@ class ChatComponentTest {
         advanceUntilIdle()
 
         component.sendUserMessage("Follow up")
+        testDispatcher.scheduler.runCurrent()
+        assertEquals(1, gatedHistory.appendAttempts)
+        gatedHistory.appendGate.complete(Unit)
         advanceUntilIdle()
 
+        assertFalse(component.state.value.isSending)
         assertTrue(component.state.value.messages.any { it.content == "Follow up" })
         assertTrue(component.state.value.messages.size >= 3)
-        assertFalse(component.state.value.isSending)
-        assertTrue(gatedHistory.appendAttempts >= 1)
-        assertEquals(
-            "Earlier",
-            gatedHistory.loadMessages(conversation.id).single().content,
-        )
     }
 
     @Test
@@ -389,6 +390,38 @@ class ChatComponentTest {
         assertEquals(ChatStreamingStatus.Failed, state.streamingStatus)
         assertEquals(ChatStreamingMerger.EMPTY_RESPONSE_MESSAGE, state.streamErrorMessage)
         assertEquals(listOf(ChatMessageRole.USER), state.messages.map { it.role })
+    }
+
+    @Test
+    fun sendUserMessage_whenCompactionFails_resetsSendingAndShowsError() = runTest(testDispatcher) {
+        val compaction = SettingsContextCompactionClient(
+            compactIfNeededFn = { messages, _, _, _ ->
+                throw SettingsContextCompactionException.MissingModel
+            },
+            compactManuallyFn = { messages, _, _, _ ->
+                SettingsContextCompactionOutcome.unchanged(messages)
+            },
+            compactForOverflowFn = { messages, _, _, _ ->
+                SettingsContextCompactionOutcome.unchanged(messages)
+            },
+        )
+        val component = ChatComponent(
+            componentContext = DefaultComponentContext(lifecycle = LifecycleRegistry()),
+            history = history,
+            streamingClient = EchoChatStreamingClient(),
+            contextCompaction = compaction,
+        )
+
+        component.sendUserMessage("Hello")
+        advanceUntilIdle()
+
+        val state = component.state.value
+        assertFalse(state.isSending)
+        assertEquals(ChatStreamingStatus.Failed, state.streamingStatus)
+        assertEquals(
+            SettingsContextCompactionException.MissingModel.message,
+            state.streamErrorMessage,
+        )
     }
 
     @Test
@@ -472,79 +505,39 @@ private class HangingOutputStreamClient : ChatStreamingClient {
 }
 
 private class GatedAppendHistoryRepository(
-    private val delegate: InMemorySidePanelHistoryRepository,
-) : PersistenceConversationHistoryStoring {
+    private val delegate: InMemoryAtomHistoryRepository,
+) : PersistenceAtomHistoryStoring by delegate {
     val appendGate = CompletableDeferred<Unit>()
     var appendAttempts: Int = 0
         private set
 
-    override suspend fun listConversations() = delegate.listConversations()
-    override suspend fun saveConversation(conversation: SidePanelConversation) =
-        delegate.saveConversation(conversation)
-    override suspend fun appendMessage(conversationId: UUID, message: SidePanelMessage) {
+    override suspend fun appendChatMessage(atomId: UUID, message: SidePanelMessage) {
         appendAttempts += 1
         appendGate.await()
-        delegate.appendMessage(conversationId, message)
+        delegate.appendChatMessage(atomId, message)
     }
-    override suspend fun loadMessages(conversationId: UUID) = delegate.loadMessages(conversationId)
-    override suspend fun deleteConversation(conversationId: UUID) =
-        delegate.deleteConversation(conversationId)
-    override suspend fun setPinned(conversationId: UUID, isPinned: Boolean) =
-        delegate.setPinned(conversationId, isPinned)
-    override suspend fun renameConversation(conversationId: UUID, title: String) =
-        delegate.renameConversation(conversationId, title)
-    override suspend fun setGroup(conversationId: UUID, groupName: String?) =
-        delegate.setGroup(conversationId, groupName)
-    override suspend fun listGroups(): List<String> = delegate.listGroups()
 }
 
 private class DelayedAppendHistoryRepository(
-    private val delegate: InMemorySidePanelHistoryRepository,
+    private val delegate: InMemoryAtomHistoryRepository,
     private val appendDelayMs: Long,
-) : PersistenceConversationHistoryStoring {
+) : PersistenceAtomHistoryStoring by delegate {
     var appendAttempts: Int = 0
         private set
 
-    override suspend fun listConversations() = delegate.listConversations()
-    override suspend fun saveConversation(conversation: SidePanelConversation) =
-        delegate.saveConversation(conversation)
-    override suspend fun appendMessage(conversationId: UUID, message: SidePanelMessage) {
+    override suspend fun appendChatMessage(atomId: UUID, message: SidePanelMessage) {
         appendAttempts += 1
         delay(appendDelayMs)
-        delegate.appendMessage(conversationId, message)
+        delegate.appendChatMessage(atomId, message)
     }
-    override suspend fun loadMessages(conversationId: UUID) = delegate.loadMessages(conversationId)
-    override suspend fun deleteConversation(conversationId: UUID) =
-        delegate.deleteConversation(conversationId)
-    override suspend fun setPinned(conversationId: UUID, isPinned: Boolean) =
-        delegate.setPinned(conversationId, isPinned)
-    override suspend fun renameConversation(conversationId: UUID, title: String) =
-        delegate.renameConversation(conversationId, title)
-    override suspend fun setGroup(conversationId: UUID, groupName: String?) =
-        delegate.setGroup(conversationId, groupName)
-    override suspend fun listGroups(): List<String> = delegate.listGroups()
 }
 
 private class DelayedHistoryRepository(
-    private val delegate: InMemorySidePanelHistoryRepository,
-    private val loadDelayMs: Long
-) : PersistenceConversationHistoryStoring {
-    override suspend fun listConversations() = delegate.listConversations()
-    override suspend fun saveConversation(conversation: SidePanelConversation) =
-        delegate.saveConversation(conversation)
-    override suspend fun appendMessage(conversationId: UUID, message: SidePanelMessage) =
-        delegate.appendMessage(conversationId, message)
-    override suspend fun loadMessages(conversationId: UUID): List<SidePanelMessage> {
+    private val delegate: InMemoryAtomHistoryRepository,
+    private val loadDelayMs: Long,
+) : PersistenceAtomHistoryStoring by delegate {
+    override suspend fun loadProjectedChatMessages(atomId: UUID): List<SidePanelMessage> {
         delay(loadDelayMs)
-        return delegate.loadMessages(conversationId)
+        return delegate.loadProjectedChatMessages(atomId)
     }
-    override suspend fun deleteConversation(conversationId: UUID) =
-        delegate.deleteConversation(conversationId)
-    override suspend fun setPinned(conversationId: UUID, isPinned: Boolean) =
-        delegate.setPinned(conversationId, isPinned)
-    override suspend fun renameConversation(conversationId: UUID, title: String) =
-        delegate.renameConversation(conversationId, title)
-    override suspend fun setGroup(conversationId: UUID, groupName: String?) =
-        delegate.setGroup(conversationId, groupName)
-    override suspend fun listGroups(): List<String> = delegate.listGroups()
 }
