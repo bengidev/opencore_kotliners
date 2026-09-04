@@ -1,5 +1,7 @@
 package io.github.bengidev.opencore.sidepanel.application.setting
 
+import io.github.bengidev.opencore.sidepanel.domain.SettingsContextCompactionPreference
+
 internal sealed interface SidePanelSettingIntent {
     data class DraftChanged(val value: String) : SidePanelSettingIntent
     data class Appeared(
@@ -11,4 +13,10 @@ internal sealed interface SidePanelSettingIntent {
     data class SaveFailed(val message: String) : SidePanelSettingIntent
     data class ClearFailed(val message: String) : SidePanelSettingIntent
     data class ProviderSelected(val id: String, val hasStoredKey: Boolean) : SidePanelSettingIntent
+    data class CompactionPreferenceLoaded(
+        val preference: SettingsContextCompactionPreference,
+    ) : SidePanelSettingIntent
+    data class CompactionEnabledChanged(val enabled: Boolean) : SidePanelSettingIntent
+    data class ReserveTokensChanged(val tokens: Int) : SidePanelSettingIntent
+    data class KeepRecentTokensChanged(val tokens: Int) : SidePanelSettingIntent
 }

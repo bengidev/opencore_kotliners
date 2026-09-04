@@ -29,6 +29,9 @@ internal fun SidePanelSettingsScreen(
         onDraftChanged = component::onDraftChanged,
         onSave = component::save,
         onClear = component::clear,
+        onCompactionEnabledChanged = component::onCompactionEnabledChanged,
+        onReserveTokensChanged = component::onReserveTokensChanged,
+        onKeepRecentTokensChanged = component::onKeepRecentTokensChanged,
         modifier = modifier
             .fillMaxSize()
             .background(HomeTheme.palette.surfaceBase)

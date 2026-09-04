@@ -8,6 +8,7 @@ import com.arkivanov.essenty.lifecycle.doOnDestroy
 import io.github.bengidev.opencore.shared.credential.CredentialStoring
 import io.github.bengidev.opencore.shared.providers.ProviderRegistry
 import io.github.bengidev.opencore.sidepanel.infrastructure.SidePanelPreferenceStore
+import io.github.bengidev.opencore.sidepanel.infrastructure.SettingsContextCompactionPreferenceStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -18,6 +19,7 @@ internal class SidePanelSettingComponent(
     componentContext: ComponentContext,
     private val credentialStore: CredentialStoring,
     private val preferenceStore: SidePanelPreferenceStore,
+    private val compactionPreferenceStore: SettingsContextCompactionPreferenceStore,
     initialState: SidePanelSettingState = SidePanelSettingState()
 ) : ComponentContext by componentContext {
 
@@ -39,6 +41,7 @@ internal class SidePanelSettingComponent(
     fun onAppear() {
         scope.launch {
             val preference = preferenceStore.preference()
+            val compactionPreference = compactionPreferenceStore.preference()
             val providerId = preference.providerId ?: ProviderRegistry.defaultAdapter.descriptor.id
             dispatch(
                 SidePanelSettingIntent.Appeared(
@@ -46,6 +49,7 @@ internal class SidePanelSettingComponent(
                     hasStoredKey = credentialStore.secret(providerId) != null,
                 )
             )
+            dispatch(SidePanelSettingIntent.CompactionPreferenceLoaded(compactionPreference))
         }
     }
 
@@ -88,5 +92,20 @@ internal class SidePanelSettingComponent(
             )
             onProviderChanged?.invoke(id)
         }
+    }
+
+    fun onCompactionEnabledChanged(enabled: Boolean) {
+        dispatch(SidePanelSettingIntent.CompactionEnabledChanged(enabled))
+        scope.launch { compactionPreferenceStore.setEnabled(enabled) }
+    }
+
+    fun onReserveTokensChanged(tokens: Int) {
+        dispatch(SidePanelSettingIntent.ReserveTokensChanged(tokens))
+        scope.launch { compactionPreferenceStore.setReserveTokens(tokens) }
+    }
+
+    fun onKeepRecentTokensChanged(tokens: Int) {
+        dispatch(SidePanelSettingIntent.KeepRecentTokensChanged(tokens))
+        scope.launch { compactionPreferenceStore.setKeepRecentTokens(tokens) }
     }
 }
