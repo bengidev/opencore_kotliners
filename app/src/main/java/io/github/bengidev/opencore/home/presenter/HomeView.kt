@@ -43,7 +43,6 @@ internal fun HomeView(
     canSend: Boolean,
     voicePlaybackController: ChatVoiceNotePlaybackController,
     onDraftMessageChanged: (String) -> Unit,
-    onSidebarTapped: () -> Unit,
     onNewConversationTapped: () -> Unit,
     onAttachmentTapped: () -> Unit,
     onRemoveAttachment: (java.util.UUID) -> Unit,
@@ -58,6 +57,7 @@ internal fun HomeView(
     onSpeedModeSelected: (HomeComposerSpeedMode) -> Unit,
     onReasoningEffortSelected: (ModelReasoningEffort) -> Unit,
     onContextUsagePresentedChanged: (Boolean) -> Unit,
+    onCompactContextTapped: () -> Unit,
     onChatRetryTapped: () -> Unit = {},
     onChatErrorDismissed: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -94,6 +94,17 @@ internal fun HomeView(
                 canSend = canSend,
                 isSending = chatState.isSending,
                 isLoadingMessages = chatState.isLoadingMessages,
+                isCompacting = chatState.isCompacting,
+                canCompactContext = chatState.hasMessages &&
+                    chatState.isThreadActive &&
+                    !chatState.isSending &&
+                    !chatState.isCompacting &&
+                    !chatState.isLoadingMessages &&
+                    !speechState.isListening &&
+                    !speechState.isTranscribing &&
+                    !visionState.isProcessing &&
+                    state.hasApiKey &&
+                    state.selectedModelId != null,
                 onDraftMessageChanged = onDraftMessageChanged,
                 onAttachmentTapped = {
                     dismissKeyboard()
@@ -137,6 +148,10 @@ internal fun HomeView(
                 onContextUsagePresentedChanged = { presented ->
                     if (presented) dismissKeyboard()
                     onContextUsagePresentedChanged(presented)
+                },
+                onCompactContextTapped = {
+                    dismissKeyboard()
+                    onCompactContextTapped()
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -195,10 +210,6 @@ internal fun HomeView(
         }
 
         HomeTopBarOverlay(
-            onSidebarTapped = {
-                dismissKeyboard()
-                onSidebarTapped()
-            },
             onNewConversationTapped = {
                 dismissKeyboard()
                 onNewConversationTapped()
