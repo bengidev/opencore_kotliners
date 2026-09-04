@@ -21,6 +21,7 @@ import io.github.bengidev.opencore.sidepanel.domain.SidePanelConversation
 import io.github.bengidev.opencore.shared.credential.CredentialInMemoryStore
 import io.github.bengidev.opencore.sidepanel.application.setting.SidePanelSettingComponent
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelHistoryRepository
+import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySettingsContextCompactionPreferenceStore
 import io.github.bengidev.opencore.sidepanel.infrastructure.InMemorySidePanelPreferenceStore
 import org.junit.Rule
 import org.junit.Test
@@ -106,6 +107,7 @@ class SidePanelPresenterTest {
             componentContext = DefaultComponentContext(lifecycle),
             credentialStore = CredentialInMemoryStore(),
             preferenceStore = InMemorySidePanelPreferenceStore(),
+            compactionPreferenceStore = InMemorySettingsContextCompactionPreferenceStore(),
         )
         return SidePanelComponent(
             componentContext = DefaultComponentContext(lifecycle),
