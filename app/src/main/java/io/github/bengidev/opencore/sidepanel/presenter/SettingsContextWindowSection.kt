@@ -35,7 +35,7 @@ internal fun SettingsContextWindowSection(
     modifier: Modifier = Modifier,
 ) {
     val palette = HomeTheme.palette
-    val slidersEnabled = preference.isEnabled
+    val slidersEnabled = !preference.isEnabled
 
     Column(
         modifier = modifier.fillMaxWidth(),
