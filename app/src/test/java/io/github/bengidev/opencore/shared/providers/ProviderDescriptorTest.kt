@@ -17,7 +17,7 @@ class ProviderDescriptorTest {
     fun openRouter_exposesCredentialHints() {
         val provider = ProviderDescriptor.openRouter
         assertEquals("sk-or-v1-...", provider.credentialPlaceholder)
-        assertEquals("OPENROUTER_API_KEY", provider.credentialLabel)
+        assertEquals("OpenRouter API Key", provider.credentialLabel)
         assertTrue(provider.credentialPrompt.contains("openrouter.ai/keys"))
     }
 

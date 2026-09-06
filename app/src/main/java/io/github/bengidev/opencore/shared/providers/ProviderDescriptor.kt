@@ -27,7 +27,7 @@ internal data class ProviderDescriptor(
                 "X-Title" to "OpenCore"
             ),
             credentialPlaceholder = "sk-or-v1-...",
-            credentialLabel = "OPENROUTER_API_KEY",
+            credentialLabel = "OpenRouter API Key",
             credentialPrompt = "Create a key at openrouter.ai/keys and paste it here. Requests send Authorization: Bearer <OPENROUTER_API_KEY> per the OpenRouter quickstart. Stored securely on this device.",
             supportsAudioTranscription = true,
         )
