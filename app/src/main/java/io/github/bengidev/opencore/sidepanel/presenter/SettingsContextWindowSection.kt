@@ -49,7 +49,7 @@ internal fun SettingsContextWindowSection(
                 color = palette.textPrimary,
             )
             Text(
-                text = "Control how conversation history is compacted before it exceeds the model context limit.",
+                text = "Summarize older turns and reinject the summary so the model keeps context without exceeding its window.",
                 fontSize = 13.sp,
                 color = palette.textSecondary,
             )
@@ -67,13 +67,13 @@ internal fun SettingsContextWindowSection(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    text = "Auto compact",
+                    text = "Automatic compaction",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     color = palette.textPrimary,
                 )
                 Text(
-                    text = "Summarize older messages automatically when the context window fills up.",
+                    text = "Summarize older history before send when the context window is nearly full.",
                     fontSize = 12.sp,
                     color = palette.textSecondary,
                 )
@@ -93,8 +93,8 @@ internal fun SettingsContextWindowSection(
         }
 
         CompactionTokenSlider(
-            label = "Reserve tokens",
-            description = "Tokens kept free for the next model response.",
+            label = "Reserve response headroom",
+            description = "Compaction starts once used context exceeds the model window minus this reply buffer.",
             value = preference.reserveTokens,
             valueRange = RESERVE_TOKENS_MIN.toFloat()..RESERVE_TOKENS_MAX.toFloat(),
             enabled = slidersEnabled,
@@ -103,13 +103,19 @@ internal fun SettingsContextWindowSection(
         )
 
         CompactionTokenSlider(
-            label = "Keep recent tokens",
-            description = "Recent conversation history preserved verbatim during compaction.",
+            label = "Keep recent context",
+            description = "Recent turns stay verbatim; older history is folded into the compaction summary.",
             value = preference.keepRecentTokens,
             valueRange = KEEP_RECENT_TOKENS_MIN.toFloat()..KEEP_RECENT_TOKENS_MAX.toFloat(),
             enabled = slidersEnabled,
             testTag = "settings-compaction-keep-recent-slider",
             onValueChange = onKeepRecentTokensChanged,
+        )
+
+        Text(
+            text = compactionOptionsFooter(preference),
+            fontSize = 12.sp,
+            color = palette.textSecondary,
         )
     }
 }
@@ -189,6 +195,24 @@ private fun snapTokenCount(value: Int, min: Int, max: Int): Int {
     val clamped = value.coerceIn(min, max)
     val steps = ((clamped - min) / TOKEN_STEP.toFloat()).roundToInt()
     return (min + steps * TOKEN_STEP).coerceIn(min, max)
+}
+
+private fun compactionOptionsFooter(preference: SettingsContextCompactionPreference): String {
+    if (preference.isEnabled) {
+        return "Automatic compaction runs before send when context exceeds the model window minus " +
+            "${formatTokenCountForProse(preference.reserveTokens)} reserved for the reply. " +
+            "Up to ${formatTokenCountForProse(preference.keepRecentTokens)} of recent turns stay verbatim."
+    }
+    return "Adjust these budgets for manual compaction from the composer. " +
+        "Turn on automatic compaction to summarize older history before send instead."
+}
+
+private fun formatTokenCountForProse(tokens: Int): String {
+    return if (tokens >= 1_000 && tokens % 1_000 == 0) {
+        "${tokens / 1_000}k tokens"
+    } else {
+        "$tokens tokens"
+    }
 }
 
 private fun formatTokenCount(tokens: Int): String {
