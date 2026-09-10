@@ -30,8 +30,7 @@ internal fun SidePanelSettingsScreen(
         onSave = component::save,
         onClear = component::clear,
         onCompactionEnabledChanged = component::onCompactionEnabledChanged,
-        onReserveTokensChanged = component::onReserveTokensChanged,
-        onKeepRecentTokensChanged = component::onKeepRecentTokensChanged,
+        onThresholdPercentChanged = component::onThresholdPercentChanged,
         modifier = modifier
             .fillMaxSize()
             .background(HomeTheme.palette.surfaceBase)

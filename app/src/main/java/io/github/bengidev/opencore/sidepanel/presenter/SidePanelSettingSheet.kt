@@ -34,8 +34,7 @@ internal fun SidePanelSettingSheet(
             onSave = component::save,
             onClear = component::clear,
             onCompactionEnabledChanged = component::onCompactionEnabledChanged,
-            onReserveTokensChanged = component::onReserveTokensChanged,
-            onKeepRecentTokensChanged = component::onKeepRecentTokensChanged,
+            onThresholdPercentChanged = component::onThresholdPercentChanged,
         )
     }
 }

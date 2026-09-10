@@ -53,8 +53,7 @@ internal fun SidePanelSettingContent(
     onSave: () -> Unit,
     onClear: () -> Unit,
     onCompactionEnabledChanged: (Boolean) -> Unit,
-    onReserveTokensChanged: (Int) -> Unit,
-    onKeepRecentTokensChanged: (Int) -> Unit,
+    onThresholdPercentChanged: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val palette = HomeTheme.palette
@@ -183,8 +182,7 @@ internal fun SidePanelSettingContent(
         SettingsContextWindowSection(
             preference = state.compactionPreference,
             onAutoCompactionChanged = onCompactionEnabledChanged,
-            onReserveTokensChanged = onReserveTokensChanged,
-            onKeepRecentTokensChanged = onKeepRecentTokensChanged,
+            onThresholdPercentChanged = onThresholdPercentChanged,
         )
 
         Spacer(modifier = Modifier.height(24.dp))
