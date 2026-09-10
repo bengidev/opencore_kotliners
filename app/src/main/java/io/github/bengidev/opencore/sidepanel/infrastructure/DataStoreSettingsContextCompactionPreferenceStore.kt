@@ -19,31 +19,45 @@ internal class DataStoreSettingsContextCompactionPreferenceStore(
     private val context: Context,
 ) : SettingsContextCompactionPreferenceStore {
 
-    override suspend fun preference(): SettingsContextCompactionPreference =
-        context.compactionPreferencesDataStore.data.map { preferences ->
+    override suspend fun preference(): SettingsContextCompactionPreference {
+        val loaded = context.compactionPreferencesDataStore.data.map { preferences ->
             SettingsContextCompactionPreference(
                 isEnabled = preferences[KEY_ENABLED] ?: true,
                 triggerThresholdPercent = preferences[KEY_TRIGGER_THRESHOLD] ?: 90,
                 minRecentMessages = preferences[KEY_MIN_RECENT_MESSAGES] ?: 4,
-                reserveTokens = preferences[KEY_RESERVE_TOKENS] ?: 16_384,
-                keepRecentTokens = preferences[KEY_KEEP_RECENT_TOKENS] ?: 20_000,
+                reserveTokens = preferences[KEY_RESERVE_TOKENS] ?: 0,
+                keepRecentTokens = preferences[KEY_KEEP_RECENT_TOKENS] ?: 0,
             )
         }.first()
+
+        val normalized = loaded.normalizeAfterDecoding()
+        if (normalized != loaded) {
+            persist(normalized)
+        }
+        return normalized
+    }
 
     override suspend fun setEnabled(enabled: Boolean) {
         context.compactionPreferencesDataStore.edit { it[KEY_ENABLED] = enabled }
     }
 
-    override suspend fun setReserveTokens(tokens: Int) {
-        context.compactionPreferencesDataStore.edit { it[KEY_RESERVE_TOKENS] = tokens }
-    }
-
-    override suspend fun setKeepRecentTokens(tokens: Int) {
-        context.compactionPreferencesDataStore.edit { it[KEY_KEEP_RECENT_TOKENS] = tokens }
+    override suspend fun setThresholdPercent(percent: Int) {
+        val current = preference()
+        persist(current.withThresholdPercent(percent))
     }
 
     override suspend fun setMinRecentMessages(count: Int) {
         context.compactionPreferencesDataStore.edit { it[KEY_MIN_RECENT_MESSAGES] = count }
+    }
+
+    private suspend fun persist(preference: SettingsContextCompactionPreference) {
+        context.compactionPreferencesDataStore.edit { preferences ->
+            preferences[KEY_ENABLED] = preference.isEnabled
+            preferences[KEY_TRIGGER_THRESHOLD] = preference.triggerThresholdPercent
+            preferences[KEY_MIN_RECENT_MESSAGES] = preference.minRecentMessages
+            preferences[KEY_RESERVE_TOKENS] = preference.reserveTokens
+            preferences[KEY_KEEP_RECENT_TOKENS] = preference.keepRecentTokens
+        }
     }
 
     companion object {

@@ -17,6 +17,5 @@ internal sealed interface SidePanelSettingIntent {
         val preference: SettingsContextCompactionPreference,
     ) : SidePanelSettingIntent
     data class CompactionEnabledChanged(val enabled: Boolean) : SidePanelSettingIntent
-    data class ReserveTokensChanged(val tokens: Int) : SidePanelSettingIntent
-    data class KeepRecentTokensChanged(val tokens: Int) : SidePanelSettingIntent
+    data class ThresholdPercentChanged(val percent: Int) : SidePanelSettingIntent
 }

@@ -5,7 +5,6 @@ import io.github.bengidev.opencore.sidepanel.domain.SettingsContextCompactionPre
 internal interface SettingsContextCompactionPreferenceStore {
     suspend fun preference(): SettingsContextCompactionPreference
     suspend fun setEnabled(enabled: Boolean)
-    suspend fun setReserveTokens(tokens: Int)
-    suspend fun setKeepRecentTokens(tokens: Int)
+    suspend fun setThresholdPercent(percent: Int)
     suspend fun setMinRecentMessages(count: Int)
 }

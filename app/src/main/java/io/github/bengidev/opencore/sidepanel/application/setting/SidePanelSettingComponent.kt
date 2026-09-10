@@ -99,13 +99,8 @@ internal class SidePanelSettingComponent(
         scope.launch { compactionPreferenceStore.setEnabled(enabled) }
     }
 
-    fun onReserveTokensChanged(tokens: Int) {
-        dispatch(SidePanelSettingIntent.ReserveTokensChanged(tokens))
-        scope.launch { compactionPreferenceStore.setReserveTokens(tokens) }
-    }
-
-    fun onKeepRecentTokensChanged(tokens: Int) {
-        dispatch(SidePanelSettingIntent.KeepRecentTokensChanged(tokens))
-        scope.launch { compactionPreferenceStore.setKeepRecentTokens(tokens) }
+    fun onThresholdPercentChanged(percent: Int) {
+        dispatch(SidePanelSettingIntent.ThresholdPercentChanged(percent))
+        scope.launch { compactionPreferenceStore.setThresholdPercent(percent) }
     }
 }

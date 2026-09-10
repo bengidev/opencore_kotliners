@@ -28,15 +28,10 @@ internal object ContextWindowEstimator {
         messages: List<SidePanelMessage>,
         draft: String?,
         contextLength: Int,
-        reserveTokens: Int,
-        triggerThresholdPercent: Int = 100,
+        thresholdPercent: Int,
     ): Boolean {
-        if (contextLength <= 0) return false
+        if (contextLength <= 0 || thresholdPercent <= 0) return false
         val tokensUsed = ContextTokenCounter.countTokens(messages, draft)
-        val reserveThreshold = maxOf(0, contextLength - reserveTokens)
-        val percentThreshold = (
-            contextLength * triggerThresholdPercent.coerceIn(1, 100)
-        ) / 100
-        return tokensUsed > minOf(reserveThreshold, percentThreshold)
+        return tokensUsed * 100 > contextLength * thresholdPercent
     }
 }
