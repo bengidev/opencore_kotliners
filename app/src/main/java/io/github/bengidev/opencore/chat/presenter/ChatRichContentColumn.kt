@@ -113,16 +113,26 @@ private fun RichContentSegment(
         }
         is ChatRichContentSegment.RawFragment -> {
             if (segment.text.isBlank()) return
-            StreamingMarkdownTail(
-                markdown = segment.text,
-                profile = profile,
-                palette = palette,
-                context = context,
+            val bodyStyle = when (profile) {
+                ChatMarkwonRenderer.Profile.Assistant -> ChatTheme.typography.assistantMessageBody
+                ChatMarkwonRenderer.Profile.Thinking -> ChatTheme.typography.reasoningBody
+            }
+            val textStyle = streamingRawTextStyle ?: bodyStyle
+            val textColor = streamingRawColor ?: palette.textPrimary
+            val cursorColor = if (streamingCursorColor == Color.Unspecified) {
+                palette.accentPrimary
+            } else {
+                streamingCursorColor
+            }
+            ChatStreamingTextView(
+                text = segment.text,
+                textStyle = textStyle,
+                color = textColor,
+                modifier = Modifier.fillMaxWidth(),
                 isTextSelectable = isTextSelectable,
                 showsCursor = showsStreamingCursor,
-                streamingCursorColor = streamingCursorColor,
-                streamingCursorOpacity = streamingCursorOpacity,
-                streamingRawTextStyle = streamingRawTextStyle,
+                cursorColor = cursorColor,
+                cursorOpacity = streamingCursorOpacity,
             )
         }
         is ChatRichContentSegment.MermaidDiagram,
