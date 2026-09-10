@@ -185,6 +185,59 @@ class ChatRichContentSegmenterTest {
     }
 
     @Test
+    fun segmentProgressive_tailExtractsBlockquotesForRichRendering() {
+        val markdown = "Partial\n\n> First quote line\n> Second quote line"
+
+        val segments = ChatRichContentSegmenter.segment(markdown, progressive = true)
+
+        assertTrue(
+            segments.any { segment ->
+                segment is ChatRichContentSegment.Prose && segment.markdown.contains("> First quote line")
+            }
+        )
+        assertTrue(
+            segments.any { segment ->
+                segment is ChatRichContentSegment.Prose && segment.markdown.contains("> Second quote line")
+            }
+        )
+        assertFalse(
+            segments.any { segment ->
+                segment is ChatRichContentSegment.RawFragment && segment.text.contains("> First quote line")
+            }
+        )
+    }
+
+    @Test
+    fun segmentProgressive_tailExtractsTablesForRichRendering() {
+        val markdown =
+            """
+            Partial
+
+            | Name | Value |
+            | --- | --- |
+            | Alpha | 1 |
+            """.trimIndent()
+
+        val segments = ChatRichContentSegmenter.segment(markdown, progressive = true)
+
+        assertTrue(
+            segments.any { segment ->
+                segment is ChatRichContentSegment.Prose && segment.markdown.contains("| Name | Value |")
+            }
+        )
+        assertTrue(
+            segments.any { segment ->
+                segment is ChatRichContentSegment.Prose && segment.markdown.contains("| Alpha | 1 |")
+            }
+        )
+        assertFalse(
+            segments.any { segment ->
+                segment is ChatRichContentSegment.RawFragment && segment.text.contains("| Name | Value |")
+            }
+        )
+    }
+
+    @Test
     fun segmentProgressive_completedProseBeforeRawTail_splitsRichAndRaw() {
         val markdown = "Done **bold**\n\n```mermaid\ngraph TD\n```\n\nTail `open"
 
