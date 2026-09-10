@@ -5,10 +5,13 @@ import android.util.TypedValue
 import android.widget.TextView
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -87,16 +90,16 @@ private fun RichContentSegment(
         is ChatRichContentSegment.Prose -> {
             if (segment.markdown.isBlank()) return
             if (isStreamingTail) {
-                val rawStyle = streamingRawTextStyle ?: return
-                val rawColor = streamingRawColor ?: return
-                renderStreamingTail(
-                    text = segment.markdown,
+                StreamingMarkdownTail(
+                    markdown = segment.markdown,
+                    profile = profile,
+                    palette = palette,
+                    context = context,
                     isTextSelectable = isTextSelectable,
                     showsCursor = showsStreamingCursor,
                     streamingCursorColor = streamingCursorColor,
                     streamingCursorOpacity = streamingCursorOpacity,
-                    streamingRawTextStyle = rawStyle,
-                    streamingRawColor = rawColor,
+                    streamingRawTextStyle = streamingRawTextStyle,
                 )
             } else {
                 FrozenMarkwonText(
@@ -110,16 +113,16 @@ private fun RichContentSegment(
         }
         is ChatRichContentSegment.RawFragment -> {
             if (segment.text.isBlank()) return
-            val rawStyle = streamingRawTextStyle ?: return
-            val rawColor = streamingRawColor ?: return
-            renderStreamingTail(
-                text = segment.text,
+            StreamingMarkdownTail(
+                markdown = segment.text,
+                profile = profile,
+                palette = palette,
+                context = context,
                 isTextSelectable = isTextSelectable,
                 showsCursor = showsStreamingCursor,
                 streamingCursorColor = streamingCursorColor,
                 streamingCursorOpacity = streamingCursorOpacity,
-                streamingRawTextStyle = rawStyle,
-                streamingRawColor = rawColor,
+                streamingRawTextStyle = streamingRawTextStyle,
             )
         }
         is ChatRichContentSegment.MermaidDiagram,
@@ -128,6 +131,64 @@ private fun RichContentSegment(
                 segment = segment,
                 palette = palette,
                 modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun StreamingMarkdownTail(
+    markdown: String,
+    profile: ChatMarkwonRenderer.Profile,
+    palette: OpenCorePalette,
+    context: Context,
+    isTextSelectable: Boolean,
+    showsCursor: Boolean,
+    streamingCursorColor: Color,
+    streamingCursorOpacity: Float,
+    streamingRawTextStyle: TextStyle?,
+) {
+    val bodyStyle = when (profile) {
+        ChatMarkwonRenderer.Profile.Assistant -> ChatTheme.typography.assistantMessageBody
+        ChatMarkwonRenderer.Profile.Thinking -> ChatTheme.typography.reasoningBody
+    }
+    val cursorStyle = streamingRawTextStyle ?: bodyStyle
+    val cursorColor = if (streamingCursorColor == Color.Unspecified) {
+        palette.accentPrimary
+    } else {
+        streamingCursorColor
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        AndroidView(
+            modifier = Modifier.weight(1f, fill = false),
+            factory = { ctx ->
+                TextView(ctx).apply {
+                    movementMethod = TableAwareMovementMethod.create()
+                    setTextIsSelectable(isTextSelectable)
+                    configureMarkwonTextView(bodyStyle)
+                }
+            },
+            update = { tv ->
+                tv.setTextIsSelectable(isTextSelectable)
+                tv.configureMarkwonTextView(bodyStyle)
+                ChatMarkwonRenderer.applyTo(
+                    textView = tv,
+                    markdown = markdown,
+                    palette = palette,
+                    profile = profile,
+                    context = context,
+                )
+            },
+        )
+        if (showsCursor) {
+            Text(
+                text = ChatStreamingTextCursorPolicy.GLYPH,
+                style = cursorStyle,
+                color = cursorColor.copy(alpha = streamingCursorOpacity),
             )
         }
     }
@@ -176,28 +237,6 @@ private fun TextView.configureMarkwonTextView(bodyStyle: TextStyle) {
     setPadding(0, 0, 0, 0)
     setBackgroundColor(android.graphics.Color.TRANSPARENT)
     setTextSize(TypedValue.COMPLEX_UNIT_SP, bodyStyle.fontSize.value)
-}
-
-@Composable
-private fun renderStreamingTail(
-    text: String,
-    isTextSelectable: Boolean,
-    showsCursor: Boolean,
-    streamingCursorColor: Color,
-    streamingCursorOpacity: Float,
-    streamingRawTextStyle: TextStyle,
-    streamingRawColor: Color,
-) {
-    ChatStreamingTextView(
-        text = text,
-        textStyle = streamingRawTextStyle,
-        color = streamingRawColor,
-        modifier = Modifier.fillMaxWidth(),
-        isTextSelectable = isTextSelectable,
-        showsCursor = showsCursor,
-        cursorColor = streamingCursorColor,
-        cursorOpacity = streamingCursorOpacity,
-    )
 }
 
 /** Index-only keys keep AndroidViews alive while tail content grows during streaming. */

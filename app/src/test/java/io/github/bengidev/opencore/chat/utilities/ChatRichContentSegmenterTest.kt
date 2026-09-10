@@ -1,6 +1,7 @@
 package io.github.bengidev.opencore.chat.utilities
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -135,13 +136,52 @@ class ChatRichContentSegmenterTest {
     }
 
     @Test
-    fun segmentProgressive_unclosedInlineBacktick_emitsRawProse() {
+    fun segmentProgressive_unclosedInlineBacktick_splitsRichPrefixFromRawTail() {
         val markdown = "Done **bold** and `partial"
 
         val segments = ChatRichContentSegmenter.segment(markdown, progressive = true)
 
-        assertEquals(1, segments.size)
-        assertEquals(ChatRichContentSegment.RawFragment(markdown), segments[0])
+        assertEquals(2, segments.size)
+        assertEquals(ChatRichContentSegment.Prose("Done **bold** and "), segments[0])
+        assertEquals(ChatRichContentSegment.RawFragment("`partial"), segments[1])
+    }
+
+    @Test
+    fun segmentProgressive_tailExtractsHeadingsAndListsForRichRendering() {
+        val markdown = "Partial `token\n\n## TL;DR\n\n- First point\n- Second point"
+
+        val segments = ChatRichContentSegmenter.segment(markdown, progressive = true)
+
+        assertTrue(
+            segments.any { segment ->
+                segment is ChatRichContentSegment.Prose && segment.markdown.contains("## TL;DR")
+            }
+        )
+        assertTrue(
+            segments.any { segment ->
+                segment is ChatRichContentSegment.Prose && segment.markdown.contains("- First point")
+            }
+        )
+        assertFalse(
+            segments.any { segment ->
+                segment is ChatRichContentSegment.RawFragment && segment.text.contains("## TL;DR")
+            }
+        )
+    }
+
+    @Test
+    fun segmentProgressive_tailBatchesConsecutiveListLines() {
+        val markdown = "Partial\n\n- First point\n- Second point\n- Third point"
+
+        val segments = ChatRichContentSegmenter.segment(markdown, progressive = true)
+        val listSegments = segments.filter {
+            it is ChatRichContentSegment.Prose && it.markdown.contains("- First point")
+        }
+
+        assertEquals(1, listSegments.size)
+        val markdownSegment = listSegments.single() as ChatRichContentSegment.Prose
+        assertTrue(markdownSegment.markdown.contains("- Second point"))
+        assertTrue(markdownSegment.markdown.contains("- Third point"))
     }
 
     @Test
@@ -150,9 +190,10 @@ class ChatRichContentSegmenterTest {
 
         val segments = ChatRichContentSegmenter.segment(markdown, progressive = true)
 
-        assertEquals(3, segments.size)
+        assertEquals(4, segments.size)
         assertEquals(ChatRichContentSegment.Prose("Done **bold**\n\n"), segments[0])
         assertTrue(segments[1] is ChatRichContentSegment.MermaidDiagram)
-        assertEquals(ChatRichContentSegment.RawFragment("\n\nTail `open"), segments[2])
+        assertEquals(ChatRichContentSegment.Prose("\n\nTail "), segments[2])
+        assertEquals(ChatRichContentSegment.RawFragment("`open"), segments[3])
     }
 }
