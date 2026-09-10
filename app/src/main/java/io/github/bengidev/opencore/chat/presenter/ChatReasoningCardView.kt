@@ -76,6 +76,7 @@ internal fun ChatReasoningCardView(
             }
             .testTag("chat-reasoning-card"),
     ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -114,6 +115,7 @@ internal fun ChatReasoningCardView(
                 textColor = palette.reasoningText,
                 cursorColor = palette.streamingDot,
             )
+        }
         }
     }
 }
