@@ -152,7 +152,7 @@ internal fun ChatThreadView(
                     .fillMaxWidth()
                     .heightIn(max = maxHeight),
                 reverseLayout = ChatThreadLayoutPolicy.useReverseLayout(),
-                verticalArrangement = Arrangement.spacedBy(0.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
                 contentPadding = PaddingValues(vertical = 8.dp),
             ) {
                 val hasCompetingStream = ChatCompetingStreamPolicy.hasCompetingStream(state)

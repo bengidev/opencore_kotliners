@@ -33,13 +33,9 @@ internal object SidePanelSettingReducer {
                 state.copy(
                     compactionPreference = state.compactionPreference.copy(isEnabled = intent.enabled)
                 )
-            is SidePanelSettingIntent.ReserveTokensChanged ->
+            is SidePanelSettingIntent.ThresholdPercentChanged ->
                 state.copy(
-                    compactionPreference = state.compactionPreference.copy(reserveTokens = intent.tokens)
-                )
-            is SidePanelSettingIntent.KeepRecentTokensChanged ->
-                state.copy(
-                    compactionPreference = state.compactionPreference.copy(keepRecentTokens = intent.tokens)
+                    compactionPreference = state.compactionPreference.withThresholdPercent(intent.percent),
                 )
         }
 }

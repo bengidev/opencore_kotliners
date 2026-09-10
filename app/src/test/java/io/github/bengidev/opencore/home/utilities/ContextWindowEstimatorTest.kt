@@ -5,6 +5,8 @@ import io.github.bengidev.opencore.chat.infrastructure.ChatOutputStreamDetailCod
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessage
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
 import java.util.UUID
@@ -153,6 +155,35 @@ class ContextWindowEstimatorTest {
 
         val expected = estimatedTokens("$command\n$outputTail")
         assertEquals(expected, usage.tokensUsed)
+    }
+
+    @Test
+    fun thresholdPercentRule_triggersWhenUsageExceedsFillLevel() {
+        val messages = listOf(message(content = "a".repeat(400)))
+        assertTrue(
+            ContextWindowEstimator.shouldCompact(
+                messages = messages,
+                draft = null,
+                contextLength = 100,
+                thresholdPercent = 90,
+            )
+        )
+        assertFalse(
+            ContextWindowEstimator.shouldCompact(
+                messages = messages,
+                draft = null,
+                contextLength = 10_000,
+                thresholdPercent = 90,
+            )
+        )
+        assertFalse(
+            ContextWindowEstimator.shouldCompact(
+                messages = messages,
+                draft = null,
+                contextLength = 100,
+                thresholdPercent = 0,
+            )
+        )
     }
 
     @Test

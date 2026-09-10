@@ -20,22 +20,16 @@ import io.github.bengidev.opencore.home.theme.HomeTheme
 import io.github.bengidev.opencore.sidepanel.domain.SettingsContextCompactionPreference
 import kotlin.math.roundToInt
 
-private const val RESERVE_TOKENS_MIN = 4_096
-private const val RESERVE_TOKENS_MAX = 32_768
-private const val KEEP_RECENT_TOKENS_MIN = 4_096
-private const val KEEP_RECENT_TOKENS_MAX = 40_960
-private const val TOKEN_STEP = 1_024
-
 @Composable
 internal fun SettingsContextWindowSection(
     preference: SettingsContextCompactionPreference,
     onAutoCompactionChanged: (Boolean) -> Unit,
-    onReserveTokensChanged: (Int) -> Unit,
-    onKeepRecentTokensChanged: (Int) -> Unit,
+    onThresholdPercentChanged: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val palette = HomeTheme.palette
-    val slidersEnabled = !preference.isEnabled
+    val thresholdPercent = preference.triggerThresholdPercent
+    val thresholdSliderEnabled = !preference.isEnabled
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -49,7 +43,7 @@ internal fun SettingsContextWindowSection(
                 color = palette.textPrimary,
             )
             Text(
-                text = "Summarize older turns and reinject the summary so the model keeps context without exceeding its window.",
+                text = "Manage how older conversation history is summarized when the model's context window fills up.",
                 fontSize = 13.sp,
                 color = palette.textSecondary,
             )
@@ -73,7 +67,7 @@ internal fun SettingsContextWindowSection(
                     color = palette.textPrimary,
                 )
                 Text(
-                    text = "Summarize older history before send when the context window is nearly full.",
+                    text = "Summarize older turns when context nears the model limit and reinject the summary so the session can continue.",
                     fontSize = 12.sp,
                     color = palette.textSecondary,
                 )
@@ -92,25 +86,56 @@ internal fun SettingsContextWindowSection(
             )
         }
 
-        CompactionTokenSlider(
-            label = "Reserve response headroom",
-            description = "Compaction starts once used context exceeds the model window minus this reply buffer.",
-            value = preference.reserveTokens,
-            valueRange = RESERVE_TOKENS_MIN.toFloat()..RESERVE_TOKENS_MAX.toFloat(),
-            enabled = slidersEnabled,
-            testTag = "settings-compaction-reserve-slider",
-            onValueChange = onReserveTokensChanged,
-        )
-
-        CompactionTokenSlider(
-            label = "Keep recent context",
-            description = "Recent turns stay verbatim; older history is folded into the compaction summary.",
-            value = preference.keepRecentTokens,
-            valueRange = KEEP_RECENT_TOKENS_MIN.toFloat()..KEEP_RECENT_TOKENS_MAX.toFloat(),
-            enabled = slidersEnabled,
-            testTag = "settings-compaction-keep-recent-slider",
-            onValueChange = onKeepRecentTokensChanged,
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("settings-compaction-threshold"),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Compact when full",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (thresholdSliderEnabled) palette.textPrimary else palette.textTertiary,
+                )
+                Text(
+                    text = "$thresholdPercent%",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (thresholdSliderEnabled) palette.textSecondary else palette.textTertiary,
+                    modifier = Modifier.testTag("settings-compaction-threshold-value"),
+                )
+            }
+            Text(
+                text = thresholdSliderDescription(preference, thresholdSliderEnabled),
+                fontSize = 12.sp,
+                color = if (thresholdSliderEnabled) palette.textSecondary else palette.textTertiary,
+            )
+            Slider(
+                value = thresholdPercent.toFloat(),
+                onValueChange = { raw ->
+                    onThresholdPercentChanged(raw.roundToInt())
+                },
+                enabled = thresholdSliderEnabled,
+                valueRange = SettingsContextCompactionPreference.thresholdPercentRange.first.toFloat()..
+                    SettingsContextCompactionPreference.thresholdPercentRange.last.toFloat(),
+                steps = (SettingsContextCompactionPreference.thresholdPercentRange.last -
+                    SettingsContextCompactionPreference.thresholdPercentRange.first) / 5 - 1,
+                colors = SliderDefaults.colors(
+                    thumbColor = palette.controlStrong,
+                    activeTrackColor = palette.controlStrong,
+                    inactiveTrackColor = palette.surfaceSubtle,
+                    disabledThumbColor = palette.textTertiary.copy(alpha = 0.5f),
+                    disabledActiveTrackColor = palette.lineSoft,
+                    disabledInactiveTrackColor = palette.surfaceSubtle,
+                ),
+            )
+        }
 
         Text(
             text = compactionOptionsFooter(preference),
@@ -120,105 +145,22 @@ internal fun SettingsContextWindowSection(
     }
 }
 
-@Composable
-private fun CompactionTokenSlider(
-    label: String,
-    description: String,
-    value: Int,
-    valueRange: ClosedFloatingPointRange<Float>,
-    enabled: Boolean,
-    testTag: String,
-    onValueChange: (Int) -> Unit,
-) {
-    val palette = HomeTheme.palette
-    val snappedValue = snapTokenCount(value, valueRange.start.toInt(), valueRange.endInclusive.toInt())
-    val labelColor = if (enabled) palette.textPrimary else palette.textTertiary
-    val valueColor = if (enabled) palette.textSecondary else palette.textTertiary
-    val descriptionColor = if (enabled) palette.textSecondary else palette.textTertiary
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag(testTag),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = label,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                color = labelColor,
-            )
-            Text(
-                text = formatTokenCount(snappedValue),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = valueColor,
-            )
-        }
-        Text(
-            text = description,
-            fontSize = 12.sp,
-            color = descriptionColor,
-        )
-        Slider(
-            value = snappedValue.toFloat(),
-            onValueChange = { raw ->
-                onValueChange(
-                    snapTokenCount(
-                        raw.roundToInt(),
-                        valueRange.start.toInt(),
-                        valueRange.endInclusive.toInt(),
-                    )
-                )
-            },
-            enabled = enabled,
-            valueRange = valueRange,
-            steps = ((valueRange.endInclusive - valueRange.start) / TOKEN_STEP).toInt() - 1,
-            colors = SliderDefaults.colors(
-                thumbColor = palette.controlStrong,
-                activeTrackColor = palette.controlStrong,
-                inactiveTrackColor = palette.surfaceSubtle,
-                disabledThumbColor = palette.textTertiary.copy(alpha = 0.5f),
-                disabledActiveTrackColor = palette.lineSoft,
-                disabledInactiveTrackColor = palette.surfaceSubtle,
-            ),
-        )
+private fun thresholdSliderDescription(
+    preference: SettingsContextCompactionPreference,
+    sliderEnabled: Boolean,
+): String {
+    if (sliderEnabled) {
+        return "Fill level that triggers automatic compaction when it is turned on."
     }
-}
-
-private fun snapTokenCount(value: Int, min: Int, max: Int): Int {
-    val clamped = value.coerceIn(min, max)
-    val steps = ((clamped - min) / TOKEN_STEP.toFloat()).roundToInt()
-    return (min + steps * TOKEN_STEP).coerceIn(min, max)
+    return "Automatic compaction uses the ${preference.triggerThresholdPercent}% threshold. " +
+        "Turn off automatic compaction to adjust it."
 }
 
 private fun compactionOptionsFooter(preference: SettingsContextCompactionPreference): String {
     if (preference.isEnabled) {
-        return "Automatic compaction runs before send when context exceeds the model window minus " +
-            "${formatTokenCountForProse(preference.reserveTokens)} reserved for the reply. " +
-            "Up to ${formatTokenCountForProse(preference.keepRecentTokens)} of recent turns stay verbatim."
+        return "Automatic compaction runs before send when context use passes this threshold. " +
+            "You can also compact manually from the composer."
     }
-    return "Adjust these budgets for manual compaction from the composer. " +
-        "Turn on automatic compaction to summarize older history before send instead."
-}
-
-private fun formatTokenCountForProse(tokens: Int): String {
-    return if (tokens >= 1_000 && tokens % 1_000 == 0) {
-        "${tokens / 1_000}k tokens"
-    } else {
-        "$tokens tokens"
-    }
-}
-
-private fun formatTokenCount(tokens: Int): String {
-    return if (tokens % 1_024 == 0) {
-        "${tokens / 1_024}k"
-    } else {
-        tokens.toString()
-    }
+    return "Manual compaction is available from the composer at any time. " +
+        "The threshold above applies when automatic compaction is turned on."
 }

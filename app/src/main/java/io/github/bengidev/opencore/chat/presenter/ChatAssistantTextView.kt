@@ -7,8 +7,8 @@ import io.github.bengidev.opencore.chat.theme.ChatTheme
 import io.github.bengidev.opencore.chat.utilities.ChatMarkwonRenderer
 
 /**
- * Assistant answer text with deferred rich rendering.
- * Progressive plain tail while streaming; full markdown/LaTeX/Mermaid when complete.
+ * Assistant answer text with progressive markdown rendering while streaming.
+ * Full markdown/LaTeX/Mermaid when complete.
  */
 @Composable
 internal fun ChatAssistantTextView(
@@ -28,6 +28,8 @@ internal fun ChatAssistantTextView(
                 modifier = modifier,
                 isTextSelectable = isTextSelectable,
                 progressive = true,
+                showsStreamingCursor = true,
+                streamingCursorColor = palette.accentPrimary,
                 streamingRawTextStyle = typography.assistantMessageBody,
                 streamingRawColor = palette.textPrimary,
             )

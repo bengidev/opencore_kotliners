@@ -5,24 +5,18 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -34,7 +28,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -42,8 +35,6 @@ import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.chat.theme.ChatTheme
 import io.github.bengidev.opencore.chat.utilities.ChatMarkwonRenderer
 import java.util.UUID
-
-private val CardShape = RoundedCornerShape(14.dp)
 
 /** Collapsible reasoning card — mirrors iOS `ChatReasoningCardView`. */
 @Composable
@@ -78,21 +69,14 @@ internal fun ChatReasoningCardView(
         }
     }
 
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = CardShape,
-        color = palette.reasoningCard,
-        border = BorderStroke(0.5.dp, palette.reasoningBorder),
+    ChatMessageCardChrome(
+        modifier = modifier
+            .clickable(enabled = showsBody) {
+                if (showsBody) isExpanded = !isExpanded
+            }
+            .testTag("chat-reasoning-card"),
     ) {
-        Column(
-            modifier = Modifier
-                .clickable(enabled = showsBody) {
-                    if (showsBody) isExpanded = !isExpanded
-                }
-                .padding(horizontal = 14.dp, vertical = 12.dp)
-                .testTag("chat-reasoning-card"),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -109,7 +93,7 @@ internal fun ChatReasoningCardView(
                 color = palette.reasoningText,
             )
             if (isStreaming) {
-                ChatReasoningPulseDot()
+                ChatStreamingPulseDot()
             }
             Spacer(modifier = Modifier.weight(1f))
             if (showsBody) {
@@ -134,25 +118,6 @@ internal fun ChatReasoningCardView(
         }
         }
     }
-}
-
-@Composable
-private fun ChatReasoningPulseDot() {
-    val palette = ChatTheme.palette
-    val transition = rememberInfiniteTransition(label = "reasoning-pulse")
-    val alpha by transition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(600), RepeatMode.Reverse),
-        label = "pulse-alpha",
-    )
-
-    Box(
-        modifier = Modifier
-            .size(6.dp)
-            .clip(CircleShape)
-            .background(palette.streamingDot.copy(alpha = alpha)),
-    )
 }
 
 @Composable

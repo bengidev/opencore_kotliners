@@ -17,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.chat.infrastructure.attachments
 import io.github.bengidev.opencore.sidepanel.domain.SidePanelMessageKind
@@ -62,7 +61,7 @@ internal fun ChatMessageRowView(
             onDismissKeyboard = onDismissKeyboard,
             modifier = modifier
         )
-        else -> SystemRow(message.content, onDismissKeyboard, modifier)
+        else -> SystemRow(message, onDismissKeyboard, modifier)
     }
 }
 
@@ -204,23 +203,25 @@ private fun AssistantRow(
 
 @Composable
 private fun SystemRow(
-    content: String,
+    message: SidePanelMessage,
     onDismissKeyboard: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-    val palette = ChatTheme.palette
-    val typography = ChatTheme.typography
-
-    Text(
-        text = content,
-        style = typography.systemMessage,
-        color = palette.systemMessageText,
-        textAlign = TextAlign.Center,
+    Row(
         modifier = modifier
             .fillMaxWidth()
             .dismissKeyboardOnTap(onDismissKeyboard)
-            .padding(horizontal = 20.dp, vertical = 8.dp)
-    )
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.Start,
+    ) {
+        ChatSystemMessageCardView(
+            content = message.content,
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .widthIn(max = 540.dp),
+        )
+        Spacer(modifier = Modifier.widthIn(min = OppositeSideMinWidthDp.dp))
+    }
 }
 
 private fun formatTime(message: SidePanelMessage): String =

@@ -17,6 +17,7 @@ internal interface SettingsContextCompactionStrategizing {
         messages: List<SidePanelMessage>,
         contextLength: Int,
         minRecentMessages: Int,
+        reserveTokens: Int,
     ): List<SidePanelMessage>
 }
 
@@ -30,11 +31,11 @@ internal class SettingsContextCompactionTrimStrategy : SettingsContextCompaction
         messages: List<SidePanelMessage>,
         contextLength: Int,
         minRecentMessages: Int,
+        reserveTokens: Int,
     ): List<SidePanelMessage> {
         if (contextLength <= 0 || messages.size <= minRecentMessages) return messages
 
         val working = messages.toMutableList()
-        val reserveTokens = SettingsContextCompactionPreference().reserveTokens
         val targetTokens = maxOf(0, contextLength - reserveTokens)
 
         while (working.size > minRecentMessages + 1 &&
@@ -77,8 +78,7 @@ internal class SettingsContextCompactionEngine(
             messages = messages,
             draft = null,
             contextLength = contextLength,
-            reserveTokens = preference.reserveTokens,
-            triggerThresholdPercent = preference.triggerThresholdPercent,
+            thresholdPercent = preference.triggerThresholdPercent,
         )
     }
 
@@ -98,7 +98,7 @@ internal class SettingsContextCompactionEngine(
             leafEntryId = leafEntryId,
             contextLength = contextLength,
             preference = preference,
-            keepRecentTokens = preference.keepRecentTokens,
+            keepRecentTokens = preference.scaledKeepRecentTokens(contextLength),
         )
     }
 
@@ -131,7 +131,7 @@ internal class SettingsContextCompactionEngine(
             leafEntryId = leafEntryId,
             contextLength = contextLength,
             preference = preference,
-            keepRecentTokens = preference.keepRecentTokens,
+            keepRecentTokens = preference.scaledKeepRecentTokens(contextLength),
         )
 
     private suspend fun performCompaction(
@@ -152,7 +152,12 @@ internal class SettingsContextCompactionEngine(
         )
         if (preparation == null) {
             if (contextLength <= 0) return SettingsContextCompactionOutcome.unchanged(messages)
-            val trimmed = trimStrategy.compact(messages, contextLength, preference.minRecentMessages)
+            val trimmed = trimStrategy.compact(
+                messages = messages,
+                contextLength = contextLength,
+                minRecentMessages = preference.minRecentMessages,
+                reserveTokens = preference.scaledReserveTokens(contextLength),
+            )
             if (trimmed == messages) return SettingsContextCompactionOutcome.unchanged(messages)
             return SettingsContextCompactionOutcome(projectedMessages = trimmed, checkpoint = null)
         }

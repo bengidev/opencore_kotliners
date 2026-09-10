@@ -32,7 +32,7 @@ Internal module with `ChatFacade` as the app-shell wiring entry. `ChatComponent`
 
 Hybrid Markwon + CDN WebView pipeline for assistant answers, thinking cards, and command output detail.
 
-**Streaming policy:** progressive — `ChatRichContentColumn` with `progressive = true` freezes completed segments as rich Markwon/embed blocks while the tail streams as coalesced plain text via `ChatStreamingTextView`. When the message completes, the full column re-renders in non-progressive mode. Thinking streams use mono-italic typography and a blinking cursor on the tail.
+**Streaming policy:** progressive — `ChatRichContentColumn` with `progressive = true` freezes completed segments as rich Markwon/embed blocks while `ChatRichContentSegmenter` extracts complete headings, lists, blockquotes, and tables from the tail for Markwon rendering. Incomplete inline delimiters and other partial prose stream as coalesced plain text via `ChatStreamingTextView` (`RawFragment` segments). When the message completes, the full column re-renders in non-progressive mode. Thinking streams use mono-italic typography and a blinking cursor on the tail.
 
 **Completed content pipeline:**
 
@@ -46,7 +46,7 @@ Hybrid Markwon + CDN WebView pipeline for assistant answers, thinking cards, and
 
 | Surface | Streaming | Complete |
 |---|---|---|
-| Assistant answer (`ChatAssistantTextView`) | `ChatRichContentColumn` progressive (plain tail) | `ChatRichContentColumn` (Assistant profile) |
+| Assistant answer (`ChatAssistantTextView`) | `ChatRichContentColumn` progressive (rich blocks + plain raw tail) | `ChatRichContentColumn` (Assistant profile) |
 | Thinking card (`ChatReasoningCardView`) | `ChatRichContentColumn` progressive (mono italic + cursor) | `ChatRichContentColumn` (Thinking profile) |
 | Command output detail (`ChatOutputStreamCardView`) | — | `ChatRichContentColumn` (Assistant profile) |
 
@@ -62,7 +62,7 @@ Thinking card starts expanded; `ChatReasoningCollapsePolicy` auto-collapses when
 - **ChatStreamingClient**: Strategy seam for provider streaming (`ProviderChatStreamingClient` → OpenAI-compatible SSE HTTP)
 - **ChatRichContentSegment**: Sealed segment types — `Prose`, `RawFragment`, `MermaidDiagram`, `MathBlock`
 - **ChatRichContentSegmenter**: Fence-aware markdown splitter for completed content
-- **ChatRichContentColumn**: Compose orchestrator — frozen Markwon `TextView` per completed segment, `ChatStreamingTextView` for progressive tails, `MarkdownEmbedWebView` per embed
+- **ChatRichContentColumn**: Compose orchestrator — frozen Markwon `TextView` per completed segment, Markwon for progressive prose tails, `ChatStreamingTextView` for `RawFragment` tails, `MarkdownEmbedWebView` per embed
 - **ChatStreamingTextView**: Coalesced plain-text streaming with optional cursor
 - **ChatMarkwonRenderer**: Markwon factory with `Assistant` and `Thinking` theme profiles
 - **ChatStreamingMarkdownGuard**: Detects incomplete fences/backticks; keeps segmenter on prose-only fallback
