@@ -150,7 +150,7 @@ private fun thresholdSliderDescription(
     sliderEnabled: Boolean,
 ): String {
     if (sliderEnabled) {
-        return "Start summarizing older turns once context use passes this level."
+        return "Fill level that triggers automatic compaction when it is turned on."
     }
     return "Automatic compaction uses the ${preference.triggerThresholdPercent}% threshold. " +
         "Turn off automatic compaction to adjust it."
@@ -161,5 +161,6 @@ private fun compactionOptionsFooter(preference: SettingsContextCompactionPrefere
         return "Automatic compaction runs before send when context use passes this threshold. " +
             "You can also compact manually from the composer."
     }
-    return "This threshold applies when you compact context manually from the composer."
+    return "Manual compaction is available from the composer at any time. " +
+        "The threshold above applies when automatic compaction is turned on."
 }
