@@ -33,10 +33,11 @@ internal data class SettingsContextCompactionPreference(
         val matchesDerived = reserveTokens == derivedReserve && keepRecentTokens == derivedKeep
         val looksLikeLegacyDefaults = reserveTokens == LEGACY_DEFAULT_RESERVE_TOKENS &&
             keepRecentTokens == LEGACY_DEFAULT_KEEP_RECENT_TOKENS
+        val looksUnset = reserveTokens == 0 && keepRecentTokens == 0
 
         if (matchesDerived) return this
 
-        if (looksLikeLegacyDefaults) {
+        if (looksLikeLegacyDefaults || looksUnset) {
             return withThresholdPercent(triggerThresholdPercent)
         }
 

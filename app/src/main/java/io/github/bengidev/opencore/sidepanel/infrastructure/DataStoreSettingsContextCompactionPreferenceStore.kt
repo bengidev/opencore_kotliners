@@ -25,8 +25,8 @@ internal class DataStoreSettingsContextCompactionPreferenceStore(
                 isEnabled = preferences[KEY_ENABLED] ?: true,
                 triggerThresholdPercent = preferences[KEY_TRIGGER_THRESHOLD] ?: 90,
                 minRecentMessages = preferences[KEY_MIN_RECENT_MESSAGES] ?: 4,
-                reserveTokens = preferences[KEY_RESERVE_TOKENS] ?: 0,
-                keepRecentTokens = preferences[KEY_KEEP_RECENT_TOKENS] ?: 0,
+                reserveTokens = preferences.decodeReserveTokens(),
+                keepRecentTokens = preferences.decodeKeepRecentTokens(),
             )
         }.first()
 
@@ -66,5 +66,19 @@ internal class DataStoreSettingsContextCompactionPreferenceStore(
         private val KEY_MIN_RECENT_MESSAGES = intPreferencesKey("compaction.minRecentMessages")
         private val KEY_RESERVE_TOKENS = intPreferencesKey("compaction.reserveTokens")
         private val KEY_KEEP_RECENT_TOKENS = intPreferencesKey("compaction.keepRecentTokens")
+
+        private fun Preferences.decodeReserveTokens(): Int =
+            if (contains(KEY_RESERVE_TOKENS)) {
+                this[KEY_RESERVE_TOKENS] ?: 0
+            } else {
+                SettingsContextCompactionPreference.LEGACY_DEFAULT_RESERVE_TOKENS
+            }
+
+        private fun Preferences.decodeKeepRecentTokens(): Int =
+            if (contains(KEY_KEEP_RECENT_TOKENS)) {
+                this[KEY_KEEP_RECENT_TOKENS] ?: 0
+            } else {
+                SettingsContextCompactionPreference.LEGACY_DEFAULT_KEEP_RECENT_TOKENS
+            }
     }
 }

@@ -34,6 +34,25 @@ class SettingsContextCompactionPreferenceTest {
     }
 
     @Test
+    fun normalizeAfterDecoding_unsetReserveTokens_preservesDefaultThreshold() {
+        val unset = SettingsContextCompactionPreference(
+            triggerThresholdPercent = 90,
+            reserveTokens = 0,
+            keepRecentTokens = 0,
+        )
+        val normalized = unset.normalizeAfterDecoding()
+        assertEquals(90, normalized.triggerThresholdPercent)
+        assertEquals(
+            SettingsContextCompactionPreference.derivedReserveTokens(90),
+            normalized.reserveTokens,
+        )
+        assertEquals(
+            SettingsContextCompactionPreference.derivedKeepRecentTokens(90),
+            normalized.keepRecentTokens,
+        )
+    }
+
+    @Test
     fun normalizeAfterDecoding_migratesLegacyReserveTokens() {
         val legacy = SettingsContextCompactionPreference(
             triggerThresholdPercent = 90,
