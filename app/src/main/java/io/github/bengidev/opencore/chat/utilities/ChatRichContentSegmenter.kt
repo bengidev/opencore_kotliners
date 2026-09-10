@@ -35,13 +35,7 @@ internal object ChatRichContentSegmenter {
     private fun classifyProseSegments(text: String, progressive: Boolean): List<ChatRichContentSegment> {
         if (text.isEmpty()) return emptyList()
         if (!progressive) {
-            return listOf(
-                if (ChatStreamingMarkdownGuard.shouldUsePlainFallback(text)) {
-                    ChatRichContentSegment.Prose(text)
-                } else {
-                    ChatRichContentSegment.Prose(text)
-                }
-            )
+            return listOf(ChatRichContentSegment.Prose(text))
         }
 
         if (!ChatStreamingMarkdownGuard.shouldUsePlainFallback(text)) {
