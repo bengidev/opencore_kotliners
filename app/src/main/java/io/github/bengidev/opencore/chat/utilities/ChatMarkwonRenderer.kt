@@ -59,13 +59,16 @@ internal object ChatMarkwonRenderer {
         context: Context,
     ) {
         val normalized = ChatAssistantMarkdownPreprocessor.normalize(markdown)
-        val cacheKey = cacheKey(normalized, profile)
+        val key = cacheKey(normalized, profile)
+        if (textView.tag == key) return
+
         val markwon = createMarkwon(context, palette, profile)
-        val rendered = cache.get(cacheKey, palette.isDark)
+        val rendered = cache.get(key, palette.isDark)
             ?: render(normalized, palette, profile, context).also {
-                cache.put(cacheKey, palette.isDark, it)
+                cache.put(key, palette.isDark, it)
             }
         markwon.setParsedMarkdown(textView, rendered)
+        textView.tag = key
     }
 
     private fun render(
