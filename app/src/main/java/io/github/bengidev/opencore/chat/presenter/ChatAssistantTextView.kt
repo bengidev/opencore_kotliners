@@ -1,7 +1,6 @@
 package io.github.bengidev.opencore.chat.presenter
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import io.github.bengidev.opencore.chat.theme.ChatTheme
 import io.github.bengidev.opencore.chat.utilities.ChatMarkwonRenderer
@@ -17,31 +16,14 @@ internal fun ChatAssistantTextView(
     isStreaming: Boolean = false,
     isTextSelectable: Boolean = true,
 ) {
-    val palette = ChatTheme.corePalette
     val typography = ChatTheme.typography
 
-    if (isStreaming) {
-        key("assistant-streaming") {
-            ChatRichContentColumn(
-                markdown = text,
-                profile = ChatMarkwonRenderer.Profile.Assistant,
-                modifier = modifier,
-                isTextSelectable = isTextSelectable,
-                progressive = true,
-                showsStreamingCursor = true,
-                streamingCursorColor = palette.accentPrimary,
-                streamingRawTextStyle = typography.assistantMessageBody,
-                streamingRawColor = palette.textPrimary,
-            )
-        }
-    } else {
-        key("assistant-rich") {
-            ChatRichContentColumn(
-                markdown = text,
-                profile = ChatMarkwonRenderer.Profile.Assistant,
-                modifier = modifier,
-                isTextSelectable = isTextSelectable,
-            )
-        }
-    }
+    ChatRichContentColumn(
+        markdown = text,
+        profile = ChatMarkwonRenderer.Profile.Assistant,
+        modifier = modifier,
+        isTextSelectable = isTextSelectable,
+        progressive = isStreaming,
+        streamingRawTextStyle = typography.assistantMessageBody,
+    )
 }
