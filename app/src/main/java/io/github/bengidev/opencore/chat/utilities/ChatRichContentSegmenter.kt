@@ -35,11 +35,57 @@ internal object ChatRichContentSegmenter {
     private fun classifyProseSegments(text: String, progressive: Boolean): List<ChatRichContentSegment> {
         if (text.isEmpty()) return emptyList()
         if (!progressive) {
-            return listOf(ChatRichContentSegment.Prose(text))
+            return splitProseWithBlockMath(text, progressive = false)
+        }
+
+        val delimiterIndex = earliestIncompleteDelimiterIndex(text)
+        if (delimiterIndex != null) {
+            val output = mutableListOf<ChatRichContentSegment>()
+            val prefix = text.substring(0, delimiterIndex)
+            val tail = text.substring(delimiterIndex)
+            if (prefix.isNotEmpty()) {
+                output += classifyProseSegments(prefix, progressive = true)
+            }
+            if (tail.isNotEmpty()) {
+                output += segmentsFromProgressiveTail(tail)
+            }
+            return output
         }
 
         if (!ChatStreamingMarkdownGuard.shouldUsePlainFallback(text)) {
             return splitProgressiveStablePrefix(text)
+        }
+
+        return listOf(ChatRichContentSegment.Prose(text))
+    }
+
+    private fun splitProseWithBlockMath(text: String, progressive: Boolean): List<ChatRichContentSegment> {
+        if (text.isEmpty()) return emptyList()
+
+        var remaining = text
+        val output = mutableListOf<ChatRichContentSegment>()
+
+        while (remaining.isNotEmpty()) {
+            val match = firstBlockMathMatch(remaining)
+            if (match == null) {
+                output += splitMarkdownProse(remaining, progressive)
+                break
+            }
+            val prefix = remaining.substring(0, match.range.first)
+            if (prefix.isNotEmpty()) {
+                output += splitMarkdownProse(prefix, progressive)
+            }
+            output += ChatRichContentSegment.MathBlock(match.latex)
+            remaining = remaining.substring(match.range.last + 1)
+        }
+
+        return output
+    }
+
+    private fun splitMarkdownProse(text: String, progressive: Boolean): List<ChatRichContentSegment> {
+        if (text.isEmpty()) return emptyList()
+        if (!progressive) {
+            return listOf(ChatRichContentSegment.Prose(text))
         }
 
         val delimiterIndex = earliestIncompleteDelimiterIndex(text)
@@ -51,12 +97,27 @@ internal object ChatRichContentSegmenter {
         val prefix = text.substring(0, delimiterIndex)
         val tail = text.substring(delimiterIndex)
         if (prefix.isNotEmpty()) {
-            output += classifyProseSegments(prefix, progressive = true)
+            output += splitMarkdownProse(prefix, progressive = true)
         }
         if (tail.isNotEmpty()) {
             output += segmentsFromProgressiveTail(tail)
         }
         return output
+    }
+
+    private data class BlockMathMatch(val latex: String, val range: IntRange)
+
+    private fun firstBlockMathMatch(text: String): BlockMathMatch? {
+        val patterns = listOf(
+            Regex("""\$\$([\s\S]+?)\$\$"""),
+            Regex("""\\\[([\s\S]+?)\\\]"""),
+        )
+        for (pattern in patterns) {
+            val match = pattern.find(text) ?: continue
+            val latex = match.groupValues.getOrNull(1) ?: continue
+            return BlockMathMatch(latex = latex, range = match.range)
+        }
+        return null
     }
 
     /**
@@ -253,31 +314,130 @@ internal object ChatRichContentSegmenter {
     private fun earliestIncompleteDelimiterIndex(text: String): Int? {
         val candidates = listOfNotNull(
             incompleteBacktickIndex(text),
+            incompleteDisplayMathIndex(text),
+            incompleteInlineLatexIndex(text),
+            incompleteParenLatexIndex(text),
         )
         return candidates.minOrNull()
     }
 
     private fun incompleteBacktickIndex(text: String): Int? {
         var inFence = false
-        var inlineBackticks = 0
+        var inInlineCode = false
+        var openIndex: Int? = null
         var index = 0
         while (index < text.length) {
             if (text.startsWith("```", index)) {
                 inFence = !inFence
-                inlineBackticks = 0
+                inInlineCode = false
+                openIndex = null
                 index += 3
                 continue
             }
             if (!inFence && text[index] == '`') {
-                inlineBackticks++
+                if (inInlineCode) {
+                    inInlineCode = false
+                    openIndex = null
+                } else {
+                    inInlineCode = true
+                    openIndex = index
+                }
             }
             index++
         }
-        if (!inFence && inlineBackticks % 2 != 0) {
-            var position = text.length - 1
-            while (position >= 0) {
-                if (text[position] == '`') return position
-                position--
+        return if (inInlineCode) openIndex else null
+    }
+
+    private fun incompleteDisplayMathIndex(text: String): Int? {
+        var index = 0
+        while (index < text.length) {
+            if (text[index] != '$') {
+                index++
+                continue
+            }
+            val next = index + 1
+            if (next >= text.length || text[next] != '$') {
+                index++
+                continue
+            }
+            val openStart = index
+            val searchStart = next + 1
+            if (searchStart >= text.length) return openStart
+            val closeIndex = text.indexOf("$$", searchStart)
+            if (closeIndex >= 0) {
+                index = closeIndex + 2
+                continue
+            }
+            return openStart
+        }
+        return null
+    }
+
+    private fun incompleteInlineLatexIndex(text: String): Int? {
+        var inMath = false
+        var openIndex: Int? = null
+        var index = 0
+        while (index < text.length) {
+            if (text[index] != '$') {
+                index++
+                continue
+            }
+            val next = index + 1
+            if (next < text.length && text[next] == '$') {
+                val skipped = skipDisplayMath(text, index)
+                index = skipped ?: text.length
+                continue
+            }
+            if (isCurrencyDollar(text, index)) {
+                index++
+                continue
+            }
+            if (inMath) {
+                inMath = false
+                openIndex = null
+            } else {
+                inMath = true
+                openIndex = index
+            }
+            index++
+        }
+        return if (inMath) openIndex else null
+    }
+
+    private fun skipDisplayMath(text: String, openIndex: Int): Int? {
+        val searchStart = openIndex + 2
+        if (searchStart > text.length) return null
+        if (searchStart == text.length) return searchStart
+        val closeIndex = text.indexOf("$$", searchStart)
+        return if (closeIndex >= 0) closeIndex + 2 else text.length
+    }
+
+    private fun isCurrencyDollar(text: String, index: Int): Boolean {
+        if (text[index] != '$') return false
+        var cursor = index + 1
+        if (cursor < text.length && text[cursor] == ' ') {
+            cursor++
+        }
+        if (cursor >= text.length) return false
+        return text[cursor].isDigit()
+    }
+
+    private fun incompleteParenLatexIndex(text: String): Int? {
+        val openPattern = Regex("""\\\(""")
+        val closePattern = Regex("""\\\)""")
+        val opens = openPattern.findAll(text).map { it.range.first }.toList()
+        val closes = closePattern.findAll(text).map { it.range.first }.toList()
+        var closeIterator = closes.iterator()
+        var nextClose = if (closeIterator.hasNext()) closeIterator.next() else null
+
+        for (open in opens) {
+            while (nextClose != null && nextClose < open) {
+                nextClose = if (closeIterator.hasNext()) closeIterator.next() else null
+            }
+            if (nextClose != null && nextClose > open) {
+                nextClose = if (closeIterator.hasNext()) closeIterator.next() else null
+            } else {
+                return open
             }
         }
         return null
