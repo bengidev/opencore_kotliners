@@ -34,9 +34,6 @@ internal fun ChatStreamingTextView(
     color: Color,
     modifier: Modifier = Modifier,
     isTextSelectable: Boolean = true,
-    showsCursor: Boolean = false,
-    cursorColor: Color = color,
-    cursorOpacity: Float = 1f,
 ) {
     val coordinator = remember { StreamingTextCoordinator() }
 
@@ -63,9 +60,6 @@ internal fun ChatStreamingTextView(
                 textView = textView,
                 textStyle = textStyle,
                 color = color,
-                showsCursor = showsCursor,
-                cursorColor = cursorColor,
-                cursorOpacity = cursorOpacity,
             )
         },
         onRelease = { textView ->
@@ -78,12 +72,7 @@ private class StreamingTextCoordinator {
     private val scheduler = CoalescedTextViewScheduler()
     private var boundTextView: ChatStreamingSizingTextView? = null
     private var appliedText = ""
-    private var appliedShowsCursor = false
-    private var appliedCursorOpacity = 1f
     private var pendingText = ""
-    private var pendingShowsCursor = false
-    private var pendingCursorColor: Color = Color.Unspecified
-    private var pendingCursorOpacity = 1f
     private var pendingTextStyle: TextStyle? = null
     private var pendingColor: Color? = null
     private var lastLayoutInvalidationUptimeMs = 0L
@@ -93,15 +82,9 @@ private class StreamingTextCoordinator {
         textView: ChatStreamingSizingTextView,
         textStyle: TextStyle,
         color: Color,
-        showsCursor: Boolean,
-        cursorColor: Color,
-        cursorOpacity: Float,
     ) {
         boundTextView = textView
         pendingText = text
-        pendingShowsCursor = showsCursor
-        pendingCursorColor = cursorColor
-        pendingCursorOpacity = cursorOpacity
         pendingTextStyle = textStyle
         pendingColor = color
         scheduler.schedule(
@@ -121,8 +104,6 @@ private class StreamingTextCoordinator {
 
     private fun resetAppliedState() {
         appliedText = ""
-        appliedShowsCursor = false
-        appliedCursorOpacity = 1f
         lastLayoutInvalidationUptimeMs = 0L
     }
 
@@ -132,60 +113,25 @@ private class StreamingTextCoordinator {
         if (!textView.isAttachedToWindow || boundTextView !== textView) return
 
         val text = pendingText
-        val showsCursor = pendingShowsCursor
-        val cursorOpacity = pendingCursorOpacity
-        val cursorColorArgb = pendingCursorColor.withCursorOpacity(cursorOpacity).toArgb()
-
-        if (ChatStreamingTextCursorPolicy.shouldUpdateCursorAttributesOnly(
-                appliedText = appliedText,
-                newText = text,
-                appliedShowsCursor = appliedShowsCursor,
-                showsCursor = showsCursor,
-                appliedCursorOpacity = appliedCursorOpacity,
-                newCursorOpacity = cursorOpacity,
-            ) && !textView.text.isNullOrEmpty()
-        ) {
-            textView.updateInlineCursorColor(cursorColorArgb)
-            appliedCursorOpacity = cursorOpacity
-            return
-        }
-
-        if (!ChatStreamingTextCursorPolicy.shouldRebuild(
-                appliedText = appliedText,
-                newText = text,
-                appliedShowsCursor = appliedShowsCursor,
-                showsCursor = showsCursor,
-                appliedCursorOpacity = appliedCursorOpacity,
-                newCursorOpacity = cursorOpacity,
-            )
-        ) {
-            return
-        }
+        if (text == appliedText) return
 
         textView.applyStreamingStyle(textStyle, color)
         val textColorArgb = color.toArgb()
 
         when (val update = ChatStreamingTextAppendPolicy.decide(appliedText, text)) {
-            ChatStreamingTextUpdate.Unchanged -> {
-                textView.setStreamingContent(text, textColorArgb, showsCursor, cursorColorArgb)
-            }
+            ChatStreamingTextUpdate.Unchanged -> Unit
             is ChatStreamingTextUpdate.AppendDelta -> {
-                if (appliedShowsCursor) {
-                    textView.removeInlineCursor()
-                }
-                textView.appendStyledDelta(update.delta, textColorArgb)
-                if (showsCursor) {
-                    textView.appendInlineCursor(cursorColorArgb)
-                }
+                textView.appendStyledDelta(
+                    delta = update.delta,
+                    textColorArgb = textColorArgb,
+                )
             }
             is ChatStreamingTextUpdate.ReplaceAll -> {
-                textView.setStreamingContent(update.text, textColorArgb, showsCursor, cursorColorArgb)
+                textView.setStreamingContent(update.text, textColorArgb)
             }
         }
 
         appliedText = text
-        appliedShowsCursor = showsCursor
-        appliedCursorOpacity = cursorOpacity
         val byteCount = appliedText.encodeToByteArray().size
         if (ChatStreamingTextAppendPolicy.shouldInvalidateLayout(lastLayoutInvalidationUptimeMs, byteCount)) {
             lastLayoutInvalidationUptimeMs = SystemClock.uptimeMillis()
@@ -242,30 +188,15 @@ internal class ChatStreamingSizingTextView @JvmOverloads constructor(
     }
 }
 
-private fun Color.withCursorOpacity(opacity: Float): Color =
-    copy(alpha = alpha * opacity.coerceIn(0f, 1f))
-
 private fun TextView.setStreamingContent(
     content: String,
     textColorArgb: Int,
-    showsCursor: Boolean,
-    cursorColorArgb: Int,
 ) {
     val builder = SpannableStringBuilder(content)
     if (content.isNotEmpty()) {
         builder.setSpan(
             ForegroundColorSpan(textColorArgb),
             0,
-            builder.length,
-            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
-        )
-    }
-    if (showsCursor) {
-        val start = builder.length
-        builder.append(ChatStreamingTextCursorPolicy.GLYPH)
-        builder.setSpan(
-            ForegroundColorSpan(cursorColorArgb),
-            start,
             builder.length,
             Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
         )
@@ -282,46 +213,16 @@ private fun TextView.ensureEditable(): Editable? {
     return text as? Editable
 }
 
-private fun TextView.appendStyledDelta(delta: String, textColorArgb: Int) {
+private fun TextView.appendStyledDelta(
+    delta: String,
+    textColorArgb: Int,
+) {
     if (delta.isEmpty()) return
     val editable = ensureEditable() ?: return
     val start = editable.length
     editable.append(delta)
     editable.setSpan(
         ForegroundColorSpan(textColorArgb),
-        start,
-        editable.length,
-        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
-    )
-}
-
-private fun TextView.appendInlineCursor(cursorColorArgb: Int) {
-    val editable = ensureEditable() ?: return
-    val start = editable.length
-    editable.append(ChatStreamingTextCursorPolicy.GLYPH)
-    editable.setSpan(
-        ForegroundColorSpan(cursorColorArgb),
-        start,
-        editable.length,
-        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
-    )
-}
-
-private fun TextView.removeInlineCursor() {
-    val editable = text as? Editable ?: return
-    if (editable.isEmpty()) return
-    val lastIndex = editable.length - 1
-    if (editable[lastIndex].toString() != ChatStreamingTextCursorPolicy.GLYPH) return
-    editable.delete(lastIndex, editable.length)
-}
-
-private fun TextView.updateInlineCursorColor(cursorColorArgb: Int) {
-    val editable = text as? Editable ?: return
-    if (editable.isEmpty()) return
-    val start = editable.length - 1
-    editable.getSpans(start, editable.length, ForegroundColorSpan::class.java).forEach(editable::removeSpan)
-    editable.setSpan(
-        ForegroundColorSpan(cursorColorArgb),
         start,
         editable.length,
         Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
