@@ -17,16 +17,24 @@ internal object ChatThreadScrollTarget {
         val turnStart = messages.indexOfLast { it.role == ChatMessageRole.USER } + 1
         val currentTurn = messages.subList(turnStart, messages.size)
 
-        for (message in currentTurn.reversed()) {
-            when {
-                message.role == ChatMessageRole.ASSISTANT &&
-                    message.kind == SidePanelMessageKind.TEXT ->
-                    return messages.indexOfFirst { it.id == message.id }
-                message.kind == SidePanelMessageKind.OUTPUT_STREAM ->
-                    return messages.indexOfFirst { it.id == message.id }
+        val outputStream = currentTurn.lastOrNull { it.kind == SidePanelMessageKind.OUTPUT_STREAM }
+        val assistantText = currentTurn.lastOrNull {
+            it.role == ChatMessageRole.ASSISTANT && it.kind == SidePanelMessageKind.TEXT
+        }
+
+        val target = when {
+            assistantText != null && assistantText.content.isNotBlank() -> assistantText
+            outputStream != null -> outputStream
+            assistantText != null -> assistantText
+            else -> currentTurn.lastOrNull {
+                it.role == ChatMessageRole.ASSISTANT && it.kind == SidePanelMessageKind.THINKING
             }
         }
 
-        return messages.lastIndex
+        return if (target != null) {
+            messages.indexOfFirst { it.id == target.id }
+        } else {
+            messages.lastIndex
+        }
     }
 }

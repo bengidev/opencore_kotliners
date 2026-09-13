@@ -324,6 +324,28 @@ class ChatRichContentSegmenterTest {
     }
 
     @Test
+    fun segmentProgressive_unclosedDisplayMath_splitsRichPrefixFromRawTail() {
+        val markdown = "Partial \$\$E = mc"
+
+        val segments = ChatRichContentSegmenter.segment(markdown, progressive = true)
+
+        assertEquals(2, segments.size)
+        assertEquals(ChatRichContentSegment.Prose("Partial "), segments[0])
+        assertEquals(ChatRichContentSegment.RawFragment("\$\$E = mc"), segments[1])
+    }
+
+    @Test
+    fun segmentProgressive_unclosedBracketMath_splitsRichPrefixFromRawTail() {
+        val markdown = "Partial \\[E = mc"
+
+        val segments = ChatRichContentSegmenter.segment(markdown, progressive = true)
+
+        assertEquals(2, segments.size)
+        assertEquals(ChatRichContentSegment.Prose("Partial "), segments[0])
+        assertEquals(ChatRichContentSegment.RawFragment("\\[E = mc"), segments[1])
+    }
+
+    @Test
     fun segmentProgressive_completedProseBeforeRawTail_splitsRichAndRaw() {
         val markdown = "Done **bold**\n\n```mermaid\ngraph TD\n```\n\nTail `open"
 

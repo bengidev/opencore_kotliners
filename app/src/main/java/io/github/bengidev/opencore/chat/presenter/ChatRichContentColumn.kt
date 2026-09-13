@@ -1,7 +1,6 @@
 package io.github.bengidev.opencore.chat.presenter
 
 import android.content.Context
-import android.util.TypedValue
 import android.widget.TextView
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -174,16 +173,6 @@ private fun FrozenMarkwonText(
     )
 }
 
-private fun TextView.configureMarkwonTextView(bodyStyle: TextStyle, textColorArgb: Int) {
-    setHorizontallyScrolling(false)
-    maxLines = Int.MAX_VALUE
-    includeFontPadding = false
-    setPadding(0, 0, 0, 0)
-    setBackgroundColor(android.graphics.Color.TRANSPARENT)
-    setTextColor(textColorArgb)
-    setTextSize(TypedValue.COMPLEX_UNIT_SP, bodyStyle.fontSize.value)
-}
-
 /** Frozen segments key by content so index shifts do not recycle AndroidViews. */
 private fun segmentComposeKey(
     segment: ChatRichContentSegment,
@@ -192,10 +181,10 @@ private fun segmentComposeKey(
 ): String {
     if (isStreamingTail) return "tail-$index"
     return when (segment) {
-        is ChatRichContentSegment.Prose -> "prose-${segment.markdown.hashCode()}"
-        is ChatRichContentSegment.RawFragment -> "raw-${segment.text.hashCode()}"
-        is ChatRichContentSegment.MermaidDiagram -> "mermaid-${segment.source.hashCode()}"
-        is ChatRichContentSegment.MathBlock -> "math-${segment.latex.hashCode()}"
+        is ChatRichContentSegment.Prose -> "prose-$index-${segment.markdown.hashCode()}"
+        is ChatRichContentSegment.RawFragment -> "raw-$index-${segment.text.hashCode()}"
+        is ChatRichContentSegment.MermaidDiagram -> "mermaid-$index-${segment.source.hashCode()}"
+        is ChatRichContentSegment.MathBlock -> "math-$index-${segment.latex.hashCode()}"
     }
 }
 

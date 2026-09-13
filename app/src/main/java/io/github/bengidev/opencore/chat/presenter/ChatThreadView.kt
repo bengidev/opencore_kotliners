@@ -149,7 +149,13 @@ internal fun ChatThreadView(
             val animate = when {
                 streamFinished -> true
                 streamingStatusChanged -> true
-                newMessageAdded && !isBulkRestore -> true
+                newMessageAdded ->
+                    ChatThreadScrollPolicy.shouldAnimateScroll(
+                        isBulkRestore = isBulkRestore,
+                        streamingRevision = state.streamingRevision,
+                        imeVisible = imeVisible,
+                        previousMessageCount = previousMessageCount,
+                    )
                 imeChanged -> true
                 else -> false
             }

@@ -21,4 +21,17 @@ class ChatStreamingMarkdownSafeTextTest {
     fun sanitize_hidesUnclosedCodeFence() {
         assertEquals("Intro\n\n", ChatStreamingMarkdownSafeText.sanitize("Intro\n\n```kotlin\nfun main()"))
     }
+
+    @Test
+    fun sanitize_hidesUnclosedItalicUntilClosingMarkerArrives() {
+        assertEquals("Hello ", ChatStreamingMarkdownSafeText.sanitize("Hello *ita"))
+        assertEquals("Hello ", ChatStreamingMarkdownSafeText.sanitize("Hello *italic"))
+        assertEquals("Hello *italic*", ChatStreamingMarkdownSafeText.sanitize("Hello *italic*"))
+    }
+
+    @Test
+    fun sanitize_preservesBoldWhenItalicMarkerFollows() {
+        assertEquals("Hello **bold**", ChatStreamingMarkdownSafeText.sanitize("Hello **bold**"))
+        assertEquals("Hello **bold** and ", ChatStreamingMarkdownSafeText.sanitize("Hello **bold** and *ita"))
+    }
 }

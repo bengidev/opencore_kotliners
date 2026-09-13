@@ -315,6 +315,7 @@ internal object ChatRichContentSegmenter {
         val candidates = listOfNotNull(
             incompleteBacktickIndex(text),
             incompleteDisplayMathIndex(text),
+            incompleteBracketMathIndex(text),
             incompleteInlineLatexIndex(text),
             incompleteParenLatexIndex(text),
         )
@@ -346,6 +347,26 @@ internal object ChatRichContentSegmenter {
             index++
         }
         return if (inInlineCode) openIndex else null
+    }
+
+    private fun incompleteBracketMathIndex(text: String): Int? {
+        var index = 0
+        while (index < text.length) {
+            if (!text.startsWith("\\[", index)) {
+                index++
+                continue
+            }
+            val openStart = index
+            val searchStart = index + 2
+            if (searchStart >= text.length) return openStart
+            val closeIndex = text.indexOf("\\]", searchStart)
+            if (closeIndex >= 0) {
+                index = closeIndex + 2
+                continue
+            }
+            return openStart
+        }
+        return null
     }
 
     private fun incompleteDisplayMathIndex(text: String): Int? {

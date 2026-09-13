@@ -20,7 +20,7 @@ Internal module with `ChatFacade` as the app-shell wiring entry. `ChatComponent`
 | Reducer | `ChatReducer` |
 | Facade | `ChatFacade` |
 | Strategy | `ChatStreamingClient`, `ChatStreamingTextAppendStrategy` |
-| Policy | `ChatStreamingCoalescingPolicy`, `ChatStreamingTextAppendPolicy`, `ChatStreamingTextCursorPolicy`, `ChatViewTitlePolicy`, `ChatThreadLayoutPolicy`, `ChatThreadScrollPolicy`, `ChatReasoningCollapsePolicy` |
+| Policy | `ChatStreamingCoalescingPolicy`, `ChatStreamingTextAppendPolicy`, `ChatViewTitlePolicy`, `ChatThreadLayoutPolicy`, `ChatThreadScrollPolicy`, `ChatThreadScrollTarget`, `ChatReasoningCollapsePolicy` |
 | Segmenter | `ChatRichContentSegmenter` |
 | Presenter orchestrator | `ChatRichContentColumn` |
 | Pure utility | `ChatMarkwonRenderer`, `ChatStreamingMarkdownGuard`, `BoundedSpannedCache` |
@@ -32,7 +32,7 @@ Internal module with `ChatFacade` as the app-shell wiring entry. `ChatComponent`
 
 Hybrid Markwon + CDN WebView pipeline for assistant answers, thinking cards, and command output detail.
 
-**Streaming policy:** progressive — `ChatRichContentColumn` with `progressive = true` freezes completed segments as rich Markwon/embed blocks while `ChatRichContentSegmenter` extracts complete headings, lists, blockquotes, and tables from the tail for Markwon rendering. Incomplete inline delimiters and other partial prose stream as coalesced plain text via `ChatStreamingTextView` (`RawFragment` segments). When the message completes, the full column re-renders in non-progressive mode. Thinking streams use mono-italic typography and a blinking cursor on the tail.
+**Streaming policy:** progressive — `ChatRichContentColumn` with `progressive = true` freezes completed segments as rich Markwon/embed blocks while `ChatRichContentSegmenter` extracts complete headings, lists, blockquotes, tables, and math blocks from the tail. Incomplete delimiters (backticks, `$$`, `\[ \]`, inline `$`, `\(\)`) split into a stable rich prefix and a `RawFragment` tail rendered via `ChatStreamingMarkwonTail` with `ChatStreamingMarkdownSafeText` sanitization. When the message completes, the full column re-renders in non-progressive mode. Thinking streams use mono-italic typography through the same Markwon tail path.
 
 **Completed content pipeline:**
 
@@ -46,8 +46,8 @@ Hybrid Markwon + CDN WebView pipeline for assistant answers, thinking cards, and
 
 | Surface | Streaming | Complete |
 |---|---|---|
-| Assistant answer (`ChatAssistantTextView`) | `ChatRichContentColumn` progressive (rich blocks + plain raw tail) | `ChatRichContentColumn` (Assistant profile) |
-| Thinking card (`ChatReasoningCardView`) | `ChatRichContentColumn` progressive (mono italic + cursor) | `ChatRichContentColumn` (Thinking profile) |
+| Assistant answer (`ChatAssistantTextView`) | `ChatRichContentColumn` progressive (rich blocks + Markwon tail) | `ChatRichContentColumn` (Assistant profile) |
+| Thinking card (`ChatReasoningCardView`) | `ChatRichContentColumn` progressive (mono italic Markwon tail) | `ChatRichContentColumn` (Thinking profile) |
 | Command output detail (`ChatOutputStreamCardView`) | — | `ChatRichContentColumn` (Assistant profile) |
 
 Thinking card starts expanded; `ChatReasoningCollapsePolicy` auto-collapses when a competing answer or output stream is active (`hasCompetingStream` from `ChatThreadView`).
@@ -62,8 +62,10 @@ Thinking card starts expanded; `ChatReasoningCollapsePolicy` auto-collapses when
 - **ChatStreamingClient**: Strategy seam for provider streaming (`ProviderChatStreamingClient` → OpenAI-compatible SSE HTTP)
 - **ChatRichContentSegment**: Sealed segment types — `Prose`, `RawFragment`, `MermaidDiagram`, `MathBlock`
 - **ChatRichContentSegmenter**: Fence-aware markdown splitter for completed content
-- **ChatRichContentColumn**: Compose orchestrator — frozen Markwon `TextView` per completed segment, Markwon for progressive prose tails, `ChatStreamingTextView` for `RawFragment` tails, `MarkdownEmbedWebView` per embed
-- **ChatStreamingTextView**: Coalesced plain-text streaming with optional cursor
+- **ChatRichContentColumn**: Compose orchestrator — frozen Markwon `TextView` per completed segment, `ChatStreamingMarkwonTail` for progressive tails, `MarkdownEmbedWebView` per embed
+- **ChatStreamingMarkwonTail**: Coalesced Markwon streaming tail with safe-text sanitization
+- **ChatStreamingMarkdownSafeText**: Hides unclosed markdown delimiters during streaming
+- **ChatThreadScrollTarget**: Pins scroll to the active assistant answer or output stream
 - **ChatMarkwonRenderer**: Markwon factory with `Assistant` and `Thinking` theme profiles
 - **ChatStreamingMarkdownGuard**: Detects incomplete fences/backticks; keeps segmenter on prose-only fallback
 - **MarkdownEmbedWebView**: WebView composable for Mermaid diagrams and KaTeX math blocks

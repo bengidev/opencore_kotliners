@@ -72,6 +72,29 @@ class ChatThreadScrollTargetTest {
     }
 
     @Test
+    fun scrollIndex_prefersOutputStreamOverEmptyAssistantText() {
+        val emptyAnswerId = UUID.fromString("00000000-0000-0000-0000-000000000007")
+        val messages = listOf(
+            message(userId, ChatMessageRole.USER, "Question"),
+            message(
+                outputStreamId,
+                ChatMessageRole.ASSISTANT,
+                "stdout line",
+                SidePanelMessageKind.OUTPUT_STREAM,
+            ),
+            message(
+                emptyAnswerId,
+                ChatMessageRole.ASSISTANT,
+                "",
+                SidePanelMessageKind.TEXT,
+                isComplete = false,
+            ),
+        )
+
+        assertEquals(1, ChatThreadScrollTarget.scrollIndex(messages))
+    }
+
+    @Test
     fun scrollIndex_completedAssistantReply_scrollsToAssistantText() {
         val messages = listOf(
             message(userId, ChatMessageRole.USER, "Question"),

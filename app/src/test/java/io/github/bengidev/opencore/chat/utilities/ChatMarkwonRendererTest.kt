@@ -5,6 +5,7 @@ import android.text.style.StyleSpan
 import android.text.style.TypefaceSpan
 import android.text.style.URLSpan
 import android.widget.TextView
+import io.github.bengidev.opencore.onboarding.theme.DarkOpenCorePalette
 import io.github.bengidev.opencore.onboarding.theme.LightOpenCorePalette
 import io.noties.markwon.ext.tables.TableRowSpan
 import org.junit.Assert.assertEquals
@@ -93,6 +94,31 @@ class ChatMarkwonRendererTest {
 
         assertTrue(textView.tag is String)
         assertEquals(firstText, textView.text.toString())
+    }
+
+    @Test
+    fun applyTo_reappliesWhenPaletteChanges() {
+        val textView = TextView(context)
+        val markdown = "Theme-sensitive **bold** line."
+
+        ChatMarkwonRenderer.applyTo(
+            textView = textView,
+            markdown = markdown,
+            palette = palette,
+            profile = ChatMarkwonRenderer.Profile.Assistant,
+            context = context,
+        )
+        val lightTag = textView.tag
+
+        ChatMarkwonRenderer.applyTo(
+            textView = textView,
+            markdown = markdown,
+            palette = DarkOpenCorePalette,
+            profile = ChatMarkwonRenderer.Profile.Assistant,
+            context = context,
+        )
+
+        assertNotEquals(lightTag, textView.tag)
     }
 
     @Test
