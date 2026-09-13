@@ -1,6 +1,8 @@
 package io.github.bengidev.opencore.chat.presenter
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 
 /**
  * Bottom-anchored chat thread layout, mirroring iOS `defaultScrollAnchor(.bottom)`.
@@ -22,4 +24,6 @@ internal object ChatThreadLayoutPolicy {
     fun tailScrollOffset(): Int = Int.MAX_VALUE
 
     val listAlignment: Alignment = Alignment.BottomStart
+
+    fun contentPadding(): PaddingValues = PaddingValues(top = 8.dp, bottom = 16.dp)
 }
