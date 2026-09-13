@@ -46,7 +46,7 @@ internal fun ChatRichContentColumn(
     ) {
         segments.forEachIndexed { index, segment ->
             val isStreamingTail = progressive && index == lastSegmentIndex
-            key(segmentComposeKey(segment, isStreamingTail)) {
+            key(segmentComposeKey(segment, index, isStreamingTail)) {
                 RichContentSegment(
                     segment = segment,
                     profile = profile,
@@ -184,11 +184,13 @@ private fun TextView.configureMarkwonTextView(bodyStyle: TextStyle, textColorArg
     setTextSize(TypedValue.COMPLEX_UNIT_SP, bodyStyle.fontSize.value)
 }
 
-private const val STREAMING_TAIL_KEY = "streaming-tail"
-
 /** Frozen segments key by content so index shifts do not recycle AndroidViews. */
-private fun segmentComposeKey(segment: ChatRichContentSegment, isStreamingTail: Boolean): String {
-    if (isStreamingTail) return STREAMING_TAIL_KEY
+private fun segmentComposeKey(
+    segment: ChatRichContentSegment,
+    index: Int,
+    isStreamingTail: Boolean,
+): String {
+    if (isStreamingTail) return "tail-$index"
     return when (segment) {
         is ChatRichContentSegment.Prose -> "prose-${segment.markdown.hashCode()}"
         is ChatRichContentSegment.RawFragment -> "raw-${segment.text.hashCode()}"
