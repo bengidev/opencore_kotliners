@@ -18,14 +18,17 @@ internal object ChatMarkwonTheme {
         palette: OpenCorePalette,
         profile: ChatMarkwonRenderer.Profile,
     ) {
-        val textSecondary = palette.textSecondary.toArgb()
+        val bodyText = when (profile) {
+            ChatMarkwonRenderer.Profile.Assistant -> palette.textPrimary
+            ChatMarkwonRenderer.Profile.Thinking -> palette.textSecondary
+        }.toArgb()
         val accentPrimary = palette.accentPrimary.toArgb()
         val surfaceSubtle = palette.surfaceSubtle.toArgb()
 
         builder
             .linkColor(accentPrimary)
-            .codeTextColor(textSecondary)
-            .codeBlockTextColor(textSecondary)
+            .codeTextColor(bodyText)
+            .codeBlockTextColor(bodyText)
             .codeBackgroundColor(surfaceSubtle)
             .codeBlockBackgroundColor(surfaceSubtle)
     }
