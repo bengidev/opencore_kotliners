@@ -39,7 +39,7 @@ internal object ChatRichContentSegmenter {
         }
 
         if (!ChatStreamingMarkdownGuard.shouldUsePlainFallback(text)) {
-            return listOf(ChatRichContentSegment.Prose(text))
+            return splitProgressiveStablePrefix(text)
         }
 
         val delimiterIndex = earliestIncompleteDelimiterIndex(text)
@@ -59,8 +59,75 @@ internal object ChatRichContentSegmenter {
         return output
     }
 
+    /**
+     * Freezes completed paragraphs and block structures while the final paragraph is still growing.
+     * Without this, the entire in-flight message stays in one tail segment and renders as plain text.
+     */
+    private fun splitProgressiveStablePrefix(text: String): List<ChatRichContentSegment> {
+        val lastParagraphBreak = text.lastIndexOf("\n\n")
+        if (lastParagraphBreak == -1 ||
+            (lastParagraphBreak == 0 && !text.substring(2).contains("\n\n"))
+        ) {
+            return listOf(ChatRichContentSegment.Prose(text))
+        }
+
+        val stablePrefix = text.substring(0, lastParagraphBreak + 2)
+        val tail = text.substring(lastParagraphBreak + 2)
+        val output = mutableListOf<ChatRichContentSegment>()
+        if (stablePrefix.isNotBlank()) {
+            output += segmentCompletedProseBlocks(stablePrefix)
+        }
+        if (tail.isNotEmpty()) {
+            output += segmentsFromProgressiveTail(tail).ifEmpty {
+                listOf(ChatRichContentSegment.RawFragment(tail))
+            }
+        }
+        return output
+    }
+
+    private fun segmentCompletedProseBlocks(text: String): List<ChatRichContentSegment> {
+        if (text.isEmpty()) return emptyList()
+
+        val structured = segmentsFromProgressiveTail(text, plainAsProse = true)
+        if (structured.any { segment -> segment !is ChatRichContentSegment.Prose }) {
+            return structured
+        }
+        if (structured.size > 1) {
+            return structured
+        }
+        if (structured.singleOrNull() is ChatRichContentSegment.Prose) {
+            val prose = structured.single() as ChatRichContentSegment.Prose
+            if (prose.markdown.lines().any { line ->
+                    isMarkdownHeadingLine(line) ||
+                        isMarkdownListLine(line) ||
+                        isMarkdownBlockquoteLine(line) ||
+                        isGfmTableRow(line)
+                }
+            ) {
+                return structured
+            }
+        }
+
+        if (!text.contains("\n\n")) {
+            return listOf(ChatRichContentSegment.Prose(text))
+        }
+
+        val endsWithParagraphBreak = text.endsWith("\n\n")
+        val core = if (endsWithParagraphBreak) text.dropLast(2) else text
+        return core.split("\n\n")
+            .filter { it.isNotEmpty() }
+            .map { paragraph ->
+                ChatRichContentSegment.Prose(
+                    if (endsWithParagraphBreak) "$paragraph\n\n" else paragraph,
+                )
+            }
+    }
+
     /** Pulls complete markdown blocks out of a progressive tail for rich rendering. */
-    private fun segmentsFromProgressiveTail(tail: String): List<ChatRichContentSegment> {
+    private fun segmentsFromProgressiveTail(
+        tail: String,
+        plainAsProse: Boolean = false,
+    ): List<ChatRichContentSegment> {
         val lines = tail.split('\n')
         val output = mutableListOf<ChatRichContentSegment>()
         val plainLines = mutableListOf<String>()
@@ -68,7 +135,12 @@ internal object ChatRichContentSegmenter {
 
         fun flushPlainLines() {
             if (plainLines.isEmpty()) return
-            output += ChatRichContentSegment.RawFragment(plainLines.joinToString("\n"))
+            val text = plainLines.joinToString("\n")
+            output += if (plainAsProse) {
+                ChatRichContentSegment.Prose(text)
+            } else {
+                ChatRichContentSegment.RawFragment(text)
+            }
             plainLines.clear()
         }
 

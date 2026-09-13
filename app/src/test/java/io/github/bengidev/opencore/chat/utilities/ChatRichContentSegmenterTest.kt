@@ -238,6 +238,29 @@ class ChatRichContentSegmenterTest {
     }
 
     @Test
+    fun segmentProgressive_completedParagraphs_freezeBeforeGrowingTail() {
+        val markdown = "First paragraph.\n\nSecond paragraph.\n\nThird still typing"
+
+        val segments = ChatRichContentSegmenter.segment(markdown, progressive = true)
+
+        assertTrue(
+            segments.any { segment ->
+                segment is ChatRichContentSegment.Prose && segment.markdown.contains("First paragraph.")
+            }
+        )
+        assertTrue(
+            segments.any { segment ->
+                segment is ChatRichContentSegment.Prose && segment.markdown.contains("Second paragraph.")
+            }
+        )
+        assertTrue(
+            segments.any { segment ->
+                segment is ChatRichContentSegment.RawFragment && segment.text.contains("Third still typing")
+            }
+        )
+    }
+
+    @Test
     fun segmentProgressive_completedProseBeforeRawTail_splitsRichAndRaw() {
         val markdown = "Done **bold**\n\n```mermaid\ngraph TD\n```\n\nTail `open"
 
