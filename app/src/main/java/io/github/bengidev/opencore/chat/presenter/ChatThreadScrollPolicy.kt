@@ -21,11 +21,8 @@ internal object ChatThreadScrollPolicy {
     fun isBulkRestore(previousMessageCount: Int, messageCount: Int): Boolean =
         previousMessageCount == 0 && messageCount > 1
 
-    /** Skip redundant scrolls when coalesced flushes did not grow tail content. */
-    fun shouldScrollForStreamingUpdate(
-        pendingByteCount: Int,
-        lastScrolledByteCount: Int,
-    ): Boolean = pendingByteCount > lastScrolledByteCount
+    /** Scroll on every coalesced streaming flush, matching iOS `onChange(streamingRevision)`. */
+    fun shouldScrollForStreamingRevision(streamingRevision: Int): Boolean = streamingRevision > 0
 
     fun shouldScrollForNewMessage(
         previousMessageCount: Int,

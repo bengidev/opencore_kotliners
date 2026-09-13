@@ -144,24 +144,8 @@ class ChatThreadScrollPolicyTest {
     }
 
     @Test
-    fun shouldScrollForStreamingUpdate_onlyWhenTailGrows() {
-        assertTrue(
-            ChatThreadScrollPolicy.shouldScrollForStreamingUpdate(
-                pendingByteCount = 120,
-                lastScrolledByteCount = 80,
-            )
-        )
-        assertFalse(
-            ChatThreadScrollPolicy.shouldScrollForStreamingUpdate(
-                pendingByteCount = 80,
-                lastScrolledByteCount = 80,
-            )
-        )
-        assertFalse(
-            ChatThreadScrollPolicy.shouldScrollForStreamingUpdate(
-                pendingByteCount = 40,
-                lastScrolledByteCount = 80,
-            )
-        )
+    fun shouldScrollForStreamingRevision_whenRevisionIsPositive() {
+        assertTrue(ChatThreadScrollPolicy.shouldScrollForStreamingRevision(streamingRevision = 1))
+        assertFalse(ChatThreadScrollPolicy.shouldScrollForStreamingRevision(streamingRevision = 0))
     }
 }
