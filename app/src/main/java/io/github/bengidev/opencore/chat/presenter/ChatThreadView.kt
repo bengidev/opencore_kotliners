@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -21,6 +20,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -31,7 +31,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.withFrameNanos
 import io.github.bengidev.opencore.chat.application.ChatState
-import io.github.bengidev.opencore.chat.application.ChatStreamingCoalescingPolicy
 import io.github.bengidev.opencore.chat.domain.ChatMessageRole
 import io.github.bengidev.opencore.chat.theme.ChatTheme
 import io.github.bengidev.opencore.chat.theme.OpenCoreChatTheme
@@ -41,6 +40,8 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 
 private const val HISTORY_RESTORE_SCROLL_DELAY_MS = 50L
+private const val IME_LAYOUT_SCROLL_DELAY_MS = 180L
+private const val STREAM_FINAL_LAYOUT_SCROLL_DELAY_MS = 64L
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -83,21 +84,19 @@ internal fun ChatThreadView(
         }
 
         val listState = rememberLazyListState()
-        val pendingByteCount = maxOf(
-            state.currentPartialText.encodeToByteArray().size,
-            state.currentPartialThinking.encodeToByteArray().size,
-            state.streamingOutputStreamId?.let { 1 } ?: 0,
-        )
         val displayMessages = ChatThreadLayoutPolicy.displayOrder(state.messages)
         val bottomTargetIndex = ChatThreadLayoutPolicy.tailScrollIndex(displayMessages)
-        val lastDisplayMessage = displayMessages.lastOrNull()
         val lastAssistantTextId = displayMessages.lastOrNull {
             it.role == ChatMessageRole.ASSISTANT && it.kind == SidePanelMessageKind.TEXT
         }?.id
         val imeVisible = WindowInsets.isImeVisible
         val imeBottomPx = WindowInsets.ime.getBottom(LocalDensity.current)
         var previousMessageCount by remember { mutableIntStateOf(0) }
+        var previousImeBottomPx by remember { mutableIntStateOf(0) }
+        var previousIsSending by remember { mutableStateOf(state.isSending) }
         var scrollToBottomRequest by remember { mutableLongStateOf(0L) }
+        var previousStreamingRevision by remember { mutableIntStateOf(state.streamingRevision) }
+        var previousStreamingStatus by remember { mutableStateOf(state.streamingStatus) }
 
         LaunchedEffect(scrollToBottomRequest, bottomTargetIndex) {
             if (scrollToBottomRequest == 0L) return@LaunchedEffect
@@ -113,30 +112,77 @@ internal fun ChatThreadView(
             state.messages.size,
             state.streamingRevision,
             state.streamingStatus,
+            state.isSending,
             imeVisible,
             imeBottomPx,
         ) {
-            if (imeVisible && imeBottomPx <= 0) return@LaunchedEffect
             val messageCount = state.messages.size
+            val streamingRevisionChanged = state.streamingRevision != previousStreamingRevision
+            val streamingStatusChanged = state.streamingStatus != previousStreamingStatus
+            val streamFinished = ChatThreadScrollPolicy.shouldScrollForStreamFinished(
+                wasSending = previousIsSending,
+                isSending = state.isSending,
+            )
+            val newMessageAdded = ChatThreadScrollPolicy.shouldScrollForNewMessage(
+                previousMessageCount = previousMessageCount,
+                messageCount = messageCount,
+            )
+            val imeChanged = ChatThreadScrollPolicy.shouldScrollForImeChange(
+                imeBottomPx = imeBottomPx,
+                previousImeBottomPx = previousImeBottomPx,
+            )
+            val shouldScroll = when {
+                streamFinished -> true
+                newMessageAdded -> true
+                imeChanged -> true
+                streamingRevisionChanged ->
+                    ChatThreadScrollPolicy.shouldScrollForStreamingRevision(state.streamingRevision)
+                streamingStatusChanged -> true
+                else -> false
+            }
+            if (!shouldScroll) return@LaunchedEffect
+
             val isBulkRestore = ChatThreadScrollPolicy.isBulkRestore(
                 previousMessageCount = previousMessageCount,
                 messageCount = messageCount,
             )
-            val animate = ChatThreadScrollPolicy.shouldAnimateScroll(
-                isBulkRestore = isBulkRestore,
-                streamingRevision = state.streamingRevision,
-                imeVisible = imeVisible,
-                previousMessageCount = previousMessageCount,
-            )
+            val animate = when {
+                streamFinished -> true
+                streamingStatusChanged -> true
+                newMessageAdded ->
+                    ChatThreadScrollPolicy.shouldAnimateScroll(
+                        isBulkRestore = isBulkRestore,
+                        streamingRevision = state.streamingRevision,
+                        imeVisible = imeVisible,
+                        previousMessageCount = previousMessageCount,
+                    )
+                imeChanged -> true
+                else -> false
+            }
             previousMessageCount = messageCount
-            if (isBulkRestore) {
-                delay(HISTORY_RESTORE_SCROLL_DELAY_MS)
-            } else if (state.streamingRevision > 0) {
-                val delayMs = ChatStreamingCoalescingPolicy.scrollDelayMs(pendingByteCount)
-                if (delayMs > 0L) delay(delayMs)
+            previousImeBottomPx = imeBottomPx
+            previousIsSending = state.isSending
+            previousStreamingRevision = state.streamingRevision
+            previousStreamingStatus = state.streamingStatus
+            when {
+                isBulkRestore -> delay(HISTORY_RESTORE_SCROLL_DELAY_MS)
+                streamFinished -> delay(STREAM_FINAL_LAYOUT_SCROLL_DELAY_MS)
+                imeChanged && ChatThreadScrollPolicy.shouldDelayForImeLayout(imeBottomPx) -> {
+                    delay(IME_LAYOUT_SCROLL_DELAY_MS)
+                }
             }
             withFrameNanos { }
             scrollThreadToBottom(listState, bottomTargetIndex, animate = animate)
+            if (streamFinished) {
+                withFrameNanos { }
+                delay(STREAM_FINAL_LAYOUT_SCROLL_DELAY_MS)
+                withFrameNanos { }
+                scrollThreadToBottom(listState, bottomTargetIndex, animate = false)
+            }
+            if (imeChanged && imeBottomPx > 0) {
+                withFrameNanos { }
+                scrollThreadToBottom(listState, bottomTargetIndex, animate = false)
+            }
         }
 
         BoxWithConstraints(
@@ -153,18 +199,18 @@ internal fun ChatThreadView(
                     .heightIn(max = maxHeight),
                 reverseLayout = ChatThreadLayoutPolicy.useReverseLayout(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(vertical = 8.dp),
+                contentPadding = ChatThreadLayoutPolicy.contentPadding(),
             ) {
                 val hasCompetingStream = ChatCompetingStreamPolicy.hasCompetingStream(state)
                 items(
                     items = displayMessages,
                     key = ChatThreadItemKeyPolicy::keyFor,
                 ) { message ->
-                    val isLastMessage = message.id == lastDisplayMessage?.id
                     val isStreamingAssistant = state.isSending &&
-                        isLastMessage &&
+                        message.id == state.streamingAnswerId &&
                         message.kind == SidePanelMessageKind.TEXT &&
-                        message.role == ChatMessageRole.ASSISTANT
+                        message.role == ChatMessageRole.ASSISTANT &&
+                        !message.isComplete
                     ChatMessageRowView(
                         message = message,
                         isLastAssistantMessage = message.id == lastAssistantTextId,

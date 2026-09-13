@@ -1,10 +1,5 @@
 package io.github.bengidev.opencore.chat.presenter
 
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -21,7 +16,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -29,7 +23,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.bengidev.opencore.chat.theme.ChatTheme
@@ -112,8 +105,6 @@ internal fun ChatReasoningCardView(
             StreamingReasoningText(
                 content = content,
                 isStreaming = isStreaming,
-                textColor = palette.reasoningText,
-                cursorColor = palette.streamingDot,
             )
         }
         }
@@ -124,45 +115,15 @@ internal fun ChatReasoningCardView(
 private fun StreamingReasoningText(
     content: String,
     isStreaming: Boolean,
-    textColor: Color,
-    cursorColor: Color,
 ) {
     val typography = ChatTheme.typography
     val displayedContent = content.ifEmpty { if (isStreaming) "…" else "" }
 
-    val cursorAlpha by if (isStreaming) {
-        val transition = rememberInfiniteTransition(label = "reasoning-cursor")
-        transition.animateFloat(
-            initialValue = 1f,
-            targetValue = 0.2f,
-            animationSpec = infiniteRepeatable(tween(550), RepeatMode.Reverse),
-            label = "cursor-alpha",
-        )
-    } else {
-        remember { mutableStateOf(0f) }
-    }
-
-    if (isStreaming) {
-        key("reasoning-streaming") {
-            ChatRichContentColumn(
-                markdown = displayedContent,
-                profile = ChatMarkwonRenderer.Profile.Thinking,
-                modifier = Modifier.fillMaxWidth(),
-                progressive = true,
-                showsStreamingCursor = true,
-                streamingCursorColor = cursorColor,
-                streamingCursorOpacity = cursorAlpha,
-                streamingRawTextStyle = typography.reasoningBody,
-                streamingRawColor = textColor,
-            )
-        }
-    } else {
-        key("reasoning-rich") {
-            ChatRichContentColumn(
-                markdown = displayedContent,
-                profile = ChatMarkwonRenderer.Profile.Thinking,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-    }
+    ChatRichContentColumn(
+        markdown = displayedContent,
+        profile = ChatMarkwonRenderer.Profile.Thinking,
+        modifier = Modifier.fillMaxWidth(),
+        progressive = isStreaming,
+        streamingRawTextStyle = typography.reasoningBody,
+    )
 }

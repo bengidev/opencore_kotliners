@@ -238,6 +238,114 @@ class ChatRichContentSegmenterTest {
     }
 
     @Test
+    fun segmentProgressive_completedParagraphs_freezeBeforeGrowingTail() {
+        val markdown = "First paragraph.\n\nSecond paragraph.\n\nThird still typing"
+
+        val segments = ChatRichContentSegmenter.segment(markdown, progressive = true)
+
+        assertTrue(
+            segments.any { segment ->
+                segment is ChatRichContentSegment.Prose && segment.markdown.contains("First paragraph.")
+            }
+        )
+        assertTrue(
+            segments.any { segment ->
+                segment is ChatRichContentSegment.Prose && segment.markdown.contains("Second paragraph.")
+            }
+        )
+        assertTrue(
+            segments.any { segment ->
+                segment is ChatRichContentSegment.RawFragment && segment.text.contains("Third still typing")
+            }
+        )
+    }
+
+    @Test
+    fun segment_displayMath_extractsMathBlock() {
+        val markdown =
+            """
+            Intro
+
+            $$
+            \int_0^1 x^2\,dx = \frac{1}{3}
+            $$
+
+            Outro
+            """.trimIndent()
+
+        val segments = ChatRichContentSegmenter.segment(markdown)
+
+        assertEquals(3, segments.size)
+        assertEquals(ChatRichContentSegment.Prose("Intro\n\n"), segments[0])
+        assertTrue(segments[1] is ChatRichContentSegment.MathBlock)
+        assertTrue((segments[1] as ChatRichContentSegment.MathBlock).latex.contains("\\int_0^1"))
+        assertEquals(ChatRichContentSegment.Prose("\n\nOutro"), segments[2])
+    }
+
+    @Test
+    fun segmentProgressive_unclosedInlineDollar_splitsRichPrefixFromRawTail() {
+        val markdown = "Partial \$E = mc"
+
+        val segments = ChatRichContentSegmenter.segment(markdown, progressive = true)
+
+        assertEquals(2, segments.size)
+        assertEquals(ChatRichContentSegment.Prose("Partial "), segments[0])
+        assertEquals(ChatRichContentSegment.RawFragment("\$E = mc"), segments[1])
+    }
+
+    @Test
+    fun segment_currencyDollar_keepsGfmTableAsProse() {
+        val markdown =
+            """
+            3. Why ReLU Is So Popular
+
+            | Property | What It Means |
+            |----------|---------------|
+            | **Speed** | Costs less than $5 per layer |
+            """.trimIndent()
+
+        val segments = ChatRichContentSegmenter.segment(markdown, progressive = true)
+
+        assertFalse(
+            segments.any { segment ->
+                segment is ChatRichContentSegment.RawFragment && segment.text.contains("| Property |")
+            }
+        )
+        assertTrue(
+            segments.any { segment ->
+                segment is ChatRichContentSegment.Prose && segment.markdown.contains("| Property |")
+            }
+        )
+        assertTrue(
+            segments.any { segment ->
+                segment is ChatRichContentSegment.Prose && segment.markdown.contains("**Speed**")
+            }
+        )
+    }
+
+    @Test
+    fun segmentProgressive_unclosedDisplayMath_splitsRichPrefixFromRawTail() {
+        val markdown = "Partial \$\$E = mc"
+
+        val segments = ChatRichContentSegmenter.segment(markdown, progressive = true)
+
+        assertEquals(2, segments.size)
+        assertEquals(ChatRichContentSegment.Prose("Partial "), segments[0])
+        assertEquals(ChatRichContentSegment.RawFragment("\$\$E = mc"), segments[1])
+    }
+
+    @Test
+    fun segmentProgressive_unclosedBracketMath_splitsRichPrefixFromRawTail() {
+        val markdown = "Partial \\[E = mc"
+
+        val segments = ChatRichContentSegmenter.segment(markdown, progressive = true)
+
+        assertEquals(2, segments.size)
+        assertEquals(ChatRichContentSegment.Prose("Partial "), segments[0])
+        assertEquals(ChatRichContentSegment.RawFragment("\\[E = mc"), segments[1])
+    }
+
+    @Test
     fun segmentProgressive_completedProseBeforeRawTail_splitsRichAndRaw() {
         val markdown = "Done **bold**\n\n```mermaid\ngraph TD\n```\n\nTail `open"
 

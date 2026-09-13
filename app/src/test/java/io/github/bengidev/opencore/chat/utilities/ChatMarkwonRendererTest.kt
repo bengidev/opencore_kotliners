@@ -5,8 +5,10 @@ import android.text.style.StyleSpan
 import android.text.style.TypefaceSpan
 import android.text.style.URLSpan
 import android.widget.TextView
+import io.github.bengidev.opencore.onboarding.theme.DarkOpenCorePalette
 import io.github.bengidev.opencore.onboarding.theme.LightOpenCorePalette
 import io.noties.markwon.ext.tables.TableRowSpan
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -66,6 +68,57 @@ class ChatMarkwonRendererTest {
 
         val urlSpans = rendered.getSpans(start, start + "https://example.com".length, URLSpan::class.java)
         assertTrue(urlSpans.isNotEmpty())
+    }
+
+    @Test
+    fun applyTo_skipsWhenMarkdownUnchanged() {
+        val textView = TextView(context)
+        val markdown = "Stable **bold** line."
+
+        ChatMarkwonRenderer.applyTo(
+            textView = textView,
+            markdown = markdown,
+            palette = palette,
+            profile = ChatMarkwonRenderer.Profile.Assistant,
+            context = context,
+        )
+        val firstText = textView.text.toString()
+
+        ChatMarkwonRenderer.applyTo(
+            textView = textView,
+            markdown = markdown,
+            palette = palette,
+            profile = ChatMarkwonRenderer.Profile.Assistant,
+            context = context,
+        )
+
+        assertTrue(textView.tag is String)
+        assertEquals(firstText, textView.text.toString())
+    }
+
+    @Test
+    fun applyTo_reappliesWhenPaletteChanges() {
+        val textView = TextView(context)
+        val markdown = "Theme-sensitive **bold** line."
+
+        ChatMarkwonRenderer.applyTo(
+            textView = textView,
+            markdown = markdown,
+            palette = palette,
+            profile = ChatMarkwonRenderer.Profile.Assistant,
+            context = context,
+        )
+        val lightTag = textView.tag
+
+        ChatMarkwonRenderer.applyTo(
+            textView = textView,
+            markdown = markdown,
+            palette = DarkOpenCorePalette,
+            profile = ChatMarkwonRenderer.Profile.Assistant,
+            context = context,
+        )
+
+        assertNotEquals(lightTag, textView.tag)
     }
 
     @Test

@@ -60,12 +60,16 @@ internal object ChatMarkwonRenderer {
     ) {
         val normalized = ChatAssistantMarkdownPreprocessor.normalize(markdown)
         val cacheKey = cacheKey(normalized, profile)
+        val applyTag = applyTagKey(normalized, profile, palette.isDark)
+        if (textView.tag == applyTag) return
+
         val markwon = createMarkwon(context, palette, profile)
         val rendered = cache.get(cacheKey, palette.isDark)
             ?: render(normalized, palette, profile, context).also {
                 cache.put(cacheKey, palette.isDark, it)
             }
         markwon.setParsedMarkdown(textView, rendered)
+        textView.tag = applyTag
     }
 
     private fun render(
@@ -132,6 +136,9 @@ internal object ChatMarkwonRenderer {
 
     private fun cacheKey(normalized: String, profile: Profile): String =
         "${profile.name}\u0000$normalized"
+
+    private fun applyTagKey(normalized: String, profile: Profile, isDark: Boolean): String =
+        "${profile.name}\u0000$isDark\u0000$normalized"
 
     private fun requireContext(context: Context?): Context =
         checkNotNull(context) { "Context is required for Markwon rendering." }

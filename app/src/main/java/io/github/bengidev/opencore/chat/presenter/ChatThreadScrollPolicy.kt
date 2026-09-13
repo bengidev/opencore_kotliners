@@ -9,8 +9,8 @@ internal object ChatThreadScrollPolicy {
         previousMessageCount: Int,
     ): Boolean =
         !isBulkRestore &&
-            streamingRevision == 0 &&
             !imeVisible &&
+            streamingRevision == 0 &&
             previousMessageCount <= 1
 
     /** Reasoning-card collapse shrinks row height; animated scroll flashes prior turns. */
@@ -20,4 +20,25 @@ internal object ChatThreadScrollPolicy {
 
     fun isBulkRestore(previousMessageCount: Int, messageCount: Int): Boolean =
         previousMessageCount == 0 && messageCount > 1
+
+    /** Scroll on every coalesced streaming flush, matching iOS `onChange(streamingRevision)`. */
+    fun shouldScrollForStreamingRevision(streamingRevision: Int): Boolean = streamingRevision > 0
+
+    fun shouldScrollForNewMessage(
+        previousMessageCount: Int,
+        messageCount: Int,
+    ): Boolean = messageCount > previousMessageCount
+
+    fun shouldScrollForImeChange(
+        imeBottomPx: Int,
+        previousImeBottomPx: Int,
+    ): Boolean = imeBottomPx != previousImeBottomPx
+
+    fun shouldDelayForImeLayout(imeBottomPx: Int): Boolean = imeBottomPx > 0
+
+    /** Rich markdown (tables, embeds) often grows after the stream ends. */
+    fun shouldScrollForStreamFinished(
+        wasSending: Boolean,
+        isSending: Boolean,
+    ): Boolean = wasSending && !isSending
 }
